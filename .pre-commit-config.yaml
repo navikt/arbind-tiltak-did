@@ -1,0 +1,35 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-toml
+      - id: check-yaml
+      - id: detect-private-key
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-added-large-files
+  - repo: local
+    hooks:
+      - id: local-ruff-check
+        name: ruff check
+        entry: uv run --only-dev ruff check --force-exclude --fix --exit-non-zero-on-fix
+        require_serial: true
+        language: unsupported
+        types: [python]
+      - id: local-ruff-format
+        name: ruff format
+        entry: uv run --only-dev ruff format --force-exclude --exit-non-zero-on-format
+        require_serial: true
+        language: unsupported
+        types: [python]
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.19.1
+    hooks:
+      - id: mypy
+        types: [python]
+        args: [--strict, --ignore-missing-imports]
+        additional_dependencies: []
+  - repo: https://github.com/kynan/nbstripout
+    rev: 0.9.1
+    hooks:
+      - id: nbstripout
