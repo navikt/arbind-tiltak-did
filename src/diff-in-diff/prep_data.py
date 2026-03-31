@@ -1,8 +1,9 @@
-"""
-Preps data for analysis. Mainly feature engineering. 
-"""
+"""Preps data for analysis. Mainly feature engineering."""
+
+from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 import yaml
@@ -12,10 +13,10 @@ import yaml
 CONFIG_PATH = Path(__file__).parent / "analysis-config.yml"
 
 
-def load_config(path: Path = CONFIG_PATH) -> dict:
+def load_config(path: Path = CONFIG_PATH) -> dict[str, Any]:
     """Load the analysis config from *path*."""
     with open(path, encoding="utf-8") as f:
-        return yaml.safe_load(f)
+        return yaml.safe_load(f)  # type: ignore[no-any-return]
 
 
 def _convert_aarmnd_format(df: pd.DataFrame, date_col: str) -> pd.DataFrame:
@@ -23,19 +24,25 @@ def _convert_aarmnd_format(df: pd.DataFrame, date_col: str) -> pd.DataFrame:
     if date_col in df.columns:
         for fmt in ("%d-%m-%Y", "%Y-%m-%d"):
             try:
-                df[date_col] = pd.to_datetime(
-                    df[date_col], format=fmt
-                ).dt.strftime("%Y%m")
+                df[date_col] = pd.to_datetime(df[date_col], format=fmt).dt.strftime(
+                    "%Y%m"
+                )
                 break
-            except (ValueError, TypeError):
+            except ValueError, TypeError:
                 continue
     return df
 
-def convert_to_long_format(df: pd.DataFrame, id_vars: list[str], value_vars_prefix: str) -> pd.DataFrame:
+
+def convert_to_long_format(
+    df: pd.DataFrame, id_vars: list[str], value_vars_prefix: str
+) -> pd.DataFrame:
     """Convert *df* from wide to long format based on *id_vars* and *value_vars_prefix*."""
     value_vars = [col for col in df.columns if col.startswith(value_vars_prefix)]
-    long_df = df.melt(id_vars=id_vars, value_vars=value_vars, var_name="variable", value_name="value")
+    long_df = df.melt(
+        id_vars=id_vars, value_vars=value_vars, var_name="variable", value_name="value"
+    )
     return long_df
+
 
 def load_and_merge(indikator_path: Path, tiltak_path: Path) -> pd.DataFrame:
     """Load indicator and tiltak data, standardize date formats, convert to long format, and merge on common keys."""
@@ -45,29 +52,34 @@ def load_and_merge(indikator_path: Path, tiltak_path: Path) -> pd.DataFrame:
     indikator_df = _convert_aarmnd_format(indikator_df, "aarmnd")
     tiltak_df = _convert_aarmnd_format(tiltak_df, "aarmnd")
 
-    indikator_df = convert_to_long_format(indikator_df, id_vars=["region", "aarmnd"], value_vars_prefix="indikator")
-    tiltak_df = convert_to_long_format(tiltak_df, id_vars=["region", "aarmnd"], value_vars_prefix="tiltak")
+    indikator_df = convert_to_long_format(
+        indikator_df, id_vars=["region", "aarmnd"], value_vars_prefix="indikator"
+    )
+    tiltak_df = convert_to_long_format(
+        tiltak_df, id_vars=["region", "aarmnd"], value_vars_prefix="tiltak"
+    )
 
     merged_df = pd.merge(indikator_df, tiltak_df, on=["region", "aarmnd"], how="left")
     return merged_df
+
 
 def _add_time_features(df: pd.DataFrame, treatment_start: str) -> pd.DataFrame:
     """Add time-based features to *df*."""
     df["aarmnd"] = pd.to_datetime(df["aarmnd"], format="%Y%m")
     df["year"] = df["aarmnd"].dt.year
     df["month_of_year"] = df["aarmnd"].dt.month
-    df["relative_month"] = (
-        (df["aarmnd"].dt.year - int(treatment_start[:4])) * 12 + 
-        (df["aarmnd"].dt.month - int(treatment_start[4:]))
+    df["relative_month"] = (df["aarmnd"].dt.year - int(treatment_start[:4])) * 12 + (
+        df["aarmnd"].dt.month - int(treatment_start[4:])
     )
     df["post_treatment"] = df["relative_month"] > 0
     return df
 
+
 def build_treatment_variable(
-        df: pd.DataFrame,
-        treatment_type: str,
-        denominator: str = "peak",
-    ) -> pd.DataFrame:
+    df: pd.DataFrame,
+    treatment_type: str,
+    denominator: str = "peak",
+) -> pd.DataFrame:
     """Create a continuous treatment variable (tiltaksnedgang).
 
     Parameters
@@ -98,7 +110,9 @@ def build_treatment_variable(
                 .rename("ref_tiltak")
             )
         else:
-            raise ValueError(f"Unknown denominator '{denominator}'. Use 'peak' or 'last_pre'.")
+            raise ValueError(
+                f"Unknown denominator '{denominator}'. Use 'peak' or 'last_pre'."
+            )
 
         df = df.merge(ref, on="region", how="left")
         df["tiltaksnedgang"] = 0.0
@@ -112,6 +126,7 @@ def build_treatment_variable(
         # Implement discrete treatment logic here
         pass
     return df
+
 
 def prepare_panel(
     indicator_path: Path,
@@ -148,11 +163,11 @@ def prepare_panel(
         if date_col in df.columns:
             for fmt in ("%d-%m-%Y", "%Y-%m-%d"):
                 try:
-                    df[date_col] = pd.to_datetime(
-                        df[date_col], format=fmt
-                    ).dt.strftime("%Y%m")
+                    df[date_col] = pd.to_datetime(df[date_col], format=fmt).dt.strftime(
+                        "%Y%m"
+                    )
                     break
-                except (ValueError, TypeError):
+                except ValueError, TypeError:
                     continue
         return df
 
@@ -188,10 +203,9 @@ def prepare_panel(
 
     if processed_path is not None:
         processed_path.parent.mkdir(parents=True, exist_ok=True)
-        df.drop(columns=["period"], errors="ignore").to_csv(
-            processed_path, index=False
-        )
+        df.drop(columns=["period"], errors="ignore").to_csv(processed_path, index=False)
     return df
+
 
 if __name__ == "__main__":
     cfg = load_config()
@@ -207,5 +221,7 @@ if __name__ == "__main__":
             treatment_start=treatment_start,
             treatment_type=treatment_type,
             denominator="peak",
-            processed_path=Path(f"data/processed/panel_regioner_lønnstilskudd_{ind['name']}.csv"),
+            processed_path=Path(
+                f"data/processed/panel_regioner_lønnstilskudd_{ind['name']}.csv"
+            ),
         )

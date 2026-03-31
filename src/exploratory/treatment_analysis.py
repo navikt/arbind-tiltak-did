@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import Any
 
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
@@ -48,9 +49,18 @@ LIGHT_GREY = "#D9D9D9"
 MID_GREY = "#888888"
 
 REGION_PALETTE = [
-    "#003366", "#C8102E", "#E87722", "#00A0B0", "#6A5ACD",
-    "#2E8B57", "#8B4513", "#D4698B", "#708090", "#DAA520",
-    "#4169E1", "#808000",
+    "#003366",
+    "#C8102E",
+    "#E87722",
+    "#00A0B0",
+    "#6A5ACD",
+    "#2E8B57",
+    "#8B4513",
+    "#D4698B",
+    "#708090",
+    "#DAA520",
+    "#4169E1",
+    "#808000",
 ]
 
 plt.rcParams.update(
@@ -76,10 +86,10 @@ def _short(region: str) -> str:
 # ── Config ─────────────────────────────────────────────────────────────────────
 
 
-def load_config(path: Path = CONFIG_PATH) -> dict:
+def load_config(path: Path = CONFIG_PATH) -> dict[str, Any]:
     """Load and return the analysis config from *path*."""
     with open(path, encoding="utf-8") as f:
-        return yaml.safe_load(f)
+        return yaml.safe_load(f)  # type: ignore[no-any-return]
 
 
 # ── Treatment variable computation ────────────────────────────────────────────
@@ -96,7 +106,7 @@ def compute_tiltaksnedgang(df: pd.DataFrame, denominator: str) -> pd.Series:
         ``"peak"``     – max tiltak in pre-period per region.
         ``"last_pre"`` – tiltak at relative_month == -1 per region.
 
-    Returns
+    Returns:
     -------
     pd.Series
         tiltaksnedgang, same index as *df*, 0 in pre-period.
@@ -105,18 +115,15 @@ def compute_tiltaksnedgang(df: pd.DataFrame, denominator: str) -> pd.Series:
     post_mask = ~pre_mask
 
     if denominator == "peak":
-        ref = (
-            df.loc[pre_mask, ["region", "tiltak"]]
-            .groupby("region")["tiltak"]
-            .max()
-        )
+        ref = df.loc[pre_mask, ["region", "tiltak"]].groupby("region")["tiltak"].max()
     elif denominator == "last_pre":
-        ref = (
-            df.loc[df["relative_month"] == -1, ["region", "tiltak"]]
-            .set_index("region")["tiltak"]
-        )
+        ref = df.loc[df["relative_month"] == -1, ["region", "tiltak"]].set_index(
+            "region"
+        )["tiltak"]
     else:
-        raise ValueError(f"Unknown denominator '{denominator}'. Use 'peak' or 'last_pre'.")
+        raise ValueError(
+            f"Unknown denominator '{denominator}'. Use 'peak' or 'last_pre'."
+        )
 
     ref_series = df["region"].map(ref)
     result = pd.Series(0.0, index=df.index)
@@ -126,7 +133,9 @@ def compute_tiltaksnedgang(df: pd.DataFrame, denominator: str) -> pd.Series:
     return result
 
 
-def add_all_definitions(df: pd.DataFrame, definitions: list[dict]) -> pd.DataFrame:
+def add_all_definitions(
+    df: pd.DataFrame, definitions: list[dict[str, Any]]
+) -> pd.DataFrame:
     """Add a ``tiltaksnedgang_{id}`` column for each entry in *definitions*.
 
     Parameters
@@ -136,7 +145,7 @@ def add_all_definitions(df: pd.DataFrame, definitions: list[dict]) -> pd.DataFra
     definitions:
         List of dicts with keys ``id`` and ``label`` from the config.
 
-    Returns
+    Returns:
     -------
     pd.DataFrame
         *df* with extra columns ``tiltaksnedgang_{id}`` and
@@ -149,15 +158,12 @@ def add_all_definitions(df: pd.DataFrame, definitions: list[dict]) -> pd.DataFra
         # Also store the reference level used for each definition
         if defn["id"] == "peak":
             ref = (
-                df.loc[pre_mask, ["region", "tiltak"]]
-                .groupby("region")["tiltak"]
-                .max()
+                df.loc[pre_mask, ["region", "tiltak"]].groupby("region")["tiltak"].max()
             )
         else:
-            ref = (
-                df.loc[df["relative_month"] == -1, ["region", "tiltak"]]
-                .set_index("region")["tiltak"]
-            )
+            ref = df.loc[df["relative_month"] == -1, ["region", "tiltak"]].set_index(
+                "region"
+            )["tiltak"]
         df[f"ref_tiltak_{defn['id']}"] = df["region"].map(ref)
     return df
 
@@ -167,7 +173,7 @@ def add_all_definitions(df: pd.DataFrame, definitions: list[dict]) -> pd.DataFra
 
 def plot_tiltaksnedgang_comparison(
     df: pd.DataFrame,
-    definitions: list[dict],
+    definitions: list[dict[str, Any]],
     treatment_label: str,
     out_dir: Path,
 ) -> Path:
@@ -184,7 +190,7 @@ def plot_tiltaksnedgang_comparison(
     out_dir:
         Directory to save the PNG.
 
-    Returns
+    Returns:
     -------
     Path
         Path to the saved figure.
@@ -220,7 +226,9 @@ def plot_tiltaksnedgang_comparison(
 
     axes[0].set_ylabel("Tiltaksnedgang")
     axes[-1].legend(loc="upper left", fontsize=8, ncol=2, frameon=False)
-    fig.suptitle("Tiltaksnedgang per region — sammenligning av definisjoner", fontsize=12, y=1.01)
+    fig.suptitle(
+        "Tiltaksnedgang per region — sammenligning av definisjoner", fontsize=12, y=1.01
+    )
 
     out = out_dir / "tiltaksnedgang_comparison.png"
     fig.savefig(out)
@@ -229,7 +237,9 @@ def plot_tiltaksnedgang_comparison(
     return out
 
 
-def plot_tiltak_over_time(df: pd.DataFrame, treatment_label: str, out_dir: Path) -> Path:
+def plot_tiltak_over_time(
+    df: pd.DataFrame, treatment_label: str, out_dir: Path
+) -> Path:
     """Line chart of raw tiltak headcounts per region across the full panel.
 
     Parameters
@@ -241,7 +251,7 @@ def plot_tiltak_over_time(df: pd.DataFrame, treatment_label: str, out_dir: Path)
     out_dir:
         Directory to save the PNG.
 
-    Returns
+    Returns:
     -------
     Path
         Path to the saved figure.
@@ -260,10 +270,14 @@ def plot_tiltak_over_time(df: pd.DataFrame, treatment_label: str, out_dir: Path)
         )
     ax.axvline(0, color=NAV_RED, linestyle="--", linewidth=1.2, zorder=3)
     ax.text(
-        0.5, 0.97,
+        0.5,
+        0.97,
         f"Behandlingsstart ({treatment_label})",
         transform=ax.get_xaxis_transform(),
-        color=NAV_RED, fontsize=8, ha="left", va="top",
+        color=NAV_RED,
+        fontsize=8,
+        ha="left",
+        va="top",
     )
     ax.set_xlabel("Måneder relativt til behandlingsstart")
     ax.set_ylabel("Antall deltakere")
@@ -281,7 +295,7 @@ def plot_tiltak_over_time(df: pd.DataFrame, treatment_label: str, out_dir: Path)
 
 def plot_heatmap_comparison(
     df: pd.DataFrame,
-    definitions: list[dict],
+    definitions: list[dict[str, Any]],
     out_dir: Path,
 ) -> Path:
     """Side-by-side heatmaps of tiltaksnedgang by region × post-treatment month.
@@ -295,7 +309,7 @@ def plot_heatmap_comparison(
     out_dir:
         Directory to save the PNG.
 
-    Returns
+    Returns:
     -------
     Path
         Path to the saved figure.
@@ -330,11 +344,20 @@ def plot_heatmap_comparison(
                 val = pivot.values[i, j]
                 if not np.isnan(val):
                     ax.text(
-                        j, i, f"{val:.0%}", ha="center", va="center", fontsize=7,
+                        j,
+                        i,
+                        f"{val:.0%}",
+                        ha="center",
+                        va="center",
+                        fontsize=7,
                         color="white" if val > 0.55 else "black",
                     )
 
-    fig.suptitle("Tiltaksnedgang per region og måned — sammenligning av definisjoner", fontsize=12, y=1.01)
+    fig.suptitle(
+        "Tiltaksnedgang per region og måned — sammenligning av definisjoner",
+        fontsize=12,
+        y=1.01,
+    )
     out = out_dir / "heatmap_comparison.png"
     fig.savefig(out)
     plt.close(fig)
@@ -344,7 +367,7 @@ def plot_heatmap_comparison(
 
 def plot_reference_comparison(
     df: pd.DataFrame,
-    definitions: list[dict],
+    definitions: list[dict[str, Any]],
     out_dir: Path,
 ) -> Path:
     """Side-by-side bar charts showing each definition's reference level per region.
@@ -358,7 +381,7 @@ def plot_reference_comparison(
     out_dir:
         Directory to save the PNG.
 
-    Returns
+    Returns:
     -------
     Path
         Path to the saved figure.
@@ -377,20 +400,26 @@ def plot_reference_comparison(
             .reset_index()
         )
         ref["short"] = ref["region"].map(_short)
-        bars = ax.bar(ref["short"], ref[ref_col], color=NAV_BLUE, edgecolor="white", linewidth=0.5)
+        bars = ax.bar(
+            ref["short"], ref[ref_col], color=NAV_BLUE, edgecolor="white", linewidth=0.5
+        )
         for bar, val in zip(bars, ref[ref_col]):
             ax.text(
                 bar.get_x() + bar.get_width() / 2,
                 bar.get_height() + 5,
                 str(int(val)),
-                ha="center", va="bottom", fontsize=8,
+                ha="center",
+                va="bottom",
+                fontsize=8,
             )
         ax.set_title(f"Definisjon: {defn['label']}")
         ax.set_ylabel("Referansenivå (antall deltakere)")
         ax.tick_params(axis="x", rotation=35)
         ax.set_ylim(0, ref[ref_col].max() * 1.18)
 
-    fig.suptitle("Referansenivå per region — sammenligning av definisjoner", fontsize=12, y=1.01)
+    fig.suptitle(
+        "Referansenivå per region — sammenligning av definisjoner", fontsize=12, y=1.01
+    )
     out = out_dir / "reference_comparison.png"
     fig.savefig(out)
     plt.close(fig)
@@ -408,7 +437,7 @@ def _md_table(df: pd.DataFrame) -> str:
     return "\n".join([header, sep, *rows])
 
 
-def _monthly_summary_table(df: pd.DataFrame, definitions: list[dict]) -> str:
+def _monthly_summary_table(df: pd.DataFrame, definitions: list[dict[str, Any]]) -> str:
     """Per-month stats table comparing both definitions."""
     post = df[df["relative_month"] >= 0]
     if post.empty:
@@ -416,7 +445,7 @@ def _monthly_summary_table(df: pd.DataFrame, definitions: list[dict]) -> str:
     rows = []
     for t in sorted(post["relative_month"].unique()):
         sub = post[post["relative_month"] == t]
-        row: dict = {"Måned": f"t+{int(t)}"}
+        row: dict[str, Any] = {"Måned": f"t+{int(t)}"}
         for defn in definitions:
             col = f"tiltaksnedgang_{defn['id']}"
             vals = sub[col]
@@ -426,7 +455,7 @@ def _monthly_summary_table(df: pd.DataFrame, definitions: list[dict]) -> str:
     return _md_table(pd.DataFrame(rows))
 
 
-def _last_month_table(df: pd.DataFrame, definitions: list[dict]) -> str:
+def _last_month_table(df: pd.DataFrame, definitions: list[dict[str, Any]]) -> str:
     """Region ranking at the last post-treatment month for both definitions."""
     post = df[df["relative_month"] >= 0]
     if post.empty:
@@ -439,7 +468,10 @@ def _last_month_table(df: pd.DataFrame, definitions: list[dict]) -> str:
     )
     last["Region"] = last["region"].map(_short)
     last["Tiltak (nå)"] = last["tiltak"].astype(int)
-    out_cols: dict = {"Region": last["Region"], "Tiltak (nå)": last["Tiltak (nå)"]}
+    out_cols: dict[str, Any] = {
+        "Region": last["Region"],
+        "Tiltak (nå)": last["Tiltak (nå)"],
+    }
     for defn in definitions:
         col = f"tiltaksnedgang_{defn['id']}"
         out_cols[defn["label"]] = last[col].map(lambda x: f"{x:.1%}")
@@ -451,7 +483,7 @@ def _last_month_table(df: pd.DataFrame, definitions: list[dict]) -> str:
 
 def generate_report(
     panels: dict[str, pd.DataFrame],
-    definitions: list[dict],
+    definitions: list[dict[str, Any]],
     treatment_label: str,
 ) -> None:
     """Write the markdown report to ``REPORT_PATH``."""
@@ -461,8 +493,11 @@ def generate_report(
 
     def_bullets = "\n".join(
         f"- **{d['label']}** (`{d['id']}`): "
-        + ("høyeste antall deltakere i pre-perioden." if d["id"] == "peak"
-           else "antall deltakere måneden før behandlingsstart (t = −1).")
+        + (
+            "høyeste antall deltakere i pre-perioden."
+            if d["id"] == "peak"
+            else "antall deltakere måneden før behandlingsstart (t = −1)."
+        )
         for d in definitions
     )
 
@@ -473,7 +508,8 @@ def generate_report(
             "**Tiltaksnedgang** måler andelen av et regionens referansenivå i midlertidig "
             f"lønnstilskudd som er avviklet etter behandlingsstart ({treatment_label}). "
             "Denne analysen sammenligner to definisjoner av referansenivået (nevneren):\n\n"
-            + def_bullets + "\n\n"
+            + def_bullets
+            + "\n\n"
             "Formelen er den samme for begge: "
             "tiltaksnedgang = max(0, (ref − tiltak) / ref), klippet til [0, 1]. "
             "I pre-perioden er variabelen 0 per konstruksjon.\n"
@@ -518,6 +554,7 @@ def generate_report(
 
 
 def main() -> None:
+    """Run the exploratory treatment analysis pipeline."""
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s  %(levelname)-8s  %(name)s — %(message)s",
@@ -526,14 +563,15 @@ def main() -> None:
 
     cfg = load_config()
     treatment_start: str = cfg["analysis"]["treatment_start"]
-    definitions: list[dict] = cfg["analysis"].get(
+    definitions: list[dict[str, Any]] = cfg["analysis"].get(
         "denominator_definitions",
         [{"id": "peak", "label": "Topp (pre-periode)"}],
     )
-    indikatorer: list[dict] = cfg["data"]["indikatorer"]
+    indikatorer: list[dict[str, Any]] = cfg["data"]["indikatorer"]
 
     # Human-readable treatment month label (YYYYMM → "mai 2025")
-    import calendar, locale as _locale
+    import locale as _locale
+
     try:
         _locale.setlocale(_locale.LC_TIME, "nb_NO.UTF-8")
     except _locale.Error:
@@ -551,17 +589,26 @@ def main() -> None:
             logger.warning("Panel not found: %s — run prep_data.py first", path)
             continue
         # Load the processed panel (already has tiltak, relative_month, region)
-        processed = PROJECT_ROOT / "data" / "processed" / f"panel_regioner_lønnstilskudd_{ind['name']}.csv"
+        processed = (
+            PROJECT_ROOT
+            / "data"
+            / "processed"
+            / f"panel_regioner_lønnstilskudd_{ind['name']}.csv"
+        )
         if processed.exists():
             df = pd.read_csv(processed, parse_dates=["aarmnd"])
         else:
-            logger.warning("Processed panel not found: %s — run prep_data.py first", processed)
+            logger.warning(
+                "Processed panel not found: %s — run prep_data.py first", processed
+            )
             continue
         df = add_all_definitions(df, definitions)
         panels[ind["name"]] = df
         logger.info(
             "Loaded %s: %d rows, %d regions, %d post-treatment months",
-            ind["name"], len(df), df["region"].nunique(),
+            ind["name"],
+            len(df),
+            df["region"].nunique(),
             df[df["relative_month"] >= 0]["relative_month"].nunique(),
         )
 
@@ -581,4 +628,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

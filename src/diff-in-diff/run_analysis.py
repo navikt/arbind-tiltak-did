@@ -8,6 +8,7 @@ from __future__ import annotations
 import logging
 import sys
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 import yaml
@@ -34,16 +35,16 @@ logger = logging.getLogger("run_analysis")
 # ── Config ─────────────────────────────────────────────────────────────────────
 
 
-def _load_config(path: Path = CONFIG_PATH) -> dict:
+def _load_config(path: Path = CONFIG_PATH) -> dict[str, Any]:
     """Load and return the YAML analysis configuration."""
     with open(path, encoding="utf-8") as f:
-        return yaml.safe_load(f)
+        return yaml.safe_load(f)  # type: ignore[no-any-return]
 
 
 # ── Pipeline ───────────────────────────────────────────────────────────────────
 
 
-def _check_inputs(cfg: dict) -> bool:
+def _check_inputs(cfg: dict[str, Any]) -> bool:
     """Verify all required input files exist; return False on any missing file."""
     missing = []
     tiltak_path = PROJECT_ROOT / cfg["data"]["tiltak_file"]
@@ -66,7 +67,7 @@ def _run_indicator(
     treatment_start: str,
     treatment_type: str,
     denominator: str,
-) -> dict | None:
+) -> dict[str, Any] | None:
     """Prepare data, run regression models for one indicator; return result dict."""
     from prep_data import prepare_panel
     from regression import run_baseline_model, run_preferred_model
@@ -84,7 +85,9 @@ def _run_indicator(
 
     n_post = int(panel["post_treatment"].sum() // panel["region"].nunique())
     if n_post == 0:
-        logger.warning("%s: skipping — no post-treatment months available.", indicator_name)
+        logger.warning(
+            "%s: skipping — no post-treatment months available.", indicator_name
+        )
         return None
 
     n_obs = len(panel)
@@ -109,7 +112,7 @@ def _run_indicator(
     }
 
 
-def _save_regression_table(all_results: dict[str, dict | None]) -> None:
+def _save_regression_table(all_results: dict[str, dict[str, Any] | None]) -> None:
     """Save a summary regression table (one row per model) for all indicators.
 
     Parameters
@@ -146,7 +149,7 @@ def _save_regression_table(all_results: dict[str, dict | None]) -> None:
     logger.info("Regression table saved to %s", out)
 
 
-def _save_coefficients_table(all_results: dict[str, dict | None]) -> None:
+def _save_coefficients_table(all_results: dict[str, dict[str, Any] | None]) -> None:
     """Save a tidy table with every coefficient from all models and indicators.
 
     Each row represents one coefficient and includes a ``koeffisient_type``
@@ -197,7 +200,7 @@ def main() -> int:
 
     tiltak_path = PROJECT_ROOT / cfg["data"]["tiltak_file"]
 
-    all_results: dict[str, dict | None] = {}
+    all_results: dict[str, dict[str, Any] | None] = {}
     failed: list[str] = []
 
     for ind in cfg["data"]["indikatorer"]:
@@ -233,6 +236,7 @@ def main() -> int:
 
         logger.info("Generating report")
         from report import generate_report
+
         REPORT_DIR.mkdir(parents=True, exist_ok=True)
         generate_report(
             all_results=all_results,

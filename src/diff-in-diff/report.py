@@ -12,9 +12,13 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 import matplotlib.pyplot as plt
 import pandas as pd
+
+if TYPE_CHECKING:
+    from regression import RegressionResult
 
 # ── Nav brand colours ─────────────────────────────────────────────────────────
 
@@ -79,7 +83,9 @@ def _plot_trends(
         sub = trend[trend["gruppe"] == gruppe].sort_values("aarmnd")
         ax.plot(sub["aarmnd"], sub["indikator"], color=color, label=gruppe, linewidth=2)
 
-    ax.axvline(ts_dt, color="black", linestyle="--", linewidth=1, label="Behandlingsstart")
+    ax.axvline(
+        ts_dt, color="black", linestyle="--", linewidth=1, label="Behandlingsstart"
+    )
     ax.set_ylabel("Gjennomsnitt (%)", fontsize=11)
     ax.set_title(f"Trender over tid — {indicator_label}", fontsize=13)
     ax.legend(frameon=False)
@@ -116,7 +122,9 @@ def _plot_fe_coefficients(
         fig, ax = plt.subplots(figsize=(max(8, n * 0.5), max(4, n * 0.35)))
 
         colors = [_RED if p < 0.05 else _LIGHT_BLUE for p in group["p_verdi"]]
-        ax.barh(group["koeffisient_navn"], group["estimat"], color=colors, edgecolor="none")
+        ax.barh(
+            group["koeffisient_navn"], group["estimat"], color=colors, edgecolor="none"
+        )
         ax.axvline(0, color="black", linewidth=0.8)
         ax.set_xlabel("Koeffisient", fontsize=11)
         ax.set_title(f"{fe_type} — {indicator_label}", fontsize=13)
@@ -148,7 +156,7 @@ def _descriptive_stats_md(panel: pd.DataFrame, indicator_name: str) -> str:
     stats.index = [indicator_name, "Tiltaksnedgang (0–1)", "Tiltak (antall)"]
     stats = stats[["mean", "std", "min", "max"]].round(3)
     stats.columns = ["Gjennomsnitt", "Std.avvik", "Min", "Maks"]
-    return stats.to_markdown()
+    return stats.to_markdown() or ""
 
 
 def _intensity_table_md(panel: pd.DataFrame) -> str:
@@ -162,10 +170,12 @@ def _intensity_table_md(panel: pd.DataFrame) -> str:
         .round(3)
     )
     tbl.columns = ["Region", "Gj.snitt nedgang (0–1)"]
-    return tbl.to_markdown(index=False)
+    return tbl.to_markdown(index=False) or ""
 
 
-def _regression_table_md(baseline, preferred) -> str:
+def _regression_table_md(
+    baseline: "RegressionResult", preferred: "RegressionResult"
+) -> str:
     """Return a markdown table comparing baseline and preferred model results."""
     rows = []
     for res in (baseline, preferred):
@@ -182,15 +192,15 @@ def _regression_table_md(baseline, preferred) -> str:
                 "Clustere": res.n_clusters,
             }
         )
-    return pd.DataFrame(rows).to_markdown(index=False)
+    return pd.DataFrame(rows).to_markdown(index=False) or ""
 
 
 # ── Main entry point ──────────────────────────────────────────────────────────
 
 
 def generate_report(
-    all_results: dict[str, dict | None],
-    cfg: dict,
+    all_results: dict[str, dict[str, Any] | None],
+    cfg: dict[str, Any],
     output_path: Path,
     figures_dir: Path,
     tables_dir: Path,

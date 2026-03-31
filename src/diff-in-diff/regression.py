@@ -1,5 +1,4 @@
-"""
-Panel fixed effects regression with CR1 clustered standard errors.
+"""Panel fixed effects regression with CR1 clustered standard errors.
 
 Two models are estimated using OLS with explicit dummy variables (via
 :func:`pandas.get_dummies`) and :mod:`statsmodels`.
@@ -13,8 +12,8 @@ CR1 small-sample correction:  ``G / (G − 1) × (N − 1) / (N − K)``.
 """
 
 import logging
-from typing import Any
 from dataclasses import dataclass, field
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -95,6 +94,7 @@ def _build_regressors(panel: pd.DataFrame, preferred: bool) -> pd.DataFrame:
     X.insert(0, "const", 1.0)
     return X
 
+
 def _compute_within_r2(y: pd.Series, X: pd.DataFrame, panel: pd.DataFrame) -> float:
     """Return within-R² (variation explained after demeaning by region mean)."""
     region_means = y.groupby(panel["region"].values).transform("mean")
@@ -173,6 +173,7 @@ def _estimate(
     )
     return result
 
+
 def run_baseline_model(panel: pd.DataFrame) -> RegressionResult:
     """Estimate the baseline model (region FE + year-month FE).
 
@@ -235,7 +236,7 @@ def extract_all_coefficients(result: RegressionResult) -> pd.DataFrame:
     result:
         A :class:`RegressionResult` with a non-``None`` ``result_obj``.
 
-    Returns
+    Returns:
     -------
     DataFrame with columns:
         ``koeffisient_navn``, ``koeffisient_type``, ``modell``,
