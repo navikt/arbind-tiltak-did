@@ -68,7 +68,8 @@ def _run_indicator(
     treatment_type: str,
     denominator: str,
 ) -> dict[str, Any] | None:
-    """Prepare data, run regression models for one indicator; return result dict."""
+    """Prepare data, run regression and event study for one indicator; return result dict."""
+    from event_study import run_event_study
     from prep_data import prepare_panel
     from regression import run_baseline_model, run_preferred_model
 
@@ -105,9 +106,13 @@ def _run_indicator(
     baseline = run_baseline_model(panel)
     preferred = run_preferred_model(panel)
 
+    logger.info("Running event study for %s", indicator_name)
+    event_study = run_event_study(panel)
+
     return {
         "baseline": baseline,
         "preferred": preferred,
+        "event_study": event_study,
         "panel": panel,
     }
 

@@ -10,10 +10,10 @@ analysis:
   #   peak     – denominator is the highest tiltak count in the pre-period
   #   last_pre – denominator is tiltak in the last month before treatment (t = -1)
   denominator_definitions:
-    - id: peak
-      label: "Topp (pre-periode)"
     - id: last_pre
       label: "Siste pre-måned (t-1)"
+    - id: peak
+      label: "Topp (pre-periode)"
 
 # ── Data sources ───────────────────────────────────────────────────────────────
 data:

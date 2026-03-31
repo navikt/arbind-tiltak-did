@@ -147,6 +147,58 @@ def _plot_fe_coefficients(
     return paths
 
 
+def _plot_event_study(
+    event_study: Any,
+    indicator_name: str,
+    indicator_label: str,
+    figures_dir: Path,
+) -> Path:
+    """Plot event-study coefficients with 95% CI bands.
+
+    Pre-period estimates are shown in blue, post-period in red.
+    A horizontal line at zero and a vertical dashed line at τ = 0 are included.
+    Returns the saved figure path.
+    """
+    coefs = event_study.coefs
+    taus = [c.tau for c in coefs]
+    betas = [c.coefficient for c in coefs]
+    ci_lo = [c.ci_lower for c in coefs]
+    ci_hi = [c.ci_upper for c in coefs]
+
+    colors = [_RED if t >= 0 else _BLUE for t in taus]
+
+    fig, ax = plt.subplots(figsize=(12, 5))
+    for tau, beta, lo, hi, color in zip(taus, betas, ci_lo, ci_hi, colors):
+        ax.plot([tau, tau], [lo, hi], color=color, linewidth=1.2, alpha=0.6)
+    ax.scatter(taus, betas, color=colors, zorder=3, s=18)
+    ax.axhline(0, color="black", linewidth=0.8, linestyle="-")
+    ax.axvline(
+        0, color="black", linewidth=0.8, linestyle="--", label="Behandlingsstart"
+    )
+    ax.set_xlabel("Måneder relativt til behandlingsstart (τ)", fontsize=11)
+    ax.set_ylabel("Koeffisient (β_τ)", fontsize=11)
+    ax.set_title(f"Eventstudie — {indicator_label}", fontsize=13)
+    ax.spines[["top", "right"]].set_visible(False)
+
+    p_val = event_study.pretrend_p_value
+    f_stat = event_study.pretrend_f_stat
+    df_n = event_study.pretrend_df_num
+    df_d = event_study.pretrend_df_denom
+    ax.text(
+        0.02,
+        0.97,
+        f"Pre-trend F({df_n},{df_d}) = {f_stat:.2f}  p = {p_val:.3f}",
+        transform=ax.transAxes,
+        va="top",
+        fontsize=9,
+        color="dimgray",
+    )
+
+    out = figures_dir / f"event_study_{indicator_name}.png"
+    _save_fig(fig, out)
+    return out
+
+
 # ── Markdown building blocks ──────────────────────────────────────────────────
 
 
@@ -211,7 +263,7 @@ def generate_report(
     ----------
     all_results:
         Dict mapping indicator name → result dict with keys ``"baseline"``,
-        ``"preferred"``, and ``"panel"``.
+        ``"preferred"``, ``"event_study"``, and ``"panel"``.
     cfg:
         The loaded analysis config dict.
     output_path:
@@ -285,6 +337,7 @@ def generate_report(
         panel: pd.DataFrame = res["panel"]
         baseline = res["baseline"]
         preferred = res["preferred"]
+        event_study = res.get("event_study")
 
         lines += [f"## {label} (`{ind_name}`)", ""]
 
@@ -355,6 +408,39 @@ def generate_report(
                     f"![]({_rel(fig_path, report_dir)}){{fig-align='center' width=90%}}",
                     "",
                 ]
+
+        # Event study
+        if event_study is not None:
+            es_path = _plot_event_study(
+                event_study=event_study,
+                indicator_name=ind_name,
+                indicator_label=label,
+                figures_dir=figures_dir,
+            )
+            p = event_study.pretrend_p_value
+            f = event_study.pretrend_f_stat
+            dfn = event_study.pretrend_df_num
+            dfd = event_study.pretrend_df_denom
+            pretrend_verdict = (
+                "Det er **ikke** statistisk grunnlag for å forkaste parallelle trender "
+                f"(F({dfn},{dfd}) = {f:.2f}, p = {p:.3f})."
+                if p >= 0.10
+                else f"**Advarsel:** pre-trend-testen er signifikant "
+                f"(F({dfn},{dfd}) = {f:.2f}, p = {p:.3f}), noe som svekker DiD-antakelsen."
+            )
+            lines += [
+                "### Eventstudie og parallell-trend-test",
+                "",
+                "Eventsstudien samhandler periodevise indikatorer med en tidsinvariant "
+                "intensitetsscore per region (maksimal tiltaksnedgang i post-perioden). "
+                "Pre-periode-koeffisientene (τ < 0) bør ligge nær null dersom "
+                "parallelle trender holder.",
+                "",
+                pretrend_verdict,
+                "",
+                f"![]({_rel(es_path, report_dir)}){{fig-align='center' width=95%}}",
+                "",
+            ]
 
     # ── Footer ────────────────────────────────────────────────────────────────
     lines += [
