@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 
 if TYPE_CHECKING:
@@ -199,6 +200,65 @@ def _plot_event_study(
     return out
 
 
+def _plot_bootstrap(
+    bootstrap: Any,
+    indicator_name: str,
+    indicator_label: str,
+    model_label: str,
+    figures_dir: Path,
+) -> Path:
+    """Plot the bootstrap t-distribution with the observed t-statistic marked.
+
+    Fills the rejection region (|t| ≥ |t_obs|) in red.
+    Returns the saved figure path.
+    """
+    t_boots = bootstrap.bootstrap_t_stats
+    t_obs = bootstrap.observed_t_stat
+    p_val = bootstrap.bootstrap_p_value
+
+    fig, ax = plt.subplots(figsize=(9, 4))
+    ax.hist(
+        t_boots,
+        bins=60,
+        color=_LIGHT_BLUE,
+        edgecolor="none",
+        density=True,
+        label="Bootstrap t*",
+    )
+
+    # Shade the rejection region
+    reject_mask = np.abs(t_boots) >= np.abs(t_obs)
+    if reject_mask.any():
+        ax.hist(
+            t_boots[reject_mask],
+            bins=60,
+            color=_RED,
+            edgecolor="none",
+            density=True,
+            alpha=0.7,
+            label=f"|t*| ≥ |t_obs| ({reject_mask.mean():.3f})",
+        )
+
+    ax.axvline(
+        t_obs, color=_RED, linewidth=1.5, linestyle="--", label=f"t_obs = {t_obs:.2f}"
+    )
+    ax.axvline(-t_obs, color=_RED, linewidth=1.5, linestyle="--")
+    ax.set_xlabel("Bootstrap t-statistikk", fontsize=11)
+    ax.set_ylabel("Tetthet", fontsize=11)
+    ax.set_title(
+        f"Wild cluster bootstrap — {indicator_label} ({model_label})\n"
+        f"p-verdi = {p_val:.3f}  (n = {bootstrap.n_boot:,})",
+        fontsize=12,
+    )
+    ax.legend(frameon=False, fontsize=9)
+    ax.spines[["top", "right"]].set_visible(False)
+
+    slug = model_label.lower().replace(" ", "_")
+    out = figures_dir / f"bootstrap_{slug}_{indicator_name}.png"
+    _save_fig(fig, out)
+    return out
+
+
 # ── Markdown building blocks ──────────────────────────────────────────────────
 
 
@@ -226,19 +286,29 @@ def _intensity_table_md(panel: pd.DataFrame) -> str:
 
 
 def _regression_table_md(
-    baseline: "RegressionResult", preferred: "RegressionResult"
+    baseline: "RegressionResult",
+    preferred: "RegressionResult",
+    bootstrap_baseline: Any = None,
+    bootstrap_preferred: Any = None,
 ) -> str:
-    """Return a markdown table comparing baseline and preferred model results."""
+    """Return a markdown table comparing baseline and preferred model results.
+
+    Significance stars are based on bootstrap p-values when available,
+    falling back to asymptotic p-values otherwise.
+    """
     rows = []
-    for res in (baseline, preferred):
-        sig = _sig_stars(res.p_value)
+    for res, boot in [(baseline, bootstrap_baseline), (preferred, bootstrap_preferred)]:
+        p_primary = boot.bootstrap_p_value if boot is not None else res.p_value
+        sig = _sig_stars(p_primary)
+        p_boot_str = f"{boot.bootstrap_p_value:.3f}" if boot is not None else "—"
         rows.append(
             {
                 "Modell": res.model_name,
                 "Koeffisient": f"{res.coefficient:.4f}{sig}",
                 "Std.feil (CR1)": f"{res.std_error:.4f}",
                 "t-stat": f"{res.t_stat:.3f}",
-                "p-verdi": f"{res.p_value:.4f}",
+                "p (bootstrap)": p_boot_str,
+                "p (asymptotisk)": f"{res.p_value:.4f}",
                 "95% KI": f"[{res.ci_lower:.4f}, {res.ci_upper:.4f}]",
                 "Obs.": res.n_obs,
                 "Clustere": res.n_clusters,
@@ -324,7 +394,9 @@ def generate_report(
         "- **Foretrukket:** Basis + region × kalendermåned FE (absorberer regionspesifikke sesongmønstre)",
         "",
         "> **Signifikansnivå:** \\* p < 0,10 &nbsp; \\*\\* p < 0,05 &nbsp; \\*\\*\\* p < 0,01  ",
-        "> Standardfeil er clustret på regionnivå (CR1 småutvalgskorrigering).",
+        "> Standardfeil er clustret på regionnivå (CR1 småutvalgskorrigering).  ",
+        "> Med kun G = 12 regioner er asymptotisk clusterinferens upålitelig; "
+        "primær p-verdi er basert på wild cluster bootstrap med Webb-vekter (B = 4 999).",
         "",
     ]
 
@@ -337,6 +409,8 @@ def generate_report(
         panel: pd.DataFrame = res["panel"]
         baseline = res["baseline"]
         preferred = res["preferred"]
+        bootstrap_baseline = res.get("bootstrap_baseline")
+        bootstrap_preferred = res.get("bootstrap_preferred")
         event_study = res.get("event_study")
 
         lines += [f"## {label} (`{ind_name}`)", ""]
@@ -372,15 +446,43 @@ def generate_report(
         ]
 
         # Regression results
+        n_boot = bootstrap_preferred.n_boot if bootstrap_preferred else 0
         lines += [
             "### Regresjonsresultater",
             "",
             "Koeffisienten angir estimert effekt av å gå fra null til full tiltaksnedgang "
-            "(behandlingsintensitet = 1) på indikatoren, i prosentpoeng.",
+            "(behandlingsintensitet = 1) på indikatoren, i prosentpoeng. "
+            f"Signifikansstjerner og primær p-verdi basert på wild cluster bootstrap "
+            f"(Webb-vekter, G = 12, B = {n_boot:,}).",
             "",
-            _regression_table_md(baseline, preferred),
+            _regression_table_md(
+                baseline,
+                preferred,
+                bootstrap_baseline=bootstrap_baseline,
+                bootstrap_preferred=bootstrap_preferred,
+            ),
+            "",
+            "> **Signifikansnivå (bootstrap):** "
+            "\\* p < 0,10 &nbsp; \\*\\* p < 0,05 &nbsp; \\*\\*\\* p < 0,01",
             "",
         ]
+
+        # Bootstrap distribution plots
+        if bootstrap_baseline is not None and bootstrap_preferred is not None:
+            boot_paths = [
+                _plot_bootstrap(
+                    bootstrap_baseline, ind_name, label, "Basis", figures_dir
+                ),
+                _plot_bootstrap(
+                    bootstrap_preferred, ind_name, label, "Sesongjustert", figures_dir
+                ),
+            ]
+            lines += ["### Bootstrap-fordeling", ""]
+            for bp in boot_paths:
+                lines += [
+                    f"![]({_rel(bp, report_dir)}){{fig-align='center' width=90%}}",
+                    "",
+                ]
 
         # FE coefficient plots
         coef_df = pd.concat(

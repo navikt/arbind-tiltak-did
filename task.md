@@ -1,104 +1,80 @@
-# Coding Agent Prompt: Panel Fixed Effects Analysis of Downsizing on Employment
+# Coding Agent Guide: Panel Fixed Effects Analysis of Downsizing on Employment
 
 ## Background
 
-The Norwegian Labour and Welfare Administration (Nav) with **12 regions** underwent a significant reduction in use of "arbeidsmarkedstiltak" (referred to as "downsizing") starting in **May 2025**, continuing gradually through the autumn. Nav experienced a general decline in their ability to help people get a job both before and after the downsizing. The downsizing was distributed unevenly across regions — some were largely unaffected, others had moderate reductions, and others very large ones. Regions operate independently and do not influence each other's ability to help people get a job.
+The Norwegian Labour and Welfare Administration (Nav) with **12 regions** underwent a significant reduction in use of "arbeidsmarkedstiltak" (referred to as "tiltaksnedgang") starting in **May 2025**, continuing gradually through the autumn. The reduction was distributed unevenly across regions. Regions operate independently.
 
 There is prior evidence that **regions with larger downsizing were overperforming before the cuts**. This is an important analytical consideration: it means the treatment was not applied to already-weak offices, which strengthens the case for a causal interpretation of any post-treatment decline, and suggests estimates may be conservative.
 
 ## Objective
 
-Determine whether the downsizing had a causal effect on Nav's indicator for effect on employment, and estimate its magnitude. Produce clean, well-documented code suitable for a professional setting, and write up the findings in a markdown report.
+Determine whether the downsizing had a causal effect on Nav's indicator for effect on employment, and estimate its magnitude. Produce clean, well-documented code suitable for a professional setting, and write up the findings in a quarto report.
 
 ---
 
-## Data
+## Tooling
 
-Two sets of data will be used:
-
-- **Monthly indicator for Nav's effect on employment** per region
-- **Monthly people on arbeidsmarkedstiltak** per region
-
-Data spans January 2021 through December 2025 (60 months × 12 regions). The code should validate the inputs on load — checking for missing offices, duplicate records, and implausible values — and raise informative errors if validation fails.
-
-The method of aquiring the data will be specified later. 
-
-### Treatment variable
-
-The primary treatment variable should be a **continuous, time-varying measure of downsizing intensity**: the fraction of people on arbeidsmarkedstiltak lost at each office relative to its pre-treatment peak, set to zero for all months before June 2025. This captures the gradual nature of the reduction and allows for a dose-response interpretation of results.
+- **Package manager:** `uv`. Always use `uv run <tool>` — never activate the venv manually.
+- **Task runner:** `just`. Key recipes: `just fix` (ruff auto-fix + format), `just lint` (full pre-commit suite including mypy), `just render` (Quarto report).
+- **Python ≥ 3.12.** Use `from __future__ import annotations` at the top of every module.
+- **Type annotations:** all public functions must be fully typed. Use `dict[str, Any]` not bare `dict`. When mypy requires stub packages (`types-*`), add them to both `[dependency-groups] dev` in `pyproject.toml` and to `additional_dependencies` in the mypy hook in `.pre-commit-config.yaml`.
+- Always run `just fix && just lint` before finishing a task.
 
 ---
 
-## Project Structure
-
-Organise the project with a clear separation of concerns:
+## Project structure
 
 ```
-project/
-├── data/
-│   ├── raw/
-│   └── processed/
-├── outputs/
-│   ├── figures/
-│   └── tables/
-├── src/                  # individual modules for each analysis step
-└── run_analysis.py       # single entry point that runs the full pipeline
+src/
+├── diff-in-diff/        ★ Main analysis package — all new development goes here
+├── exploratory/         Exploratory comparison of tiltaksnedgang definitions
+├── fetch_data/          BigQuery extraction stubs
+└── old-code/            Reference only — do NOT import from here
+data/
+├── raw/                 CSVs of the indikator and tiltak
+└── processed/           Where processed panels are stored
+outputs
+└── did/                 Main results: figures, tables and report. 
 ```
 
----
-
-## Analysis
-
-Implement the following steps as separate, importable modules in `src/`. All functions should have docstrings and type hints. Use Python's `logging` module rather than bare `print` statements.
-
-### 1. Data preparation
-Load, validate, merge, and engineer all necessary features. Save the processed panel dataset before proceeding.
-
-### 2. Panel regression with fixed effects
-
-Estimate the effect of downsizing on Nav's employment outcome using OLS with:
-- **Office fixed effects** — absorbs time-invariant differences between offices
-- **Year-month fixed effects** — absorbs firm-wide trends and macro conditions, including the pre-existing employment outcome decline
-- **Office × calendar-month fixed effects** — absorbs office-specific seasonal patterns
-
-Implement the regression and clustered standard errors using external regression libraries. Apply **CR1 small-sample correction** to the clustered standard errors.
-
-Run two models: one without the seasonal fixed effects (baseline) and one with (preferred specification). The treatment coefficient represents the estimated change in monthly employment outcomes per unit increase in downsizing intensity. Report results for both models.
-
-### 3. Event study
-
-Estimate a separate treatment coefficient for each month in a window of roughly 24 months before and 6 months after June 2025, omitting the month immediately before treatment as the base period. Each coefficient is estimated as an interaction between a period indicator and the office-level downsizing intensity.
-
-This serves two purposes:
-- **Pre-trend test:** coefficients in the months before June 2025 should be statistically indistinguishable from zero if the parallel trends assumption holds. Given the pre-period overperformance by heavily-cut offices, mildly positive pre-period coefficients are plausible and should be noted — they would imply the post-treatment estimates are conservative.
-- **Dynamic effects:** reveals whether the employment impact is immediate, builds over time, or fades.
-
-Perform a joint statistical test that all pre-period coefficients are zero, and report the result.
-
-### 4. Wild cluster bootstrap
-
-With only 12 offices, asymptotic cluster-robust standard errors can be unreliable. Implement a **wild cluster bootstrap using Webb (6-point) weights**, which is specifically recommended for small cluster counts. Use a sufficient number of replications (at minimum 4,999) with a fixed random seed for reproducibility.
-
-The bootstrap p-value for the main treatment coefficient should be treated as the **primary inferential result**. Asymptotic p-values are secondary.
 
 ---
 
-## Outputs
+## Configuration
 
-- **Three figures:** an exploratory overview (firm-wide trends, group comparisons, pre-period performance scatter, headcount chart), an event study plot, and a bootstrap distribution plot. Save as PNG files.
-- **A results table** summarising both regression models. Save as CSV.
-- **A markdown report** (`report.md`) written to the project root, structured as a proper analytical write-up with the following sections:
-    - Background and research question
-    - Data and methodology
-    - Results (incorporating figures inline and referencing the key numbers from the regression and bootstrap output)
-    - Interpretation and caveats
-    - Conclusion
+All analysis parameters live in `src/diff-in-diff/analysis-config.yml`. The pipeline reads this file at startup — **do not hardcode paths or parameters in Python**. To add an indicator, append an entry under `indikatorer`. To change the tiltak source, update `tiltak_file`.
+
+---
+
+## Module responsibilities
+
+### `prep_data.py`
+Loads raw CSVs (wide or long format), standardises `aarmnd` to YYYYMM, merges indicator and tiltak data, and engineers features. Column contract for all downstream modules: `region`, `aarmnd` (datetime), `indikator` (float), `tiltak` (float), `tiltaksnedgang` (float 0–1), `relative_month` (int), `post_treatment` (bool), `month_of_year` (int), `year` (int).
+
+### `regression.py`
+Two model specs — **Baseline** (region FE + year-month FE) and **Preferred** (+ region × calendar-month FE). CR1 small-sample correction: `G/(G−1) × (N−1)/(N−K)`. `extract_all_coefficients(result)` returns a tidy DataFrame with a `koeffisient_type` column classifying each parameter.
+
+### `event_study.py`
+Specification: `Y_{it} = Σ_τ β_τ · s_i · 1{relative_month = τ} + α_i + γ_t + ε_{it}`, where `s_i = max post-period tiltaksnedgang` per region. Window τ ∈ [−24, +4], base period τ = −1 omitted. Includes a joint pre-trend Wald F-test using a pseudoinverse when the covariance matrix is rank-deficient (common since 23 pre-period lags > G−1 = 11).
+
+### `cluster_bootstrap.py`
+Wild cluster bootstrap imposing H₀: β_tiltaksnedgang = 0, using Webb 6-point weights. Algorithm: FWL projection once, then vectorised bootstrap (B × N matrix ops), CR1 SE per replicate, two-sided p-value. Run on both baseline and preferred models. **Bootstrap p-values are the primary inferential result.**
+
+### `report.py`
+Writes `report.qmd` (Quarto, Norwegian). Significance stars in the regression table use bootstrap p-values; both bootstrap and asymptotic p-values are shown. Figures: trends, FE coefficients, event study, bootstrap distribution.
+
+### `run_analysis.py`
+Pipeline entry point. Reads config, loops over indicators. Per-indicator: `prepare_panel` → regressions → bootstrap → event study → report. Outputs: `regression_results.csv`, `alle_koeffisienter.csv`, `report.qmd`.
+
+---
+
+## Report
 
 The report should be written in a professional but readable tone — intended for a non-technical audience familiar with the business context. Key numbers (the estimated effect, confidence interval, and bootstrap p-value) should be stated clearly in plain language. The pre-period overperformance finding and its implications for causal interpretation should be discussed explicitly. The report should be written in Norwegian. 
 
 ---
 
-## Methodological Notes
+## Methodological notes
 
 **Why the treatment variable is time-varying:** the downsizing was gradual, not a single event. A ramp variable based on actual headcount changes is more appropriate than a binary post-indicator, and allows testing for a dose-response relationship between cut severity and employment impact.
 

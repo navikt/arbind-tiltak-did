@@ -10,10 +10,6 @@ Nav måler effekten av sitt arbeid gjennom månedlige **arbeidsindikatorer** per
 |:----------|:----------|
 | atid3 | Gjennomsnittlig ukentlig arbeidstid neste 3 måneder |
 | jobb3 | I jobb (mer enn 19 timer i uken) etter 3 måneder |
-| atid12 | Gjennomsnittlig ukentlig arbeidstid neste 12 måneder |
-| jobb12 | I jobb (mer enn 19 timer i uken) etter 12 måneder  |
-
-
 
 Analysen søker å besvare spørsmålet: *Bidro tiltaksnedbyggingen til en ytterligere nedgang i indikatorene, utover den generelle trenden?*
 
@@ -23,9 +19,9 @@ Analysen søker å besvare spørsmålet: *Bidro tiltaksnedbyggingen til en ytter
 
 En binær behandlingsvariabel (behandlet/ikke behandlet) ville ikke fanget den gradvise og regionsspesifikke karakteren til nedbyggingen. I stedet bruker vi en **kontinuerlig, tidsvarierende nedbyggingsintensitet**:
 
-$$D_{it} = \max\!\left(0,\; \frac{\text{topp}_i - \text{tiltak}_{it}}{\text{topp}_i}\right) \quad \text{for } t \geq \text{juni 2025}, \quad D_{it} = 0 \text{ ellers}$$
+$$D_{it} = \max\!\left(0,\; \frac{\text{før}_i - \text{tiltak}_{it}}{\text{topp}_i}\right) \quad \text{for } t \geq \text{juni 2025}, \quad D_{it} = 0 \text{ ellers}$$
 
-Her er $\text{topp}_i$ det høyeste antallet tiltaksplasser region $i$ hadde i pre-behandlingsperioden (en naturlig «baseline»), og $\text{tiltak}_{it}$ er faktisk antall tiltaksplasser i måned $t$. Variabelen går fra 0 (ingen reduksjon) til 1 (total eliminering) og er definert som null i alle måneder før juni 2025.
+Her er $\text{før}_i$ antallet tiltaksplasser region $i$ hadde i rett før pre-behandlingsperioden (en naturlig «baseline»), og $\text{tiltak}_{it}$ er faktisk antall tiltaksplasser i måned $t$. Variabelen går fra 0 (ingen reduksjon) til 1 (total eliminering) og er definert som null i alle måneder før juni 2025.
 
 Dette gir to fordeler: det tillater en **dose-respons-tolkning** (større kutt gir større effekt), og det er mer informativt enn en binær indikator for analyser der behandlingsintensiteten varierer.
 

@@ -68,7 +68,8 @@ def _run_indicator(
     treatment_type: str,
     denominator: str,
 ) -> dict[str, Any] | None:
-    """Prepare data, run regression and event study for one indicator; return result dict."""
+    """Prepare data, run regression, event study, and bootstrap for one indicator; return result dict."""
+    from cluster_bootstrap import wild_cluster_bootstrap
     from event_study import run_event_study
     from prep_data import prepare_panel
     from regression import run_baseline_model, run_preferred_model
@@ -106,12 +107,18 @@ def _run_indicator(
     baseline = run_baseline_model(panel)
     preferred = run_preferred_model(panel)
 
+    logger.info("Running wild cluster bootstrap for %s", indicator_name)
+    bootstrap_baseline = wild_cluster_bootstrap(panel, preferred=False)
+    bootstrap_preferred = wild_cluster_bootstrap(panel, preferred=True)
+
     logger.info("Running event study for %s", indicator_name)
     event_study = run_event_study(panel)
 
     return {
         "baseline": baseline,
         "preferred": preferred,
+        "bootstrap_baseline": bootstrap_baseline,
+        "bootstrap_preferred": bootstrap_preferred,
         "event_study": event_study,
         "panel": panel,
     }
@@ -129,10 +136,11 @@ def _save_regression_table(all_results: dict[str, dict[str, Any] | None]) -> Non
     for ind, res in all_results.items():
         if res is None:
             continue
-        for model_name, result in [
-            ("baseline", res["baseline"]),
-            ("preferred", res["preferred"]),
+        for model_name, result, boot_key in [
+            ("baseline", res["baseline"], "bootstrap_baseline"),
+            ("preferred", res["preferred"], "bootstrap_preferred"),
         ]:
+            boot = res.get(boot_key)
             rows.append(
                 {
                     "indicator": ind,
@@ -140,11 +148,13 @@ def _save_regression_table(all_results: dict[str, dict[str, Any] | None]) -> Non
                     "coefficient": result.coefficient,
                     "std_error": result.std_error,
                     "t_stat": result.t_stat,
-                    "p_value": result.p_value,
+                    "p_value_asymp": result.p_value,
+                    "p_value_bootstrap": boot.bootstrap_p_value if boot else None,
                     "ci_lower": result.ci_lower,
                     "ci_upper": result.ci_upper,
                     "n_obs": result.n_obs,
                     "n_clusters": result.n_clusters,
+                    "n_boot": boot.n_boot if boot else None,
                 }
             )
     df = pd.DataFrame(rows)
