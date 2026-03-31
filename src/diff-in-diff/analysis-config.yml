@@ -1,0 +1,29 @@
+# ── Analysis parameters ────────────────────────────────────────────────────────
+analysis:
+  treatment_start: "202505"   # First month of treatment (YYYYMM)
+  data_start:      "202010"   # First month of the full panel
+  data_end:        "202509"   # Last month of the full panel
+  treatment_type:  "continuous"  # "continuous" or "discrete" (may expand in the future)
+
+  # Denominator definitions compared in the exploratory treatment analysis.
+  # Each entry produces a separate treatment variable series.
+  #   peak     – denominator is the highest tiltak count in the pre-period
+  #   last_pre – denominator is tiltak in the last month before treatment (t = -1)
+  denominator_definitions:
+    - id: peak
+      label: "Topp (pre-periode)"
+    - id: last_pre
+      label: "Siste pre-måned (t-1)"
+
+# ── Data sources ───────────────────────────────────────────────────────────────
+data:
+  tiltak_file: data/raw/tiltak/midl.-lønnstilskudd.csv
+
+  indikatorer:
+    - name:        atid3
+      file:        data/raw/indikatorer/regioner/atid3.csv
+      description: "Arbeidstid neste tre måneder"
+
+    - name:        jobb3
+      file:        data/raw/indikatorer/regioner/jobb3.csv
+      description: "I jobb etter 3 måneder"
