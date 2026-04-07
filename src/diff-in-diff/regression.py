@@ -96,14 +96,31 @@ def _build_regressors(panel: pd.DataFrame, preferred: bool) -> pd.DataFrame:
 
 
 def _compute_within_r2(y: pd.Series, X: pd.DataFrame, panel: pd.DataFrame) -> float:
-    """Return within-R² (variation explained after demeaning by region mean)."""
-    region_means = y.groupby(panel["region"].values).transform("mean")
-    y_within = y - region_means
-    x_within = X["tiltaksnedgang"] - X["tiltaksnedgang"].groupby(
-        panel["region"].values
-    ).transform("mean")
-    corr = np.corrcoef(y_within, x_within)[0, 1]
-    return float(corr**2)
+    """Return FE-consistent within-R² using the fitted transformed equation."""
+    fe_cols = [c for c in X.columns if c != "const" and c != "tiltaksnedgang"]
+    y_arr = y.astype(float).to_numpy()
+    x_arr = X["tiltaksnedgang"].astype(float).to_numpy()
+
+    if not fe_cols:
+        y_centered = y_arr - y_arr.mean()
+        x_centered = x_arr - x_arr.mean()
+    else:
+        Z = X[fe_cols].to_numpy(dtype=float)
+        z_coef_y, *_ = np.linalg.lstsq(Z, y_arr, rcond=None)
+        z_coef_x, *_ = np.linalg.lstsq(Z, x_arr, rcond=None)
+        y_centered = y_arr - Z @ z_coef_y
+        x_centered = x_arr - Z @ z_coef_x
+
+    denom = float(y_centered @ y_centered)
+    if denom <= 1e-12:
+        return float("nan")
+    q = float(x_centered @ x_centered)
+    if q <= 1e-12:
+        return float("nan")
+    beta = float(x_centered @ y_centered) / q
+    resid = y_centered - beta * x_centered
+    sse = float(resid @ resid)
+    return float(max(0.0, 1.0 - sse / denom))
 
 
 # ── Estimation ────────────────────────────────────────────────────────────────
@@ -126,6 +143,12 @@ def _estimate(
         X.shape[1],
         clusters.nunique(),
     )
+    rank_x = int(np.linalg.matrix_rank(X.to_numpy(dtype=float)))
+    # if rank_x < X.shape[1]:
+    #     raise ValueError(
+    #         f"{model_name}: rank-deficient design matrix "
+    #         f"(rank={rank_x}, columns={X.shape[1]})."
+    #     )
 
     cl_fit = sm.OLS(y, X).fit(
         cov_type="cluster",

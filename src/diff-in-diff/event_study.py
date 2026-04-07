@@ -124,7 +124,13 @@ def _build_event_study_regressors(
     panel = panel.copy()
     panel["_intensity"] = panel["region"].map(intensity)
 
-    taus = [t for t in range(ES_WINDOW_PRE, ES_WINDOW_POST + 1) if t != BASE_PERIOD]
+    all_taus = [t for t in range(ES_WINDOW_PRE, ES_WINDOW_POST + 1) if t != BASE_PERIOD]
+    observed_taus = set(panel["relative_month"].astype(int).unique().tolist())
+    taus = [t for t in all_taus if t in observed_taus]
+    if not taus:
+        raise ValueError(
+            "Event-study window has no overlap with observed relative_month values."
+        )
     es_cols: dict[str, pd.Series] = {}
     for tau in taus:
         col = f"es_tau_{tau:+d}".replace("+", "p").replace("-", "m")
@@ -144,8 +150,16 @@ def _build_event_study_regressors(
     )
 
     X = pd.concat([X_es, region_fe, yearmonth_fe], axis=1)
+    # Drop structurally zero columns to reduce avoidable rank deficiency.
+    nonzero_cols = X.columns[(X != 0.0).any(axis=0)]
+    X = X.loc[:, nonzero_cols]
+    es_cols_kept = [c for c in es_cols.keys() if c in X.columns]
+    if not es_cols_kept:
+        raise ValueError(
+            "No identified event-study interaction columns after removing empty columns."
+        )
     X.insert(0, "const", 1.0)
-    return X, list(es_cols.keys())
+    return X, es_cols_kept
 
 
 # ── Estimation ────────────────────────────────────────────────────────────────
@@ -186,7 +200,10 @@ def run_event_study(panel: pd.DataFrame) -> EventStudyResult:
         use_t=True,
     )
 
-    taus = [t for t in range(ES_WINDOW_PRE, ES_WINDOW_POST + 1) if t != BASE_PERIOD]
+    taus = [
+        int(col.split("_")[-1].replace("p", "+").replace("m", "-"))
+        for col in es_col_names
+    ]
     param_names = list(X.columns)
     ci_vals = cl_fit.conf_int()
     coefs: list[EventStudyCoef] = []

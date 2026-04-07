@@ -213,6 +213,8 @@ def wild_cluster_bootstrap(
     regions = panel["region"].values
     unique_clusters = np.unique(regions)
     G = len(unique_clusters)
+    if G < 2:
+        raise ValueError("Wild cluster bootstrap requires at least 2 clusters.")
 
     # Map region strings → contiguous integer cluster indices
     cluster_map = {r: i for i, r in enumerate(unique_clusters)}
@@ -228,6 +230,10 @@ def wild_cluster_bootstrap(
 
     # ── Step 2: Observed statistics ───────────────────────────────────────────
     Q = float(x_tilde @ x_tilde)
+    if Q <= 1e-12:
+        raise ValueError(
+            "Treatment is not identified after FE projection (x_tilde'x_tilde ≈ 0)."
+        )
     beta_obs = float(x_tilde @ y_tilde) / Q
     resid_obs = y_tilde - x_tilde * beta_obs
     se_obs = _cr1_se(x_tilde, resid_obs, cluster_ids, G)
@@ -269,8 +275,18 @@ def wild_cluster_bootstrap(
     var_boots = cr1_factor * np.sum(scores**2, axis=1) / (Q * Q)
     se_boots = np.sqrt(np.maximum(var_boots, 0.0))
 
-    # Bootstrap t-statistics (guarded against degenerate SE)
-    t_boots = np.where(se_boots > 1e-15, beta_boots / se_boots, 0.0)
+    # Bootstrap t-statistics; fail if too many degenerate draws.
+    valid = se_boots > 1e-15
+    n_invalid = int((~valid).sum())
+    if n_invalid > 0:
+        logger.warning(
+            "Discarding %d/%d bootstrap draws with near-zero SE.", n_invalid, n_boot
+        )
+    if not valid.any():
+        raise ValueError(
+            "All bootstrap draws had near-zero SE; bootstrap inference is unavailable."
+        )
+    t_boots = beta_boots[valid] / se_boots[valid]
 
     # ── Step 4: Two-sided p-value ─────────────────────────────────────────────
     p_value = float(np.mean(np.abs(t_boots) >= np.abs(t_obs)))
@@ -286,7 +302,7 @@ def wild_cluster_bootstrap(
         observed_t_stat=t_obs,
         observed_se=se_obs,
         bootstrap_p_value=p_value,
-        n_boot=n_boot,
+        n_boot=int(valid.sum()),
         seed=seed,
         bootstrap_t_stats=t_boots,
     )

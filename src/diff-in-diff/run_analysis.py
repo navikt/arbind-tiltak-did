@@ -85,8 +85,8 @@ def _run_indicator(
         processed_path=DATA_PROCESSED / f"panel_{indicator_name}.csv",
     )
 
-    n_post = int(panel["post_treatment"].sum() // panel["region"].nunique())
-    if n_post == 0:
+    n_post_obs = int(panel["post_treatment"].sum())
+    if n_post_obs == 0:
         logger.warning(
             "%s: skipping — no post-treatment months available.", indicator_name
         )

@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import pandas as pd
 import yaml
 
@@ -71,7 +72,8 @@ def _add_time_features(df: pd.DataFrame, treatment_start: str) -> pd.DataFrame:
     df["relative_month"] = (df["aarmnd"].dt.year - int(treatment_start[:4])) * 12 + (
         df["aarmnd"].dt.month - int(treatment_start[4:])
     )
-    df["post_treatment"] = df["relative_month"] > 0
+    # Treatment starts in the configured treatment month (relative_month == 0).
+    df["post_treatment"] = df["relative_month"] >= 0
     return df
 
 
@@ -94,7 +96,7 @@ def build_treatment_variable(
         - ``"last_pre"`` – tiltak count in the last pre-treatment month (relative_month == -1)
     """
     pre_mask = df["relative_month"] < 0
-    post_mask = ~pre_mask
+    post_mask = df["relative_month"] >= 0
     if treatment_type == "continuous":
         if denominator == "peak":
             ref = (
@@ -115,11 +117,24 @@ def build_treatment_variable(
             )
 
         df = df.merge(ref, on="region", how="left")
+
+        invalid_ref = post_mask & (df["ref_tiltak"].isna() | (df["ref_tiltak"] <= 0))
+        if invalid_ref.any():
+            bad_regions = sorted(
+                df.loc[invalid_ref, "region"].dropna().unique().tolist()
+            )
+            sample = ", ".join(bad_regions[:5])
+            raise ValueError(
+                "Cannot construct tiltaksnedgang: missing/non-positive denominator "
+                f"for {int(invalid_ref.sum())} post-treatment observations "
+                f"across {len(bad_regions)} regions (examples: {sample})."
+            )
+
         df["tiltaksnedgang"] = 0.0
-        post_fraction = (
-            df.loc[post_mask, "ref_tiltak"] - df.loc[post_mask, "tiltak"]
-        ) / df.loc[post_mask, "ref_tiltak"]
-        df.loc[post_mask, "tiltaksnedgang"] = post_fraction.clip(lower=0.0, upper=1.0)
+        post_num = df.loc[post_mask, "ref_tiltak"] - df.loc[post_mask, "tiltak"]
+        post_den = df.loc[post_mask, "ref_tiltak"]
+        post_fraction = np.where(post_den > 0, post_num / post_den, np.nan)
+        df.loc[post_mask, "tiltaksnedgang"] = np.clip(post_fraction, 0.0, 1.0)
         # Rename for clarity in the output
         df = df.rename(columns={"ref_tiltak": "peak_tiltak"})
     elif treatment_type == "discrete":
@@ -157,19 +172,6 @@ def prepare_panel(
     # Load data
     indicator_df = pd.read_csv(indicator_path)
     tiltak_df = pd.read_csv(tiltak_path)
-
-    def _convert_aarmnd_format(df: pd.DataFrame, date_col: str) -> pd.DataFrame:
-        """Convert *date_col* in *df* to YYYYMM format if it's in a recognised date format."""
-        if date_col in df.columns:
-            for fmt in ("%d-%m-%Y", "%Y-%m-%d"):
-                try:
-                    df[date_col] = pd.to_datetime(df[date_col], format=fmt).dt.strftime(
-                        "%Y%m"
-                    )
-                    break
-                except ValueError, TypeError:
-                    continue
-        return df
 
     # Strip surrounding quotes from tiltak column names and drop TOTAL
     tiltak_df.columns = [c.strip("'") for c in tiltak_df.columns]
