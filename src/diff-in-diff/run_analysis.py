@@ -61,12 +61,14 @@ def _check_inputs(cfg: dict[str, Any]) -> bool:
 
 
 def _run_indicator(
+    result_name: str,
     indicator_name: str,
     indicator_path: Path,
     tiltak_path: Path,
     treatment_start: str,
     treatment_type: str,
     denominator: str,
+    flatten: bool,
 ) -> dict[str, Any] | None:
     """Prepare data, run regression, event study, and bootstrap for one indicator; return result dict."""
     from cluster_bootstrap import wild_cluster_bootstrap
@@ -74,7 +76,7 @@ def _run_indicator(
     from prep_data import prepare_panel
     from regression import run_baseline_model, run_preferred_model
 
-    logger.info("── Preparing panel for %s ──", indicator_name)
+    logger.info("── Preparing panel for %s (%s) ──", indicator_name, result_name)
     panel = prepare_panel(
         indicator_path=indicator_path,
         tiltak_path=tiltak_path,
@@ -82,13 +84,16 @@ def _run_indicator(
         treatment_start=treatment_start,
         treatment_type=treatment_type,
         denominator=denominator,
-        processed_path=DATA_PROCESSED / f"panel_{indicator_name}.csv",
+        flatten=flatten,
+        processed_path=DATA_PROCESSED / f"panel_{result_name}.csv",
     )
 
     n_post_obs = int(panel["post_treatment"].sum())
     if n_post_obs == 0:
         logger.warning(
-            "%s: skipping — no post-treatment months available.", indicator_name
+            "%s (%s): skipping — no post-treatment months available.",
+            indicator_name,
+            result_name,
         )
         return None
 
@@ -97,21 +102,21 @@ def _run_indicator(
     n_regions = panel["region"].nunique()
     logger.info(
         "%s: %d obs (%d months × %d regions)",
-        indicator_name,
+        result_name,
         n_obs,
         n_months,
         n_regions,
     )
 
-    logger.info("Running regression models for %s", indicator_name)
+    logger.info("Running regression models for %s", result_name)
     baseline = run_baseline_model(panel)
     preferred = run_preferred_model(panel)
 
-    logger.info("Running wild cluster bootstrap for %s", indicator_name)
+    logger.info("Running wild cluster bootstrap for %s", result_name)
     bootstrap_baseline = wild_cluster_bootstrap(panel, preferred=False)
     bootstrap_preferred = wild_cluster_bootstrap(panel, preferred=True)
 
-    logger.info("Running event study for %s", indicator_name)
+    logger.info("Running event study for %s", result_name)
     event_study = run_event_study(panel)
 
     return {
@@ -121,6 +126,8 @@ def _run_indicator(
         "bootstrap_preferred": bootstrap_preferred,
         "event_study": event_study,
         "panel": panel,
+        "indicator_name": indicator_name,
+        "prep_variant": "flattened" if flatten else "regular",
     }
 
 
@@ -136,6 +143,8 @@ def _save_regression_table(all_results: dict[str, dict[str, Any] | None]) -> Non
     for ind, res in all_results.items():
         if res is None:
             continue
+        indicator_base = str(res.get("indicator_name", ind))
+        prep_variant = str(res.get("prep_variant", "regular"))
         for model_name, result, boot_key in [
             ("baseline", res["baseline"], "bootstrap_baseline"),
             ("preferred", res["preferred"], "bootstrap_preferred"),
@@ -144,6 +153,8 @@ def _save_regression_table(all_results: dict[str, dict[str, Any] | None]) -> Non
             rows.append(
                 {
                     "indicator": ind,
+                    "indicator_base": indicator_base,
+                    "prep_variant": prep_variant,
                     "model": model_name,
                     "coefficient": result.coefficient,
                     "std_error": result.std_error,
@@ -181,8 +192,12 @@ def _save_coefficients_table(all_results: dict[str, dict[str, Any] | None]) -> N
     for ind, res in all_results.items():
         if res is None:
             continue
+        indicator_base = str(res.get("indicator_name", ind))
+        prep_variant = str(res.get("prep_variant", "regular"))
         for result in (res["baseline"], res["preferred"]):
             df = extract_all_coefficients(result)
+            df.insert(0, "prep_variant", prep_variant)
+            df.insert(0, "indikator_base", indicator_base)
             df.insert(0, "indikator", ind)
             frames.append(df)
 
@@ -212,33 +227,56 @@ def main() -> int:
     # Use the first denominator definition from config, falling back to "peak".
     denom_defs = analysis.get("denominator_definitions", [])
     denominator = denom_defs[0]["id"] if denom_defs else "peak"
+    prep_setups = analysis.get("prep_setups", [{"id": "regular", "flatten": False}])
 
     tiltak_path = PROJECT_ROOT / cfg["data"]["tiltak_file"]
 
     all_results: dict[str, dict[str, Any] | None] = {}
     failed: list[str] = []
 
+    valid_setup_ids = {"regular", "flattened"}
+    normalized_setups: list[dict[str, Any]] = []
+    for i, setup in enumerate(prep_setups):
+        if not isinstance(setup, dict):
+            raise ValueError(f"analysis.prep_setups[{i}] must be a mapping.")
+        setup_id = str(setup.get("id", "")).strip()
+        flatten = bool(setup.get("flatten", False))
+        if setup_id == "":
+            setup_id = "flattened" if flatten else "regular"
+        if setup_id not in valid_setup_ids:
+            raise ValueError(
+                f"analysis.prep_setups[{i}].id must be one of "
+                f"{sorted(valid_setup_ids)}; got '{setup_id}'."
+            )
+        normalized_setups.append({"id": setup_id, "flatten": flatten})
+
     for ind in cfg["data"]["indikatorer"]:
         name = ind["name"]
         path = PROJECT_ROOT / ind["file"]
-        try:
-            result = _run_indicator(
-                indicator_name=name,
-                indicator_path=path,
-                tiltak_path=tiltak_path,
-                treatment_start=treatment_start,
-                treatment_type=treatment_type,
-                denominator=denominator,
+        for setup in normalized_setups:
+            result_name = (
+                name if setup["id"] == "regular" else f"{name}__{setup['id']}"
             )
-            all_results[name] = result
-            if result is None:
-                logger.info("○ %s skipped (no post-treatment data)", name)
-            else:
-                logger.info("✓ %s complete", name)
-        except Exception:
-            logger.exception("Failed to process %s", name)
-            failed.append(name)
-            all_results[name] = None
+            try:
+                result = _run_indicator(
+                    result_name=result_name,
+                    indicator_name=name,
+                    indicator_path=path,
+                    tiltak_path=tiltak_path,
+                    treatment_start=treatment_start,
+                    treatment_type=treatment_type,
+                    denominator=denominator,
+                    flatten=setup["flatten"],
+                )
+                all_results[result_name] = result
+                if result is None:
+                    logger.info("○ %s skipped (no post-treatment data)", result_name)
+                else:
+                    logger.info("✓ %s complete", result_name)
+            except Exception:
+                logger.exception("Failed to process %s", result_name)
+                failed.append(result_name)
+                all_results[result_name] = None
 
     if failed:
         logger.error("Indicators that failed: %s", ", ".join(failed))
@@ -263,7 +301,7 @@ def main() -> int:
         logger.info("Report written to %s", REPORT_DIR / "report.qmd")
 
     n_done = sum(1 for v in all_results.values() if v is not None)
-    n_total = len(cfg["data"]["indikatorer"])
+    n_total = len(cfg["data"]["indikatorer"]) * len(normalized_setups)
     logger.info("═══ Done (%d/%d indicators) ═══", n_done, n_total)
     return 0 if not failed else 2
 

@@ -405,7 +405,11 @@ def generate_report(
         if res is None:
             continue
 
-        label = ind_labels.get(ind_name, ind_name)
+        base_ind_name = str(res.get("indicator_name", ind_name))
+        prep_variant = str(res.get("prep_variant", "regular"))
+        label = ind_labels.get(base_ind_name, base_ind_name)
+        if prep_variant == "flattened":
+            label = f"{label} — flattenet"
         panel: pd.DataFrame = res["panel"]
         baseline = res["baseline"]
         preferred = res["preferred"]

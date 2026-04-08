@@ -143,6 +143,44 @@ def build_treatment_variable(
     return df
 
 
+def _flatten_indicator_seasonally(df: pd.DataFrame) -> pd.DataFrame:
+    """Seasonally flatten ``indikator`` using pre-treatment months only.
+
+    For each region and month_of_year:
+      indikator_flat = indikator - mean_pre(region, month) + mean_pre(region)
+    """
+    pre = df[df["relative_month"] < 0]
+    if pre.empty:
+        raise ValueError(
+            "Cannot flatten indikator: no pre-treatment observations available."
+        )
+
+    region_mean = pre.groupby("region")["indikator"].mean().rename("pre_region_mean")
+    region_month_mean = (
+        pre.groupby(["region", "month_of_year"])["indikator"]
+        .mean()
+        .rename("pre_region_month_mean")
+    )
+
+    out = df.merge(region_mean, on="region", how="left")
+    out = out.merge(region_month_mean, on=["region", "month_of_year"], how="left")
+
+    missing_means = out["pre_region_mean"].isna() | out["pre_region_month_mean"].isna()
+    if missing_means.any():
+        bad_regions = sorted(out.loc[missing_means, "region"].dropna().unique().tolist())
+        sample = ", ".join(bad_regions[:5])
+        raise ValueError(
+            "Cannot flatten indikator: missing pre-period seasonal means for "
+            f"{int(missing_means.sum())} observations across {len(bad_regions)} "
+            f"regions (examples: {sample})."
+        )
+
+    out["indikator"] = (
+        out["indikator"] - out["pre_region_month_mean"] + out["pre_region_mean"]
+    )
+    return out.drop(columns=["pre_region_mean", "pre_region_month_mean"])
+
+
 def prepare_panel(
     indicator_path: Path,
     tiltak_path: Path,
@@ -150,6 +188,7 @@ def prepare_panel(
     treatment_start: str,
     treatment_type: str,
     denominator: str = "peak",
+    flatten: bool = False,
     processed_path: Path | None = None,
 ) -> pd.DataFrame:
     """Prepare a panel DataFrame based on the specified indicator and tiltak data.
@@ -166,6 +205,9 @@ def prepare_panel(
         ``"continuous"`` or ``"discrete"``.
     denominator:
         Reference level for tiltaksnedgang: ``"peak"`` or ``"last_pre"``.
+    flatten:
+        If ``True``, seasonally flatten ``indikator`` by subtracting each
+        region-month pre-treatment mean and adding the region pre-treatment mean.
     processed_path:
         If given, save the prepared panel as CSV at this path.
     """
@@ -200,6 +242,8 @@ def prepare_panel(
     df = pd.merge(indicator_df, tiltak_df, on=["region", "aarmnd"], how="left")
     # Feature engineering: Add time features, lags, etc.
     df = _add_time_features(df, treatment_start)
+    if flatten:
+        df = _flatten_indicator_seasonally(df)
     df = build_treatment_variable(df, treatment_type, denominator=denominator)
     # Add more feature engineering steps here as needed.
 
@@ -214,16 +258,23 @@ if __name__ == "__main__":
     treatment_start = cfg["analysis"]["treatment_start"]
     treatment_type = cfg["analysis"]["treatment_type"]
     tiltak_path = Path(cfg["data"]["tiltak_file"])
+    prep_setups = cfg["analysis"].get("prep_setups", [{"id": "regular", "flatten": False}])
 
     for ind in cfg["data"]["indikatorer"]:
-        prepare_panel(
-            indicator_path=Path(ind["file"]),
-            tiltak_path=tiltak_path,
-            indicator_name=ind["name"],
-            treatment_start=treatment_start,
-            treatment_type=treatment_type,
-            denominator="peak",
-            processed_path=Path(
-                f"data/processed/panel_regioner_lønnstilskudd_{ind['name']}.csv"
-            ),
-        )
+        for setup in prep_setups:
+            setup_id = setup.get("id", "regular")
+            flatten = bool(setup.get("flatten", False))
+            suffix = "" if setup_id == "regular" else f"__{setup_id}"
+            prepare_panel(
+                indicator_path=Path(ind["file"]),
+                tiltak_path=tiltak_path,
+                indicator_name=ind["name"],
+                treatment_start=treatment_start,
+                treatment_type=treatment_type,
+                denominator="peak",
+                flatten=flatten,
+                processed_path=Path(
+                    "data/processed/"
+                    f"panel_regioner_lønnstilskudd_{ind['name']}{suffix}.csv"
+                ),
+            )
