@@ -5,7 +5,9 @@ All configuration is read from ``analysis-config.yml`` in the same directory.
 
 from __future__ import annotations
 
+import argparse
 import logging
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -17,10 +19,8 @@ import yaml
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 CONFIG_PATH = Path(__file__).parent / "analysis-config.yml"
-DATA_PROCESSED = PROJECT_ROOT / "data" / "processed"
-FIGURES_DIR = PROJECT_ROOT / "outputs" / "did" / "figures"
-TABLES_DIR = PROJECT_ROOT / "outputs" / "did" / "tables"
-REPORT_DIR = PROJECT_ROOT / "outputs" / "did" / "report"
+DATA_PROCESSED_BASE = PROJECT_ROOT / "data" / "processed"
+OUTPUTS_DID_BASE = PROJECT_ROOT / "outputs" / "did"
 
 # ── Logging ────────────────────────────────────────────────────────────────────
 
@@ -39,6 +39,29 @@ def _load_config(path: Path = CONFIG_PATH) -> dict[str, Any]:
     """Load and return the YAML analysis configuration."""
     with open(path, encoding="utf-8") as f:
         return yaml.safe_load(f)  # type: ignore[no-any-return]
+
+
+def _parse_args() -> argparse.Namespace:
+    """Parse CLI arguments."""
+    parser = argparse.ArgumentParser(description="Run full DID analysis pipeline.")
+    parser.add_argument(
+        "config",
+        nargs="?",
+        default=str(CONFIG_PATH),
+        help="Path to YAML config file (default: analysis-config.yml).",
+    )
+    parser.add_argument(
+        "--config",
+        dest="config_flag",
+        default=None,
+        help="Path to YAML config file (overrides positional argument).",
+    )
+    return parser.parse_args()
+
+
+def _config_slug(cfg_path: Path) -> str:
+    """Return a filesystem-safe slug based on config filename."""
+    return re.sub(r"[^a-z0-9._-]+", "_", cfg_path.stem.lower()).strip("_")
 
 
 # ── Pipeline ───────────────────────────────────────────────────────────────────
@@ -69,6 +92,7 @@ def _run_indicator(
     treatment_type: str,
     denominator: str,
     flatten: bool,
+    processed_dir: Path,
 ) -> dict[str, Any] | None:
     """Prepare data, run regression, event study, and bootstrap for one indicator; return result dict."""
     from cluster_bootstrap import wild_cluster_bootstrap
@@ -85,7 +109,7 @@ def _run_indicator(
         treatment_type=treatment_type,
         denominator=denominator,
         flatten=flatten,
-        processed_path=DATA_PROCESSED / f"panel_{result_name}.csv",
+        processed_path=processed_dir / f"panel_{result_name}.csv",
     )
 
     n_post_obs = int(panel["post_treatment"].sum())
@@ -131,7 +155,9 @@ def _run_indicator(
     }
 
 
-def _save_regression_table(all_results: dict[str, dict[str, Any] | None]) -> None:
+def _save_regression_table(
+    all_results: dict[str, dict[str, Any] | None], tables_dir: Path
+) -> None:
     """Save a summary regression table (one row per model) for all indicators.
 
     Parameters
@@ -169,13 +195,15 @@ def _save_regression_table(all_results: dict[str, dict[str, Any] | None]) -> Non
                 }
             )
     df = pd.DataFrame(rows)
-    TABLES_DIR.mkdir(parents=True, exist_ok=True)
-    out = TABLES_DIR / "regression_results.csv"
+    tables_dir.mkdir(parents=True, exist_ok=True)
+    out = tables_dir / "regression_results.csv"
     df.to_csv(out, index=False, float_format="%.6f")
     logger.info("Regression table saved to %s", out)
 
 
-def _save_coefficients_table(all_results: dict[str, dict[str, Any] | None]) -> None:
+def _save_coefficients_table(
+    all_results: dict[str, dict[str, Any] | None], tables_dir: Path
+) -> None:
     """Save a tidy table with every coefficient from all models and indicators.
 
     Each row represents one coefficient and includes a ``koeffisient_type``
@@ -205,21 +233,37 @@ def _save_coefficients_table(all_results: dict[str, dict[str, Any] | None]) -> N
         return
 
     combined = pd.concat(frames, ignore_index=True)
-    out = TABLES_DIR / "alle_koeffisienter.csv"
+    tables_dir.mkdir(parents=True, exist_ok=True)
+    out = tables_dir / "alle_koeffisienter.csv"
     combined.to_csv(out, index=False, float_format="%.6f")
     logger.info("Full coefficients table saved to %s", out)
 
 
 def main() -> int:
     """Entry point: run full pipeline for all indicators defined in the config."""
-    logger.info("═══ Nav DID analysis ═══")
+    args = _parse_args()
+    cfg_path = Path(args.config_flag or args.config)
+    if not cfg_path.is_absolute():
+        cfg_path = (Path.cwd() / cfg_path).resolve()
 
-    cfg = _load_config()
+    logger.info("═══ Nav DID analysis ═══")
+    logger.info("Using config: %s", cfg_path)
+
+    cfg = _load_config(cfg_path)
     if not _check_inputs(cfg):
         return 1
 
-    FIGURES_DIR.mkdir(parents=True, exist_ok=True)
-    TABLES_DIR.mkdir(parents=True, exist_ok=True)
+    config_slug = _config_slug(cfg_path)
+    output_root = OUTPUTS_DID_BASE / config_slug
+    figures_dir = output_root / "figures"
+    tables_dir = output_root / "tables"
+    report_dir = output_root / "report"
+    processed_dir = DATA_PROCESSED_BASE / config_slug
+
+    figures_dir.mkdir(parents=True, exist_ok=True)
+    tables_dir.mkdir(parents=True, exist_ok=True)
+    report_dir.mkdir(parents=True, exist_ok=True)
+    processed_dir.mkdir(parents=True, exist_ok=True)
 
     analysis = cfg["analysis"]
     treatment_start = str(analysis["treatment_start"])
@@ -267,6 +311,7 @@ def main() -> int:
                     treatment_type=treatment_type,
                     denominator=denominator,
                     flatten=setup["flatten"],
+                    processed_dir=processed_dir,
                 )
                 all_results[result_name] = result
                 if result is None:
@@ -284,21 +329,21 @@ def main() -> int:
             return 1
 
     if any(v is not None for v in all_results.values()):
-        _save_regression_table(all_results)
-        _save_coefficients_table(all_results)
+        _save_regression_table(all_results, tables_dir=tables_dir)
+        _save_coefficients_table(all_results, tables_dir=tables_dir)
 
         logger.info("Generating report")
         from report import generate_report
 
-        REPORT_DIR.mkdir(parents=True, exist_ok=True)
+        report_path = report_dir / f"report_{config_slug}.qmd"
         generate_report(
             all_results=all_results,
             cfg=cfg,
-            output_path=REPORT_DIR / "report.qmd",
-            figures_dir=FIGURES_DIR,
-            tables_dir=TABLES_DIR,
+            output_path=report_path,
+            figures_dir=figures_dir,
+            tables_dir=tables_dir,
         )
-        logger.info("Report written to %s", REPORT_DIR / "report.qmd")
+        logger.info("Report written to %s", report_path)
 
     n_done = sum(1 for v in all_results.values() if v is not None)
     n_total = len(cfg["data"]["indikatorer"]) * len(normalized_setups)

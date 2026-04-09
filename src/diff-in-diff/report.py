@@ -346,6 +346,9 @@ def generate_report(
     from regression import extract_all_coefficients
 
     treatment_start = str(cfg["analysis"]["treatment_start"])
+    report_title = str(
+        cfg["analysis"].get("title", "Nav DID-analyse — effekt av tiltaksnedgang")
+    )
     report_dir = output_path.parent
     ts_formatted = f"{treatment_start[:4]}-{treatment_start[4:]}"
 
@@ -359,7 +362,7 @@ def generate_report(
     # ── Quarto YAML frontmatter ───────────────────────────────────────────────
     lines += [
         "---",
-        'title: "Nav DID-analyse — effekt av tiltaksnedgang"',
+        f'title: "{report_title}"',
         "lang: nb",
         "format:",
         "  html:",
