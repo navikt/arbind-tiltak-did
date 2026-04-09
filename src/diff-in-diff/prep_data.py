@@ -29,7 +29,7 @@ def _convert_aarmnd_format(df: pd.DataFrame, date_col: str) -> pd.DataFrame:
                     "%Y%m"
                 )
                 break
-            except ValueError, TypeError:
+            except (ValueError, TypeError):
                 continue
     return df
 
@@ -81,19 +81,23 @@ def build_treatment_variable(
     df: pd.DataFrame,
     treatment_type: str,
     denominator: str = "peak",
+    controll_regions: list[str] | None = None,
 ) -> pd.DataFrame:
-    """Create a continuous treatment variable (tiltaksnedgang).
+    """Create the treatment variable (``tiltaksnedgang``) for the panel.
 
     Parameters
     ----------
     df:
         Panel DataFrame with columns ``region``, ``relative_month``, ``tiltak``.
     treatment_type:
-        Currently only ``"continuous"`` is implemented.
+        ``"continuous"`` or ``"discrete"``.
     denominator:
-        How to compute the reference level per region:
+        For ``"continuous"`` only.  How to compute the reference level per region:
         - ``"peak"``     – maximum tiltak count in the pre-period (relative_month < 0)
         - ``"last_pre"`` – tiltak count in the last pre-treatment month (relative_month == -1)
+    controll_regions:
+        For ``"discrete"`` only.  List of region names that serve as the
+        control group.  All other regions are treated.
     """
     pre_mask = df["relative_month"] < 0
     post_mask = df["relative_month"] >= 0
@@ -138,8 +142,21 @@ def build_treatment_variable(
         # Rename for clarity in the output
         df = df.rename(columns={"ref_tiltak": "peak_tiltak"})
     elif treatment_type == "discrete":
-        # Implement discrete treatment logic here
-        pass
+        if controll_regions is None:
+            raise ValueError(
+                "controll_regions must be provided for treatment_type='discrete'."
+            )
+        controll_set = set(controll_regions)
+        # Binary indicator: 1 for treated regions, 0 for control regions
+        df["treated"] = (~df["region"].isin(controll_set)).astype(float)
+        # Treatment variable is 1 only for treated regions in the post-period
+        df["tiltaksnedgang"] = 0.0
+        df.loc[post_mask & (df["treated"] == 1.0), "tiltaksnedgang"] = 1.0
+    else:
+        raise ValueError(
+            f"Unknown treatment_type '{treatment_type}'. "
+            "Use 'continuous' or 'discrete'."
+        )
     return df
 
 
@@ -189,6 +206,7 @@ def prepare_panel(
     treatment_type: str,
     denominator: str = "peak",
     flatten: bool = False,
+    controll_regions: list[str] | None = None,
     processed_path: Path | None = None,
 ) -> pd.DataFrame:
     """Prepare a panel DataFrame based on the specified indicator and tiltak data.
@@ -205,9 +223,13 @@ def prepare_panel(
         ``"continuous"`` or ``"discrete"``.
     denominator:
         Reference level for tiltaksnedgang: ``"peak"`` or ``"last_pre"``.
+        Only used when ``treatment_type="continuous"``.
     flatten:
         If ``True``, seasonally flatten ``indikator`` by subtracting each
         region-month pre-treatment mean and adding the region pre-treatment mean.
+    controll_regions:
+        List of region names that serve as the control group.
+        Required when ``treatment_type="discrete"``.
     processed_path:
         If given, save the prepared panel as CSV at this path.
     """
@@ -244,7 +266,7 @@ def prepare_panel(
     df = _add_time_features(df, treatment_start)
     if flatten:
         df = _flatten_indicator_seasonally(df)
-    df = build_treatment_variable(df, treatment_type, denominator=denominator)
+    df = build_treatment_variable(df, treatment_type, denominator=denominator, controll_regions=controll_regions)
     # Add more feature engineering steps here as needed.
 
     if processed_path is not None:

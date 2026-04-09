@@ -19,6 +19,7 @@ import yaml
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 CONFIG_PATH = Path(__file__).parent / "analysis-config.yml"
+CONFIGS_DIR = Path(__file__).parent / "configs"
 DATA_PROCESSED_BASE = PROJECT_ROOT / "data" / "processed"
 OUTPUTS_DID_BASE = PROJECT_ROOT / "outputs" / "did"
 
@@ -48,13 +49,18 @@ def _parse_args() -> argparse.Namespace:
         "config",
         nargs="?",
         default=str(CONFIG_PATH),
-        help="Path to YAML config file (default: analysis-config.yml).",
+        help=(
+            "Path or filename of the YAML config file. "
+            "A bare filename (e.g. alle-discrete.yml) is resolved first relative "
+            "to the current directory, then relative to diff-in-diff/configs/. "
+            f"Default: {CONFIG_PATH.name}"
+        ),
     )
     parser.add_argument(
         "--config",
         dest="config_flag",
         default=None,
-        help="Path to YAML config file (overrides positional argument).",
+        help="Path or filename of the YAML config file (overrides positional argument).",
     )
     return parser.parse_args()
 
@@ -93,12 +99,19 @@ def _run_indicator(
     denominator: str,
     flatten: bool,
     processed_dir: Path,
+    controll_regions: list[str] | None = None,
 ) -> dict[str, Any] | None:
     """Prepare data, run regression, event study, and bootstrap for one indicator; return result dict."""
     from cluster_bootstrap import wild_cluster_bootstrap
     from event_study import run_event_study
     from prep_data import prepare_panel
-    from regression import run_baseline_model, run_preferred_model
+    from regression import (
+        compute_mde,
+        run_baseline_model,
+        run_leave_one_out,
+        run_placebo_test,
+        run_preferred_model,
+    )
 
     logger.info("── Preparing panel for %s (%s) ──", indicator_name, result_name)
     panel = prepare_panel(
@@ -109,6 +122,7 @@ def _run_indicator(
         treatment_type=treatment_type,
         denominator=denominator,
         flatten=flatten,
+        controll_regions=controll_regions,
         processed_path=processed_dir / f"panel_{result_name}.csv",
     )
 
@@ -143,12 +157,33 @@ def _run_indicator(
     logger.info("Running event study for %s", result_name)
     event_study = run_event_study(panel)
 
+    logger.info("Running placebo test for %s", result_name)
+    placebo = run_placebo_test(panel, placebo_relative_month=-12)
+
+    logger.info("Running leave-one-out for %s", result_name)
+    leave_one_out = run_leave_one_out(panel, preferred_result=preferred)
+
+    mde = compute_mde(preferred)
+    logger.info("MDE for %s: %.4f pp", result_name, mde)
+
+    # Baseline mean: pre-period average of indikator across all treated regions
+    pre_panel = panel[panel["relative_month"] < 0]
+    baseline_mean = float(pre_panel["indikator"].mean())
+    baseline_mean_by_region = (
+        pre_panel.groupby("region")["indikator"].mean().to_dict()
+    )
+
     return {
         "baseline": baseline,
         "preferred": preferred,
         "bootstrap_baseline": bootstrap_baseline,
         "bootstrap_preferred": bootstrap_preferred,
         "event_study": event_study,
+        "placebo": placebo,
+        "leave_one_out": leave_one_out,
+        "mde": mde,
+        "baseline_mean": baseline_mean,
+        "baseline_mean_by_region": baseline_mean_by_region,
         "panel": panel,
         "indicator_name": indicator_name,
         "prep_variant": "flattened" if flatten else "regular",
@@ -182,6 +217,7 @@ def _save_regression_table(
                     "indicator_base": indicator_base,
                     "prep_variant": prep_variant,
                     "model": model_name,
+                    "baseline_mean": res.get("baseline_mean"),
                     "coefficient": result.coefficient,
                     "std_error": result.std_error,
                     "t_stat": result.t_stat,
@@ -244,7 +280,15 @@ def main() -> int:
     args = _parse_args()
     cfg_path = Path(args.config_flag or args.config)
     if not cfg_path.is_absolute():
-        cfg_path = (Path.cwd() / cfg_path).resolve()
+        cwd_candidate = (Path.cwd() / cfg_path).resolve()
+        configs_candidate = (CONFIGS_DIR / cfg_path).resolve()
+        # Prefer cwd-relative path if it exists; fall back to configs/ directory.
+        if cwd_candidate.exists():
+            cfg_path = cwd_candidate
+        elif configs_candidate.exists():
+            cfg_path = configs_candidate
+        else:
+            cfg_path = cwd_candidate  # will fail with a clear error below
 
     logger.info("═══ Nav DID analysis ═══")
     logger.info("Using config: %s", cfg_path)
@@ -272,6 +316,13 @@ def main() -> int:
     denom_defs = analysis.get("denominator_definitions", [])
     denominator = denom_defs[0]["id"] if denom_defs else "peak"
     prep_setups = analysis.get("prep_setups", [{"id": "regular", "flatten": False}])
+    # For discrete treatment: list of control regions (required by the discrete path).
+    controll_regions: list[str] | None = analysis.get("controll_regions", None)
+    if treatment_type == "discrete" and not controll_regions:
+        logger.error(
+            "analysis.controll_regions must be a non-empty list for treatment_type='discrete'."
+        )
+        return 1
 
     tiltak_path = PROJECT_ROOT / cfg["data"]["tiltak_file"]
 
@@ -312,6 +363,7 @@ def main() -> int:
                     denominator=denominator,
                     flatten=setup["flatten"],
                     processed_dir=processed_dir,
+                    controll_regions=controll_regions,
                 )
                 all_results[result_name] = result
                 if result is None:

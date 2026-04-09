@@ -18,6 +18,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
+from scipy import stats as scipy_stats
 
 logger = logging.getLogger(__name__)
 
@@ -143,7 +144,7 @@ def _estimate(
         X.shape[1],
         clusters.nunique(),
     )
-    rank_x = int(np.linalg.matrix_rank(X.to_numpy(dtype=float)))
+    rank_x = int(np.linalg.matrix_rank(X.to_numpy(dtype=float)))  # noqa: F841
     # if rank_x < X.shape[1]:
     #     raise ValueError(
     #         f"{model_name}: rank-deficient design matrix "
@@ -327,3 +328,188 @@ def format_results_table(
             }
         )
     return pd.DataFrame(rows)
+
+
+# ── Placebo test ──────────────────────────────────────────────────────────────
+
+
+def run_placebo_test(
+    panel: pd.DataFrame,
+    placebo_relative_month: int = -12,
+) -> RegressionResult | None:
+    """Estimate the preferred model on a fake treatment date in the pre-period.
+
+    The placebo analysis restricts to pre-treatment observations and constructs
+    a new treatment variable that measures the change in tiltak *within* the
+    pre-period, using ``placebo_relative_month − 1`` as the reference month
+    (analogous to ``last_pre`` in the real analysis).
+
+    A near-zero coefficient indicates that the main result is not driven by
+    pre-existing diverging trends.
+
+    Parameters
+    ----------
+    panel:
+        Full analysis panel from :func:`prep_data.prepare_panel`.
+    placebo_relative_month:
+        The fake treatment start expressed as a relative month (must be < 0).
+        Default is -12 (one year before the real treatment).
+
+    Returns:
+    -------
+    :class:`RegressionResult` for the placebo specification, or ``None`` if
+    the pre-period window is too short.
+    """
+    if placebo_relative_month >= 0:
+        raise ValueError("placebo_relative_month must be negative.")
+
+    pre = panel[panel["relative_month"] < 0].copy()
+
+    n_before = int((pre["relative_month"] < placebo_relative_month).sum())
+    n_after = int((pre["relative_month"] >= placebo_relative_month).sum())
+    if n_before == 0 or n_after == 0:
+        logger.warning(
+            "Placebo at relative_month=%d: insufficient data on one side — skipping.",
+            placebo_relative_month,
+        )
+        return None
+
+    pre["post_treatment"] = pre["relative_month"] >= placebo_relative_month
+
+    # Construct placebo tiltaksnedgang from actual tiltak movements in the
+    # pre-period.  Reference = tiltak at (placebo_relative_month - 1), the
+    # last "pre-placebo" month, analogous to last_pre in the real analysis.
+    ref_month = placebo_relative_month - 1
+    ref_mask = pre["relative_month"] == ref_month
+    if not ref_mask.any():
+        logger.warning(
+            "Placebo: reference month %d not found in pre-period data — skipping.",
+            ref_month,
+        )
+        return None
+
+    ref = (
+        pre.loc[ref_mask, ["region", "tiltak"]]
+        .set_index("region")["tiltak"]
+        .rename("ref_tiltak_placebo")
+    )
+    pre = pre.merge(ref, on="region", how="left")
+
+    pre["tiltaksnedgang"] = 0.0
+    post_mask = pre["post_treatment"]
+    valid_ref = pre["ref_tiltak_placebo"] > 0
+    pre.loc[post_mask & valid_ref, "tiltaksnedgang"] = np.clip(
+        (pre.loc[post_mask & valid_ref, "ref_tiltak_placebo"]
+         - pre.loc[post_mask & valid_ref, "tiltak"])
+        / pre.loc[post_mask & valid_ref, "ref_tiltak_placebo"],
+        0.0,
+        1.0,
+    )
+    pre = pre.drop(columns=["ref_tiltak_placebo"])
+
+    logger.info(
+        "Placebo test at relative_month=%d: %d obs (%d 'pre', %d 'post'), "
+        "mean placebo tiltaksnedgang=%.3f",
+        placebo_relative_month,
+        len(pre),
+        n_before,
+        n_after,
+        float(pre.loc[post_mask, "tiltaksnedgang"].mean()),
+    )
+    return _estimate(pre, preferred=True, model_name=f"Placebo (τ={placebo_relative_month})")
+
+
+# ── Leave-one-out robustness ──────────────────────────────────────────────────
+
+
+@dataclass
+class LeaveOneOutResult:
+    """Collection of leave-one-out estimates."""
+
+    #: columns: dropped_region, coefficient, std_error, ci_lower, ci_upper, p_value
+    rows: pd.DataFrame
+    full_coefficient: float
+    full_ci_lower: float
+    full_ci_upper: float
+
+
+def run_leave_one_out(
+    panel: pd.DataFrame,
+    preferred_result: RegressionResult,
+) -> LeaveOneOutResult:
+    """Re-estimate the preferred model leaving each region out in turn.
+
+    Parameters
+    ----------
+    panel:
+        Full analysis panel from :func:`prep_data.prepare_panel`.
+    preferred_result:
+        The full-sample preferred model result (used to record the reference CI).
+
+    Returns:
+    -------
+    :class:`LeaveOneOutResult` with per-drop estimates and the full-sample reference.
+    """
+    regions = sorted(panel["region"].unique().tolist())
+    records = []
+    for region in regions:
+        sub = panel[panel["region"] != region].copy()
+        n_remaining = sub["region"].nunique()
+        if n_remaining < 3:
+            logger.warning(
+                "Skipping leave-out of %s: only %d clusters remain.", region, n_remaining
+            )
+            continue
+        try:
+            res = _estimate(sub, preferred=True, model_name=f"LOO drop {region}")
+            records.append(
+                {
+                    "dropped_region": region,
+                    "coefficient": res.coefficient,
+                    "std_error": res.std_error,
+                    "ci_lower": res.ci_lower,
+                    "ci_upper": res.ci_upper,
+                    "p_value": res.p_value,
+                }
+            )
+        except Exception:
+            logger.exception("Leave-one-out failed for dropped region %s", region)
+
+    return LeaveOneOutResult(
+        rows=pd.DataFrame(records),
+        full_coefficient=preferred_result.coefficient,
+        full_ci_lower=preferred_result.ci_lower,
+        full_ci_upper=preferred_result.ci_upper,
+    )
+
+
+# ── Minimum detectable effect ─────────────────────────────────────────────────
+
+
+def compute_mde(
+    preferred_result: RegressionResult,
+    alpha: float = 0.05,
+    power: float = 0.80,
+) -> float:
+    """Compute the minimum detectable effect (MDE) from the preferred model SE.
+
+    Uses the standard closed-form formula with t-distribution:
+        MDE = (t_{α/2, G-1} + t_{β, G-1}) × SE
+
+    Parameters
+    ----------
+    preferred_result:
+        Result from the preferred model; its SE is used.
+    alpha:
+        Two-sided significance level (default 0.05).
+    power:
+        Desired statistical power (default 0.80).
+
+    Returns:
+    -------
+    MDE in the same units as the treatment coefficient (percentage points).
+    """
+    df = preferred_result.n_clusters - 1
+    t_alpha = float(scipy_stats.t.ppf(1 - alpha / 2, df=df))
+    t_beta = float(scipy_stats.t.ppf(power, df=df))
+    return (t_alpha + t_beta) * preferred_result.std_error

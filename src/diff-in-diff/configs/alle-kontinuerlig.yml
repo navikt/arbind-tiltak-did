@@ -1,5 +1,6 @@
 # ── Analysis parameters ────────────────────────────────────────────────────────
 analysis:
+  title: "DiD-analyse for alle"
   treatment_start: "202506"   # First month of treatment (YYYYMM)
   data_start:      "202010"   # First month of the full panel
   data_end:        "202509"   # Last month of the full panel
@@ -7,13 +8,20 @@ analysis:
 
   # Denominator definitions compared in the exploratory treatment analysis.
   # Each entry produces a separate treatment variable series.
-  #   peak     – denominator is the highest tiltak count in the pre-period
   #   last_pre – denominator is tiltak in the last month before treatment (t = -1)
   denominator_definitions:
     - id: last_pre
       label: "Siste pre-måned (t-1)"
-    - id: peak
-      label: "Topp (pre-periode)"
+
+  # Data prep setups run in the same execution.
+  # Each setup creates one panel per indicator.
+  #   regular   – no seasonal flattening in prep
+  #   flattened – seasonally flatten indikator using pre-treatment months only
+  prep_setups:
+    - id: regular
+      flatten: false
+    - id: flattened
+      flatten: true
 
 # ── Data sources ───────────────────────────────────────────────────────────────
 data:
