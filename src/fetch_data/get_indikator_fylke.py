@@ -67,6 +67,7 @@ def fetch_and_save_for_nedbrytning(nedbrytning: str) -> list[Path]:
             "Query result is missing required columns: "
             f"{', '.join(sorted(missing))}."
         )
+    df["aarmnd"] = pd.to_datetime(df["aarmnd"], errors="raise").dt.strftime("%Y%m")
 
     out_dir = _output_dir_for_nedbrytning(nedbrytning)
     out_dir.mkdir(parents=True, exist_ok=True)
