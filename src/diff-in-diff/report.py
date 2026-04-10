@@ -26,6 +26,7 @@ if TYPE_CHECKING:
 _BLUE = "#003366"
 _RED = "#C8102E"
 _LIGHT_BLUE = "#66A3C8"
+_LIGHT_RED = "#f4a582"
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -61,20 +62,20 @@ def _plot_trends(
     indicator_label: str,
     treatment_start: str,
     figures_dir: Path,
-    controll_regions: list[str] | None = None,
+    control_regions: list[str] | None = None,
 ) -> Path:
     """Plot average indicator trend for treated vs control regions.
 
     For continuous treatment, regions are split at the median mean post-period
     tiltaksnedgang (high vs low).  For discrete treatment, the split is determined
-    directly by ``controll_regions``.
+    directly by ``control_regions``.
     Returns the saved figure path.
     """
     ts_dt = pd.to_datetime(str(treatment_start), format="%Y%m")
 
     panel = panel.copy()
-    if controll_regions is not None:
-        controll_set = set(controll_regions)
+    if control_regions is not None:
+        controll_set = set(control_regions)
         panel["gruppe"] = panel["region"].apply(
             lambda r: "Kontroll" if r in controll_set else "Behandlet"
         )
@@ -111,10 +112,9 @@ def _plot_trends(
 
 def _plot_tiltak_trends(
     panel: pd.DataFrame,
-    indicator_name: str,
-    indicator_label: str,
     treatment_start: str,
     figures_dir: Path,
+    filename_slug: str = "shared",
 ) -> Path:
     """Spaghetti plot of tiltak count per region over time.
 
@@ -134,36 +134,40 @@ def _plot_tiltak_trends(
 
     ax.axvline(ts_dt, color="black", linestyle="--", linewidth=1, label="Behandlingsstart")
     ax.set_ylabel("Antall tiltak", fontsize=11)
-    ax.set_title(f"Tiltaksbruk per region — {indicator_label}", fontsize=13)
+    ax.set_title("Tiltaksbruk per region", fontsize=13)
     ax.legend(frameon=False, fontsize=7, ncol=2, loc="upper left")
     ax.spines[["top", "right"]].set_visible(False)
 
-    out = figures_dir / f"tiltak_trend_{indicator_name}.png"
+    out = figures_dir / f"tiltak_trend_{filename_slug}.png"
     _save_fig(fig, out)
     return out
 
 
-def _plot_placebo(
-    placebo: Any,
+def _plot_placebo_combined(
+    placebo_baseline: Any,
+    placebo_preferred: Any,
+    baseline: Any,
     preferred: Any,
     indicator_name: str,
     indicator_label: str,
     figures_dir: Path,
 ) -> Path:
-    """Dot plot comparing the placebo coefficient to the main estimate.
+    """Dot plot comparing placebo and main estimates for both models.
 
-    Shows the coefficient ± 95 % CI for the real preferred model (solid) and the
-    placebo model (hollow), with a zero reference line.
+    Shows four rows: Basis (main), Basis (placebo), Sesongjustert (main), Sesongjustert (placebo).
     Returns the saved figure path.
     """
-    fig, ax = plt.subplots(figsize=(7, 3))
+    items = []
+    if placebo_baseline is not None:
+        items.append(("Basis — placebo (τ=−12)", placebo_baseline.coefficient, placebo_baseline.ci_lower, placebo_baseline.ci_upper, _LIGHT_BLUE, "o"))
+    items.append(("Basis — modell", baseline.coefficient, baseline.ci_lower, baseline.ci_upper, _BLUE, "D"))
+    if placebo_preferred is not None:
+        items.append(("Sesongjustert — placebo (τ=−12)", placebo_preferred.coefficient, placebo_preferred.ci_lower, placebo_preferred.ci_upper, _LIGHT_RED, "o"))
+    items.append(("Sesongjustert — modell", preferred.coefficient, preferred.ci_lower, preferred.ci_upper, _RED, "D"))
 
-    items = [
-        ("Placebo (τ=−12)", placebo.coefficient, placebo.ci_lower, placebo.ci_upper, _LIGHT_BLUE, "o"),
-        ("Foretrukket modell", preferred.coefficient, preferred.ci_lower, preferred.ci_upper, _RED, "D"),
-    ]
+    fig, ax = plt.subplots(figsize=(8, max(3, len(items) * 0.7)))
     yticks = list(range(len(items)))
-    for y, (label, coef, lo, hi, color, marker) in enumerate(items):
+    for y, (lbl, coef, lo, hi, color, marker) in enumerate(items):
         ax.plot([lo, hi], [y, y], color=color, linewidth=2)
         ax.scatter([coef], [y], color=color, marker=marker, s=60, zorder=3)
 
@@ -180,39 +184,41 @@ def _plot_placebo(
     return out
 
 
-def _plot_leave_one_out(
-    loo: Any,
+def _plot_leave_one_out_combined(
+    loo_baseline: Any,
+    loo_preferred: Any,
     indicator_name: str,
     indicator_label: str,
     figures_dir: Path,
 ) -> Path:
-    """Dot plot of leave-one-out estimates with the full-sample CI as a band.
+    """Side-by-side leave-one-out plots for baseline and preferred models.
 
-    Each point is the coefficient when the named region is dropped.  A shaded
-    band shows the full-sample 95 % CI.  Returns the saved figure path.
+    Each panel shows per-region LOO estimates with the full-sample CI as a band.
+    Returns the saved figure path.
     """
-    df = loo.rows.sort_values("coefficient")
-    n = len(df)
+    def _loo_panel(ax: Any, loo: Any, model_label: str) -> None:
+        df = loo.rows.sort_values("coefficient")
+        n = len(df)
+        ax.axvspan(loo.full_ci_lower, loo.full_ci_upper, color=_LIGHT_BLUE, alpha=0.20, label="Full-utvalg 95% KI")
+        ax.axvline(loo.full_coefficient, color=_BLUE, linewidth=1.5, linestyle="--", label=f"Full: {loo.full_coefficient:.3f}")
+        ax.axvline(0, color="black", linewidth=0.8)
+        yticks = list(range(n))
+        for y, (_, row) in enumerate(df.iterrows()):
+            color = _RED if row["p_value"] < 0.05 else _LIGHT_BLUE
+            ax.plot([row["ci_lower"], row["ci_upper"]], [y, y], color=color, linewidth=1.5)
+            ax.scatter([row["coefficient"]], [y], color=color, s=40, zorder=3)
+        ax.set_yticks(yticks)
+        ax.set_yticklabels(df["dropped_region"].tolist(), fontsize=8)
+        ax.set_xlabel("Koeffisient (prosentpoeng)", fontsize=10)
+        ax.set_title(model_label, fontsize=11)
+        ax.legend(frameon=False, fontsize=8, loc="lower right")
+        ax.spines[["top", "right"]].set_visible(False)
 
-    fig, ax = plt.subplots(figsize=(8, max(4, n * 0.45)))
-
-    # Full-sample CI band
-    ax.axvspan(loo.full_ci_lower, loo.full_ci_upper, color=_LIGHT_BLUE, alpha=0.20, label="Full-utvalg 95% KI")
-    ax.axvline(loo.full_coefficient, color=_BLUE, linewidth=1.5, linestyle="--", label=f"Full-utvalg: {loo.full_coefficient:.3f}")
-    ax.axvline(0, color="black", linewidth=0.8)
-
-    yticks = list(range(n))
-    for y, (_, row) in enumerate(df.iterrows()):
-        color = _RED if row["p_value"] < 0.05 else _LIGHT_BLUE
-        ax.plot([row["ci_lower"], row["ci_upper"]], [y, y], color=color, linewidth=1.5)
-        ax.scatter([row["coefficient"]], [y], color=color, s=40, zorder=3)
-
-    ax.set_yticks(yticks)
-    ax.set_yticklabels(df["dropped_region"].tolist(), fontsize=8)
-    ax.set_xlabel("Koeffisient (prosentpoeng)", fontsize=10)
-    ax.set_title(f"Leave-one-out — {indicator_label}", fontsize=12)
-    ax.legend(frameon=False, fontsize=8, loc="lower right")
-    ax.spines[["top", "right"]].set_visible(False)
+    n = max(len(loo_baseline.rows), len(loo_preferred.rows))
+    fig, axes = plt.subplots(1, 2, figsize=(16, max(4, n * 0.45)), sharey=True)
+    _loo_panel(axes[0], loo_baseline, "Basis")
+    _loo_panel(axes[1], loo_preferred, "Sesongjustert")
+    fig.suptitle(f"Leave-one-out robusthet — {indicator_label}", fontsize=13)
     fig.tight_layout()
 
     out = figures_dir / f"loo_{indicator_name}.png"
@@ -237,7 +243,7 @@ def _plot_fe_coefficients(
     from matplotlib.patches import Patch
 
     df = coef_df[
-        (coef_df["modell"] != "Baseline")
+        (coef_df["modell"] == "Sesongjustert")
         & (~coef_df["koeffisient_type"].isin(["Behandling", "Konstantledd"]))
     ].copy()
 
@@ -247,34 +253,28 @@ def _plot_fe_coefficients(
         slug = fe_type.lower().replace(" ", "_").replace("×", "x")
         out = figures_dir / f"fe_{slug}_{indicator_name}.png"
 
-        if fe_type == "Region × Sesong FE":
-            _save_fig(
-                _plot_region_season_heatmap(group, indicator_label),
-                out,
-            )
-        else:
-            group = group.sort_values("koeffisient_navn")
-            n = len(group)
-            fig, ax = plt.subplots(figsize=(max(8, n * 0.5), max(4, n * 0.35)))
+        group = group.sort_values("koeffisient_navn")
+        n = len(group)
+        fig, ax = plt.subplots(figsize=(max(8, n * 0.5), max(4, n * 0.35)))
 
-            colors = [_RED if p < 0.05 else _LIGHT_BLUE for p in group["p_verdi"]]
-            ax.barh(
-                group["koeffisient_navn"], group["estimat"], color=colors, edgecolor="none"
-            )
-            ax.axvline(0, color="black", linewidth=0.8)
-            ax.set_xlabel("Koeffisient", fontsize=11)
-            ax.set_title(f"{fe_type} — {indicator_label}", fontsize=13)
-            ax.tick_params(axis="y", labelsize=7 if n > 20 else 9)
-            ax.spines[["top", "right"]].set_visible(False)
-            ax.legend(
-                handles=[
-                    Patch(facecolor=_RED, label="p < 0,05"),
-                    Patch(facecolor=_LIGHT_BLUE, label="p ≥ 0,05"),
-                ],
-                frameon=False,
-                fontsize=9,
-            )
-            _save_fig(fig, out)
+        colors = [_RED if p < 0.05 else _LIGHT_BLUE for p in group["p_verdi"]]
+        ax.barh(
+            group["koeffisient_navn"], group["estimat"], color=colors, edgecolor="none"
+        )
+        ax.axvline(0, color="black", linewidth=0.8)
+        ax.set_xlabel("Koeffisient", fontsize=11)
+        ax.set_title(f"{fe_type} — {indicator_label}", fontsize=13)
+        ax.tick_params(axis="y", labelsize=7 if n > 20 else 9)
+        ax.spines[["top", "right"]].set_visible(False)
+        ax.legend(
+            handles=[
+                Patch(facecolor=_RED, label="p < 0,05"),
+                Patch(facecolor=_LIGHT_BLUE, label="p ≥ 0,05"),
+            ],
+            frameon=False,
+            fontsize=9,
+        )
+        _save_fig(fig, out)
 
         paths[fe_type] = out
 
@@ -391,51 +391,69 @@ def _plot_region_season_heatmap(
     return fig
 
 
-def _plot_event_study(
-    event_study: Any,
+def _plot_event_study_combined(
+    event_study_baseline: Any,
+    event_study_preferred: Any,
     indicator_name: str,
     indicator_label: str,
     figures_dir: Path,
 ) -> Path:
-    """Plot event-study coefficients with 95% CI bands.
+    """Plot event-study coefficients for both models on the same axes.
 
-    Pre-period estimates are shown in blue, post-period in red.
+    Baseline (regular panel) in blue, preferred (flattened panel) in red.
     A horizontal line at zero and a vertical dashed line at τ = 0 are included.
     Returns the saved figure path.
     """
-    coefs = event_study.coefs
-    taus = [c.tau for c in coefs]
-    betas = [c.coefficient for c in coefs]
-    ci_lo = [c.ci_lower for c in coefs]
-    ci_hi = [c.ci_upper for c in coefs]
-
-    colors = [_RED if t >= 0 else _BLUE for t in taus]
-
     fig, ax = plt.subplots(figsize=(12, 5))
-    for tau, beta, lo, hi, color in zip(taus, betas, ci_lo, ci_hi, colors):
-        ax.plot([tau, tau], [lo, hi], color=color, linewidth=1.2, alpha=0.6)
-    ax.scatter(taus, betas, color=colors, zorder=3, s=18)
+
+    for es, color, model_label in [
+        (event_study_baseline, _BLUE, "Basis"),
+        (event_study_preferred, _RED, "Sesongjustert"),
+    ]:
+        coefs = es.coefs
+        taus = [c.tau for c in coefs]
+        betas = [c.coefficient for c in coefs]
+        ci_lo = [c.ci_lower for c in coefs]
+        ci_hi = [c.ci_upper for c in coefs]
+
+        for tau, beta, lo, hi in zip(taus, betas, ci_lo, ci_hi):
+            ax.plot([tau, tau], [lo, hi], color=color, linewidth=1.2, alpha=0.5)
+        ax.scatter(taus, betas, color=color, zorder=3, s=18, label=model_label)
+
     ax.axhline(0, color="black", linewidth=0.8, linestyle="-")
-    ax.axvline(
-        0, color="black", linewidth=0.8, linestyle="--", label="Behandlingsstart"
-    )
+    ax.axvline(0, color="black", linewidth=0.8, linestyle="--", label="Behandlingsstart")
     ax.set_xlabel("Måneder relativt til behandlingsstart (τ)", fontsize=11)
     ax.set_ylabel("Koeffisient (β_τ)", fontsize=11)
     ax.set_title(f"Eventstudie — {indicator_label}", fontsize=13)
+    ax.legend(frameon=False, fontsize=9)
     ax.spines[["top", "right"]].set_visible(False)
 
-    p_val = event_study.pretrend_p_value
-    f_stat = event_study.pretrend_f_stat
-    df_n = event_study.pretrend_df_num
-    df_d = event_study.pretrend_df_denom
+    # Annotate pre-trend test for preferred model
+    p_val = event_study_preferred.pretrend_p_value
+    f_stat = event_study_preferred.pretrend_f_stat
+    df_n = event_study_preferred.pretrend_df_num
+    df_d = event_study_preferred.pretrend_df_denom
     ax.text(
         0.02,
         0.97,
-        f"Pre-trend F({df_n},{df_d}) = {f_stat:.2f}  p = {p_val:.3f}",
+        f"Pre-trend F({df_n},{df_d}) = {f_stat:.2f}  p = {p_val:.3f}  (sesongjustert modell)",
         transform=ax.transAxes,
         va="top",
         fontsize=9,
-        color="dimgray",
+        color=_RED,
+    )
+    p_val_b = event_study_baseline.pretrend_p_value
+    f_stat_b = event_study_baseline.pretrend_f_stat
+    df_n_b = event_study_baseline.pretrend_df_num
+    df_d_b = event_study_baseline.pretrend_df_denom
+    ax.text(
+        0.02,
+        0.89,
+        f"Pre-trend F({df_n_b},{df_d_b}) = {f_stat_b:.2f}  p = {p_val_b:.3f}  (basis modell)",
+        transform=ax.transAxes,
+        va="top",
+        fontsize=9,
+        color=_BLUE,
     )
 
     out = figures_dir / f"event_study_{indicator_name}.png"
@@ -443,61 +461,57 @@ def _plot_event_study(
     return out
 
 
-def _plot_bootstrap(
-    bootstrap: Any,
+def _plot_bootstrap_combined(
+    bootstrap_baseline: Any,
+    bootstrap_preferred: Any,
     indicator_name: str,
     indicator_label: str,
-    model_label: str,
     figures_dir: Path,
 ) -> Path:
-    """Plot the bootstrap t-distribution with the observed t-statistic marked.
+    """Side-by-side bootstrap t-distributions for baseline and preferred models.
 
-    Fills the rejection region (|t| ≥ |t_obs|) in red.
+    Each panel shows the full bootstrap null distribution with the rejection
+    region highlighted and the observed t-statistic marked.
     Returns the saved figure path.
     """
-    t_boots = bootstrap.bootstrap_t_stats
-    t_obs = bootstrap.observed_t_stat
-    p_val = bootstrap.bootstrap_p_value
+    fig, axes = plt.subplots(1, 2, figsize=(14, 4), sharey=False)
 
-    fig, ax = plt.subplots(figsize=(9, 4))
-    ax.hist(
-        t_boots,
-        bins=60,
-        color=_LIGHT_BLUE,
-        edgecolor="none",
-        density=True,
-        label="Bootstrap t*",
-    )
+    for ax, boot, model_label in [
+        (axes[0], bootstrap_baseline, "Basis"),
+        (axes[1], bootstrap_preferred, "Sesongjustert"),
+    ]:
+        t_boots = boot.bootstrap_t_stats
+        t_obs = boot.observed_t_stat
+        p_val = boot.bootstrap_p_value
 
-    # Shade the rejection region
-    reject_mask = np.abs(t_boots) >= np.abs(t_obs)
-    if reject_mask.any():
-        ax.hist(
-            t_boots[reject_mask],
-            bins=60,
-            color=_RED,
-            edgecolor="none",
-            density=True,
-            alpha=0.7,
-            label=f"|t*| ≥ |t_obs| ({reject_mask.mean():.3f})",
+        ax.hist(t_boots, bins=60, color=_LIGHT_BLUE, edgecolor="none", density=True, label="Bootstrap t*")
+
+        reject_mask = np.abs(t_boots) >= np.abs(t_obs)
+        if reject_mask.any():
+            ax.hist(
+                t_boots[reject_mask],
+                bins=60,
+                color=_RED,
+                edgecolor="none",
+                density=True,
+                alpha=0.7,
+                label=f"|t*| ≥ |t_obs| ({reject_mask.mean():.3f})",
+            )
+
+        ax.axvline(t_obs, color=_RED, linewidth=1.5, linestyle="--", label=f"t_obs = {t_obs:.2f}")
+        ax.axvline(-t_obs, color=_RED, linewidth=1.5, linestyle="--")
+        ax.set_xlabel("Bootstrap t-statistikk", fontsize=10)
+        ax.set_ylabel("Tetthet", fontsize=10)
+        ax.set_title(
+            f"{model_label} — {indicator_label}\np = {p_val:.3f}  (n = {boot.n_boot:,})",
+            fontsize=11,
         )
+        ax.legend(frameon=False, fontsize=8)
+        ax.spines[["top", "right"]].set_visible(False)
 
-    ax.axvline(
-        t_obs, color=_RED, linewidth=1.5, linestyle="--", label=f"t_obs = {t_obs:.2f}"
-    )
-    ax.axvline(-t_obs, color=_RED, linewidth=1.5, linestyle="--")
-    ax.set_xlabel("Bootstrap t-statistikk", fontsize=11)
-    ax.set_ylabel("Tetthet", fontsize=11)
-    ax.set_title(
-        f"Wild cluster bootstrap — {indicator_label} ({model_label})\n"
-        f"p-verdi = {p_val:.3f}  (n = {bootstrap.n_boot:,})",
-        fontsize=12,
-    )
-    ax.legend(frameon=False, fontsize=9)
-    ax.spines[["top", "right"]].set_visible(False)
-
-    slug = model_label.lower().replace(" ", "_")
-    out = figures_dir / f"bootstrap_{slug}_{indicator_name}.png"
+    fig.suptitle("Wild cluster bootstrap", fontsize=13)
+    fig.tight_layout()
+    out = figures_dir / f"bootstrap_{indicator_name}.png"
     _save_fig(fig, out)
     return out
 
@@ -575,51 +589,11 @@ def _regression_table_md(
 # ── Main entry point ──────────────────────────────────────────────────────────
 
 
-def generate_report(
-    all_results: dict[str, dict[str, Any] | None],
-    cfg: dict[str, Any],
-    output_path: Path,
-    figures_dir: Path,
-    tables_dir: Path,
-) -> None:
-    """Write a Quarto markdown report to *output_path*.
-
-    Parameters
-    ----------
-    all_results:
-        Dict mapping indicator name → result dict with keys ``"baseline"``,
-        ``"preferred"``, ``"event_study"``, and ``"panel"``.
-    cfg:
-        The loaded analysis config dict.
-    output_path:
-        Destination ``.qmd`` file path.
-    figures_dir:
-        Directory where figures are saved (referenced relatively in the QMD).
-    tables_dir:
-        Directory where CSV tables are saved.
-    """
-    from regression import extract_all_coefficients
-
-    treatment_start = str(cfg["analysis"]["treatment_start"])
-    treatment_type = str(cfg["analysis"].get("treatment_type", "continuous"))
-    controll_regions: list[str] | None = cfg["analysis"].get("controll_regions", None)
-    report_title = str(
-        cfg["analysis"].get("title", "Nav DID-analyse — effekt av tiltaksnedgang")
-    )
-    report_dir = output_path.parent
-    ts_formatted = f"{treatment_start[:4]}-{treatment_start[4:]}"
-
-    ind_labels: dict[str, str] = {
-        ind["name"]: ind.get("description", ind["name"])
-        for ind in cfg["data"]["indikatorer"]
-    }
-
-    lines: list[str] = []
-
-    # ── Quarto YAML frontmatter ───────────────────────────────────────────────
-    lines += [
+def _section_frontmatter(title: str) -> list[str]:
+    """Return Quarto YAML frontmatter lines."""
+    return [
         "---",
-        f'title: "{report_title}"',
+        f'title: "{title}"',
         "lang: nb",
         "format:",
         "  html:",
@@ -635,22 +609,23 @@ def generate_report(
         "",
     ]
 
-    # ── Introduction ─────────────────────────────────────────────────────────
+
+def _section_intro(
+    treatment_start: str,
+    treatment_type: str,
+    control_regions: list[str] | None,
+) -> list[str]:
+    """Return the method/background introduction section."""
+    ts_formatted = f"{treatment_start[:4]}-{treatment_start[4:]}"
     if treatment_type == "discrete":
-        controll_list = (
-            ", ".join(controll_regions) if controll_regions else "—"
-        )
+        control_list = ", ".join(control_regions) if control_regions else "—"
         method_para = (
             "Analysen bruker en *difference-in-differences*-tilnærming med **diskret behandling**. "
             "Behandlingsvariabelen er binær: 1 for behandlede regioner i post-perioden, 0 ellers. "
-            f"Kontrollregioner: {controll_list}. "
+            f"Kontrollregioner: {control_list}. "
             "Alle øvrige regioner klassifiseres som behandlede. "
             "Modellen inkluderer region-faste effekter og tidspunkt-faste effekter "
             "for å kontrollere for tidsinvariante regionforskjeller og felles nasjonale trender."
-        )
-        coef_interp = (
-            "Koeffisienten angir estimert gjennomsnittlig behandlingseffekt (ATT) "
-            "på indikatoren, i prosentpoeng. "
         )
     else:
         method_para = (
@@ -660,12 +635,7 @@ def generate_report(
             "og 1 (full nedgang). Modellen inkluderer region-faste effekter og tidspunkt-faste effekter "
             "for å kontrollere for tidsinvariante regionforskjeller og felles nasjonale trender."
         )
-        coef_interp = (
-            "Koeffisienten angir estimert effekt av å gå fra null til full tiltaksnedgang "
-            "(behandlingsintensitet = 1) på indikatoren, i prosentpoeng. "
-        )
-
-    lines += [
+    return [
         "## Bakgrunn og metode",
         "",
         f"Denne rapporten analyserer om nedgangen i arbeidsmarkedstiltak fra og med {ts_formatted} "
@@ -675,8 +645,8 @@ def generate_report(
         "",
         "To modellspesifikasjoner estimeres:",
         "",
-        "- **Basis:** Region FE + år-måned FE",
-        "- **Foretrukket:** Basis + region × kalendermåned FE (absorberer regionspesifikke sesongmønstre)",
+        "- **Basis:** Ujustert indikator, region FE + år-måned FE",
+        "- **Sesongjustert:** Sesongjustert indikator, region FE + år-måned FE",
         "",
         "> **Signifikansnivå:** \\* p < 0,10 &nbsp; \\*\\* p < 0,05 &nbsp; \\*\\*\\* p < 0,01  ",
         "> Standardfeil er clustret på regionnivå (CR1 småutvalgskorrigering).  ",
@@ -685,262 +655,420 @@ def generate_report(
         "",
     ]
 
-    # ── One section per indicator ─────────────────────────────────────────────
+
+def _section_tiltak(
+    panel: pd.DataFrame,
+    treatment_start: str,
+    figures_dir: Path,
+    report_dir: Path,
+) -> list[str]:
+    """Return the shared tiltaksbruk-over-tid section."""
+    tiltak_path = _plot_tiltak_trends(
+        panel=panel,
+        treatment_start=treatment_start,
+        figures_dir=figures_dir,
+    )
+    return [
+        "## Tiltaksbruk over tid",
+        "",
+        "Tiltaksbruk (midlertidig lønnstilskudd) per region over tid. "
+        "Den stiplede linjen markerer behandlingsstart.",
+        "",
+        f"![]({_rel(tiltak_path, report_dir)}){{fig-align='center' width=95%}}",
+        "",
+    ]
+
+
+def _section_descriptive(
+    panel: pd.DataFrame,
+    ind_name: str,
+    label: str,
+    treatment_start: str,
+    treatment_type: str,
+    control_regions: list[str] | None,
+    figures_dir: Path,
+    report_dir: Path,
+) -> list[str]:
+    """Return descriptive statistics and trend-plot section for one indicator."""
+    trend_path = _plot_trends(
+        panel=panel,
+        indicator_name=ind_name,
+        indicator_label=label,
+        treatment_start=treatment_start,
+        figures_dir=figures_dir,
+        control_regions=control_regions,
+    )
+    trend_legend = (
+        "Regionene er delt inn i behandlet og kontrollgruppe."
+        if treatment_type == "discrete"
+        else "Regionene er delt i to grupper basert på median behandlingsintensitet "
+        "(gjennomsnittlig tiltaksnedgang i post-perioden)."
+    )
+    return [
+        "### Deskriptiv statistikk",
+        "",
+        _descriptive_stats_md(panel, ind_name, treatment_type=treatment_type),
+        "",
+        "**Behandlingsvariabel per region (gjennomsnitt i post-perioden):**",
+        "",
+        _intensity_table_md(panel, treatment_type=treatment_type),
+        "",
+        "### Trender over tid",
+        "",
+        trend_legend,
+        "",
+        f"![]({_rel(trend_path, report_dir)}){{fig-align='center' width=90%}}",
+        "",
+    ]
+
+
+def _section_regression(
+    baseline: Any,
+    preferred: Any,
+    bootstrap_baseline: Any,
+    bootstrap_preferred: Any,
+    coef_interp: str,
+    baseline_mean: float | None,
+    mde: float | None,
+    ind_name: str,
+    label: str,
+    figures_dir: Path,
+    report_dir: Path,
+) -> list[str]:
+    """Return regression table, bootstrap plot, and FE coefficient sections."""
+    from regression import extract_all_coefficients
+
+    n_boot = bootstrap_preferred.n_boot if bootstrap_preferred else 0
+    coef_val = preferred.coefficient
+    baseline_mean_str = f"{baseline_mean:.1f} %" if baseline_mean is not None else "—"
+    rel_change_str = (
+        f"{coef_val / baseline_mean * 100:.1f} %"
+        if baseline_mean
+        else "—"
+    )
+    mde_str = f"±{mde:.2f} pp" if mde is not None else "—"
+
+    lines: list[str] = [
+        "### Regresjonsresultater",
+        "",
+        coef_interp
+        + f"Signifikansstjerner og primær p-verdi basert på wild cluster bootstrap "
+        f"(Webb-vekter, G = 12, B = {n_boot:,}).",
+        "",
+        _regression_table_md(
+            baseline,
+            preferred,
+            bootstrap_baseline=bootstrap_baseline,
+            bootstrap_preferred=bootstrap_preferred,
+        ),
+        "",
+        "> **Signifikansnivå (bootstrap):** "
+        "\\* p < 0,10 &nbsp; \\*\\* p < 0,05 &nbsp; \\*\\*\\* p < 0,01",
+        "",
+        f"**Gjennomsnittlig pre-periode-nivå:** {baseline_mean_str} — "
+        f"koeffisienten tilsvarer en relativ endring på {rel_change_str}.  ",
+        f"**Minimum detekterbar effekt (80 % styrke, α = 0,05):** {mde_str}.",
+        "",
+    ]
+
+    if bootstrap_baseline is not None and bootstrap_preferred is not None:
+        boot_path = _plot_bootstrap_combined(
+            bootstrap_baseline, bootstrap_preferred, ind_name, label, figures_dir
+        )
+        lines += [
+            "### Bootstrap-fordeling",
+            "",
+            f"![]({_rel(boot_path, report_dir)}){{fig-align='center' width=95%}}",
+            "",
+        ]
+
+    coef_df = pd.concat(
+        [extract_all_coefficients(baseline), extract_all_coefficients(preferred)],
+        ignore_index=True,
+    )
+    fe_paths = _plot_fe_coefficients(
+        coef_df=coef_df,
+        indicator_name=ind_name,
+        indicator_label=label,
+        figures_dir=figures_dir,
+    )
+    if fe_paths:
+        lines += [
+            "### Faste effekter",
+            "",
+            "Stolpediagrammene viser koeffisientene for de faste effektene i den foretrukne modellen. "
+            "Røde søyler er signifikante på 5 %-nivå.",
+            "",
+        ]
+        for fe_type, fig_path in fe_paths.items():
+            lines += [
+                f"**{fe_type}**",
+                "",
+                f"![]({_rel(fig_path, report_dir)}){{fig-align='center' width=90%}}",
+                "",
+            ]
+    return lines
+
+
+def _section_event_study(
+    event_study_baseline: Any,
+    event_study_preferred: Any,
+    ind_name: str,
+    label: str,
+    treatment_type: str,
+    figures_dir: Path,
+    report_dir: Path,
+) -> list[str]:
+    """Return event-study section with combined figure and pre-trend verdict."""
+    es_path = _plot_event_study_combined(
+        event_study_baseline=event_study_baseline,
+        event_study_preferred=event_study_preferred,
+        indicator_name=ind_name,
+        indicator_label=label,
+        figures_dir=figures_dir,
+    )
+    p = event_study_preferred.pretrend_p_value
+    f = event_study_preferred.pretrend_f_stat
+    dfn = event_study_preferred.pretrend_df_num
+    dfd = event_study_preferred.pretrend_df_denom
+    pretrend_verdict = (
+        "Det er **ikke** statistisk grunnlag for å forkaste parallelle trender "
+        f"(F({dfn},{dfd}) = {f:.2f}, p = {p:.3f}, sesongjustert modell)."
+        if p >= 0.10
+        else f"**Advarsel:** pre-trend-testen er signifikant "
+        f"(F({dfn},{dfd}) = {f:.2f}, p = {p:.3f}), noe som svekker DiD-antakelsen."
+    )
+    es_desc = (
+        "Eventsstudien samhandler periodevise indikatorer med en tidsinvariant "
+        "behandlingindikator per region (0 = kontroll, 1 = behandlet). "
+        if treatment_type == "discrete"
+        else "Eventsstudien samhandler periodevise indikatorer med en tidsinvariant "
+        "intensitetsscore per region (maksimal tiltaksnedgang i post-perioden). "
+    ) + "Pre-periode-koeffisientene (τ < 0) bør ligge nær null dersom parallelle trender holder. Blå = basis, rød = sesongjustert modell."
+    return [
+        "### Eventstudie og parallell-trend-test",
+        "",
+        es_desc,
+        "",
+        pretrend_verdict,
+        "",
+        f"![]({_rel(es_path, report_dir)}){{fig-align='center' width=95%}}",
+        "",
+    ]
+
+
+def _section_placebo(
+    placebo_baseline: Any,
+    placebo_preferred: Any,
+    baseline: Any,
+    preferred: Any,
+    ind_name: str,
+    label: str,
+    figures_dir: Path,
+    report_dir: Path,
+) -> list[str]:
+    """Return placebo-test section with combined figure."""
+    placebo_path = _plot_placebo_combined(
+        placebo_baseline=placebo_baseline,
+        placebo_preferred=placebo_preferred,
+        baseline=baseline,
+        preferred=preferred,
+        indicator_name=ind_name,
+        indicator_label=label,
+        figures_dir=figures_dir,
+    )
+    p_str = f"{placebo_preferred.p_value:.3f}"
+    coef_str = f"{placebo_preferred.coefficient:.4f}"
+    verdict = (
+        f"Sesongjustert modell — placebo-koeffisienten er {coef_str} (p = {p_str}). "
+        + (
+            "Dette er ikke signifikant, noe som styrker identifikasjonsstrategien."
+            if placebo_preferred.p_value >= 0.10
+            else "**Advarsel:** placebo-estimatet er signifikant, noe som kan indikere pre-eksisterende trender."
+        )
+    )
+    return [
+        "### Placebotest (τ = −12)",
+        "",
+        "Begge modeller re-estimeres med en falsk behandlingsstart tolv måneder tidligere, "
+        "utelukkende i pre-perioden. Estimater nær null styrker antakelsen om "
+        "at resultatene ikke skyldes pre-eksisterende trender.",
+        "",
+        verdict,
+        "",
+        f"![]({_rel(placebo_path, report_dir)}){{fig-align='center' width=80%}}",
+        "",
+    ]
+
+
+def _section_leave_one_out(
+    loo_baseline: Any,
+    loo_preferred: Any,
+    ind_name: str,
+    label: str,
+    figures_dir: Path,
+    report_dir: Path,
+) -> list[str]:
+    """Return leave-one-out robustness section with combined figure."""
+    loo_path = _plot_leave_one_out_combined(
+        loo_baseline=loo_baseline,
+        loo_preferred=loo_preferred,
+        indicator_name=ind_name,
+        indicator_label=label,
+        figures_dir=figures_dir,
+    )
+    coef_range = (
+        f"{loo_preferred.rows['coefficient'].min():.4f} "
+        f"til {loo_preferred.rows['coefficient'].max():.4f}"
+    )
+    return [
+        "### Leave-one-out robusthet",
+        "",
+        "Begge modeller re-estimeres tolv ganger, én for hver region som droppes. "
+        "Det skyggelagte feltet viser 95 %-konfidensintervallet for full-utvalgsmodellen.",
+        "",
+        f"Sesongjustert modell: koeffisienten varierer mellom {coef_range} når én region utelates.",
+        "",
+        f"![]({_rel(loo_path, report_dir)}){{fig-align='center' width=95%}}",
+        "",
+    ]
+
+
+def generate_report(
+    all_results: dict[str, dict[str, Any] | None],
+    cfg: dict[str, Any],
+    output_path: Path,
+    figures_dir: Path,
+    tables_dir: Path,
+) -> None:
+    """Write a Quarto markdown report to *output_path*.
+
+    Parameters
+    ----------
+    all_results:
+        Dict mapping indicator name → result dict (or ``None`` if skipped).
+    cfg:
+        The loaded analysis config dict.
+    output_path:
+        Destination ``.qmd`` file path.
+    figures_dir:
+        Directory where figures are saved (referenced relatively in the QMD).
+    tables_dir:
+        Directory where CSV tables are saved.
+    """
+    treatment_start = str(cfg["analysis"]["treatment_start"])
+    treatment_type = str(cfg["analysis"].get("treatment_type", "continuous"))
+    control_regions: list[str] | None = cfg["analysis"].get("control_regions", None)
+    report_title = str(
+        cfg["analysis"].get("title", "Nav DID-analyse — effekt av tiltaksnedgang")
+    )
+    report_dir = output_path.parent
+
+    coef_interp = (
+        "Koeffisienten angir estimert gjennomsnittlig behandlingseffekt (ATT) "
+        "på indikatoren, i prosentpoeng. "
+        if treatment_type == "discrete"
+        else "Koeffisienten angir estimert effekt av å gå fra null til full tiltaksnedgang "
+        "(behandlingsintensitet = 1) på indikatoren, i prosentpoeng. "
+    )
+
+    ind_labels: dict[str, str] = {
+        ind["name"]: ind.get("description", ind["name"])
+        for ind in cfg["data"]["indikatorer"]
+    }
+
+    lines: list[str] = []
+    lines += _section_frontmatter(report_title)
+    lines += _section_intro(treatment_start, treatment_type, control_regions)
+
+    first_res = next((r for r in all_results.values() if r is not None), None)
+    if first_res is not None:
+        lines += _section_tiltak(
+            panel=first_res["panel"],
+            treatment_start=treatment_start,
+            figures_dir=figures_dir,
+            report_dir=report_dir,
+        )
+
     for ind_name, res in all_results.items():
         if res is None:
             continue
 
         base_ind_name = str(res.get("indicator_name", ind_name))
-        prep_variant = str(res.get("prep_variant", "regular"))
         label = ind_labels.get(base_ind_name, base_ind_name)
-        if prep_variant == "flattened":
-            label = f"{label} — flattenet"
         panel: pd.DataFrame = res["panel"]
         baseline = res["baseline"]
         preferred = res["preferred"]
-        bootstrap_baseline = res.get("bootstrap_baseline")
-        bootstrap_preferred = res.get("bootstrap_preferred")
-        event_study = res.get("event_study")
-        placebo = res.get("placebo")
-        leave_one_out = res.get("leave_one_out")
-        mde: float | None = res.get("mde")
-        baseline_mean: float | None = res.get("baseline_mean")
 
         lines += [f"## {label} (`{ind_name}`)", ""]
 
-        # Tiltak trend (spaghetti)
-        tiltak_path = _plot_tiltak_trends(
+        lines += _section_descriptive(
             panel=panel,
-            indicator_name=ind_name,
-            indicator_label=label,
+            ind_name=ind_name,
+            label=label,
             treatment_start=treatment_start,
+            treatment_type=treatment_type,
+            control_regions=control_regions,
             figures_dir=figures_dir,
+            report_dir=report_dir,
         )
-        lines += [
-            "### Tiltaksbruk over tid",
-            "",
-            "Tiltaksbruk per region over tid. Den stiplede linjen markerer behandlingsstart.",
-            "",
-            f"![]({_rel(tiltak_path, report_dir)}){{fig-align='center' width=95%}}",
-            "",
-        ]
 
-        # Descriptive statistics
-        lines += [
-            "### Deskriptiv statistikk",
-            "",
-            _descriptive_stats_md(panel, ind_name, treatment_type=treatment_type),
-            "",
-            "**Behandlingsvariabel per region (gjennomsnitt i post-perioden):**",
-            "",
-            _intensity_table_md(panel, treatment_type=treatment_type),
-            "",
-        ]
-
-        # Trend plot
-        trend_path = _plot_trends(
-            panel=panel,
-            indicator_name=ind_name,
-            indicator_label=label,
-            treatment_start=treatment_start,
+        lines += _section_regression(
+            baseline=baseline,
+            preferred=preferred,
+            bootstrap_baseline=res.get("bootstrap_baseline"),
+            bootstrap_preferred=res.get("bootstrap_preferred"),
+            coef_interp=coef_interp,
+            baseline_mean=res.get("baseline_mean"),
+            mde=res.get("mde"),
+            ind_name=ind_name,
+            label=label,
             figures_dir=figures_dir,
-            controll_regions=controll_regions,
+            report_dir=report_dir,
         )
-        trend_legend = (
-            "Regionene er delt inn i behandlet og kontrollgruppe."
-            if treatment_type == "discrete"
-            else "Regionene er delt i to grupper basert på median behandlingsintensitet "
-            "(gjennomsnittlig tiltaksnedgang i post-perioden)."
-        )
-        lines += [
-            "### Trender over tid",
-            "",
-            trend_legend,
-            "",
-            f"![]({_rel(trend_path, report_dir)}){{fig-align='center' width=90%}}",
-            "",
-        ]
 
-        # Regression results
-        n_boot = bootstrap_preferred.n_boot if bootstrap_preferred else 0
-        coef_val = preferred.coefficient
-        baseline_mean_str = f"{baseline_mean:.1f} %" if baseline_mean is not None else "—"
-        if baseline_mean and baseline_mean != 0:
-            rel_change_str = f"{coef_val / baseline_mean * 100:.1f} %"
-        else:
-            rel_change_str = "—"
-        mde_str = f"±{mde:.2f} pp" if mde is not None else "—"
-
-        lines += [
-            "### Regresjonsresultater",
-            "",
-            coef_interp
-            + f"Signifikansstjerner og primær p-verdi basert på wild cluster bootstrap "
-            f"(Webb-vekter, G = 12, B = {n_boot:,}).",
-            "",
-            _regression_table_md(
-                baseline,
-                preferred,
-                bootstrap_baseline=bootstrap_baseline,
-                bootstrap_preferred=bootstrap_preferred,
-            ),
-            "",
-            "> **Signifikansnivå (bootstrap):** "
-            "\\* p < 0,10 &nbsp; \\*\\* p < 0,05 &nbsp; \\*\\*\\* p < 0,01",
-            "",
-            f"**Gjennomsnittlig pre-periode-nivå:** {baseline_mean_str} — "
-            f"koeffisienten tilsvarer en relativ endring på {rel_change_str}.  ",
-            f"**Minimum detekterbar effekt (80 % styrke, α = 0,05):** {mde_str}.",
-            "",
-        ]
-
-        # Bootstrap distribution plots
-        if bootstrap_baseline is not None and bootstrap_preferred is not None:
-            boot_paths = [
-                _plot_bootstrap(
-                    bootstrap_baseline, ind_name, label, "Basis", figures_dir
-                ),
-                _plot_bootstrap(
-                    bootstrap_preferred, ind_name, label, "Sesongjustert", figures_dir
-                ),
-            ]
-            lines += ["### Bootstrap-fordeling", ""]
-            for bp in boot_paths:
-                lines += [
-                    f"![]({_rel(bp, report_dir)}){{fig-align='center' width=90%}}",
-                    "",
-                ]
-
-        # FE coefficient plots
-        coef_df = pd.concat(
-            [extract_all_coefficients(baseline), extract_all_coefficients(preferred)],
-            ignore_index=True,
-        )
-        fe_paths = _plot_fe_coefficients(
-            coef_df=coef_df,
-            indicator_name=ind_name,
-            indicator_label=label,
-            figures_dir=figures_dir,
-        )
-        if fe_paths:
-            lines += [
-                "### Faste effekter",
-                "",
-                "Stolpediagrammene viser koeffisientene for de faste effektene i den foretrukne modellen. "
-                "Røde søyler er signifikante på 5 %-nivå.",
-                "",
-            ]
-            for fe_type, fig_path in fe_paths.items():
-                lines += [
-                    f"**{fe_type}**",
-                    "",
-                    f"![]({_rel(fig_path, report_dir)}){{fig-align='center' width=90%}}",
-                    "",
-                ]
-
-        # Event study
-        if event_study is not None:
-            es_path = _plot_event_study(
-                event_study=event_study,
-                indicator_name=ind_name,
-                indicator_label=label,
+        event_study = res.get("event_study")
+        event_study_baseline = res.get("event_study_baseline")
+        if event_study is not None and event_study_baseline is not None:
+            lines += _section_event_study(
+                event_study_baseline=event_study_baseline,
+                event_study_preferred=event_study,
+                ind_name=ind_name,
+                label=label,
+                treatment_type=treatment_type,
                 figures_dir=figures_dir,
+                report_dir=report_dir,
             )
-            p = event_study.pretrend_p_value
-            f = event_study.pretrend_f_stat
-            dfn = event_study.pretrend_df_num
-            dfd = event_study.pretrend_df_denom
-            pretrend_verdict = (
-                "Det er **ikke** statistisk grunnlag for å forkaste parallelle trender "
-                f"(F({dfn},{dfd}) = {f:.2f}, p = {p:.3f})."
-                if p >= 0.10
-                else f"**Advarsel:** pre-trend-testen er signifikant "
-                f"(F({dfn},{dfd}) = {f:.2f}, p = {p:.3f}), noe som svekker DiD-antakelsen."
-            )
-            if treatment_type == "discrete":
-                es_desc = (
-                    "Eventsstudien samhandler periodevise indikatorer med en tidsinvariant "
-                    "behandlingindikator per region (0 = kontroll, 1 = behandlet). "
-                    "Pre-periode-koeffisientene (τ < 0) bør ligge nær null dersom "
-                    "parallelle trender holder."
-                )
-            else:
-                es_desc = (
-                    "Eventsstudien samhandler periodevise indikatorer med en tidsinvariant "
-                    "intensitetsscore per region (maksimal tiltaksnedgang i post-perioden). "
-                    "Pre-periode-koeffisientene (τ < 0) bør ligge nær null dersom "
-                    "parallelle trender holder."
-                )
-            lines += [
-                "### Eventstudie og parallell-trend-test",
-                "",
-                es_desc,
-                "",
-                pretrend_verdict,
-                "",
-                f"![]({_rel(es_path, report_dir)}){{fig-align='center' width=95%}}",
-                "",
-            ]
 
-        # Placebo test
+        placebo = res.get("placebo")
         if placebo is not None:
-            placebo_path = _plot_placebo(
-                placebo=placebo,
+            lines += _section_placebo(
+                placebo_baseline=res.get("placebo_baseline"),
+                placebo_preferred=placebo,
+                baseline=baseline,
                 preferred=preferred,
-                indicator_name=ind_name,
-                indicator_label=label,
+                ind_name=ind_name,
+                label=label,
                 figures_dir=figures_dir,
+                report_dir=report_dir,
             )
-            placebo_p_str = f"{placebo.p_value:.3f}"
-            placebo_coef_str = f"{placebo.coefficient:.4f}"
-            placebo_verdict = (
-                f"Placebo-koeffisienten er {placebo_coef_str} (p = {placebo_p_str}). "
-                + (
-                    "Dette er ikke signifikant, noe som styrker identifikasjonsstrategien."
-                    if placebo.p_value >= 0.10
-                    else "**Advarsel:** placebo-estimatet er signifikant, noe som kan indikere pre-eksisterende trender."
-                )
-            )
-            lines += [
-                "### Placebotest (τ = −12)",
-                "",
-                "Modellen re-estimeres med en falsk behandlingsstart tolv måneder tidligere, "
-                "utelukkende i pre-perioden. Et estimat nær null styrker antakelsen om "
-                "at resultatene ikke skyldes pre-eksisterende trender.",
-                "",
-                placebo_verdict,
-                "",
-                f"![]({_rel(placebo_path, report_dir)}){{fig-align='center' width=80%}}",
-                "",
-            ]
 
-        # Leave-one-out
-        if leave_one_out is not None and not leave_one_out.rows.empty:
-            loo_path = _plot_leave_one_out(
-                loo=leave_one_out,
-                indicator_name=ind_name,
-                indicator_label=label,
+        leave_one_out = res.get("leave_one_out")
+        leave_one_out_baseline = res.get("leave_one_out_baseline")
+        if (
+            leave_one_out is not None
+            and leave_one_out_baseline is not None
+            and not leave_one_out.rows.empty
+        ):
+            lines += _section_leave_one_out(
+                loo_baseline=leave_one_out_baseline,
+                loo_preferred=leave_one_out,
+                ind_name=ind_name,
+                label=label,
                 figures_dir=figures_dir,
+                report_dir=report_dir,
             )
-            coef_range = (
-                f"{leave_one_out.rows['coefficient'].min():.4f} "
-                f"til {leave_one_out.rows['coefficient'].max():.4f}"
-            )
-            lines += [
-                "### Leave-one-out robusthet",
-                "",
-                "Den foretrukne modellen re-estimeres tolv ganger, én for hver region "
-                "som droppes. Det skyggelagte feltet viser 95 %-konfidensintervallet "
-                "for full-utvalgsmodellen.",
-                "",
-                f"Koeffisienten varierer mellom {coef_range} når én region utelates. "
-                "Dette gir et inntrykk av hvor mye enkeltregioner driver resultatet.",
-                "",
-                f"![]({_rel(loo_path, report_dir)}){{fig-align='center' width=90%}}",
-                "",
-            ]
 
-    # ── Footer ────────────────────────────────────────────────────────────────
     lines += [
         "---",
         "",

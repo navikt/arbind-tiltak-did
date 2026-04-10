@@ -28,6 +28,7 @@ each iteration requires only O(N·G) operations.
 from __future__ import annotations
 
 import logging
+import math
 from dataclasses import dataclass
 
 import numpy as np
@@ -64,19 +65,16 @@ class BootstrapResult:
 # ── FWL helpers ────────────────────────────────────────────────────────────────
 
 
-def _build_fe_matrix(panel: pd.DataFrame, preferred: bool = True) -> np.ndarray:
+def _build_fe_matrix(panel: pd.DataFrame) -> np.ndarray:
     """Build the matrix of fixed-effect dummies Z (float, no column names).
 
-    Includes region FE and year-month FE; when ``preferred=True`` also adds
-    region × calendar-month FE.  One dummy per group is dropped to prevent
-    exact collinearity.
+    Includes region FE and year-month FE.  One dummy per group is dropped to
+    prevent exact collinearity.
 
     Parameters
     ----------
     panel:
         Analysis panel from :func:`prep_data.prepare_panel`.
-    preferred:
-        Whether to include region × calendar-month seasonal FE.
 
     Returns:
     -------
@@ -93,19 +91,6 @@ def _build_fe_matrix(panel: pd.DataFrame, preferred: bool = True) -> np.ndarray:
         region_fe.values,
         yearmonth_fe.values,
     ]
-
-    if preferred:
-        rm_key = (
-            panel["region"].str.replace(" ", "_")
-            + "_m"
-            + panel["month_of_year"].astype(str)
-        )
-        rm_fe = pd.get_dummies(rm_key, prefix="rm", drop_first=False, dtype=float)
-        to_drop = [f"rm_{r.replace(' ', '_')}_m1" for r in panel["region"].unique()]
-        rm_fe = rm_fe.drop(
-            columns=[c for c in to_drop if c in rm_fe.columns], errors="ignore"
-        )
-        parts.append(rm_fe.values)
 
     return np.hstack(parts)
 
@@ -178,24 +163,19 @@ def _cr1_se(
 
 def wild_cluster_bootstrap(
     panel: pd.DataFrame,
-    preferred: bool = True,
     n_boot: int = DEFAULT_N_BOOT,
     seed: int = DEFAULT_SEED,
 ) -> BootstrapResult:
     """Run the wild cluster bootstrap for the treatment coefficient.
 
-    Tests H₀: β_tiltaksnedgang = 0 using Webb (2014) weights.  The null is
-    imposed by using the FWL-transformed outcome as the null residual (step 2
-    of the algorithm in the module docstring).
+    Tests H₀: β_tiltaksnedgang = 0 using Webb (2014) weights.  Uses region FE
+    + year-month FE.  The null is imposed by using the FWL-transformed outcome
+    as the null residual.
 
     Parameters
     ----------
     panel:
         Processed analysis panel from :func:`prep_data.prepare_panel`.
-    preferred:
-        If ``True`` (default) use the preferred model specification (region FE
-        + year-month FE + region × calendar-month FE).  If ``False``, use the
-        baseline specification.
     n_boot:
         Number of bootstrap replications.  Minimum recommended: 4 999.
     seed:
@@ -221,8 +201,8 @@ def wild_cluster_bootstrap(
     cluster_ids = np.array([cluster_map[r] for r in regions], dtype=int)
 
     # ── Step 1: FWL projection (one-time cost) ────────────────────────────────
-    logger.info("Building FE matrix for bootstrap (preferred=%s, G=%d) …", preferred, G)
-    Z = _build_fe_matrix(panel, preferred=preferred)
+    logger.info("Building FE matrix for bootstrap (G=%d) …", G)
+    Z = _build_fe_matrix(panel)
 
     logger.info("Projecting Y and X out of FE space …")
     y_tilde = _partial_out(Z, y)
@@ -237,6 +217,11 @@ def wild_cluster_bootstrap(
     beta_obs = float(x_tilde @ y_tilde) / Q
     resid_obs = y_tilde - x_tilde * beta_obs
     se_obs = _cr1_se(x_tilde, resid_obs, cluster_ids, G)
+    if not math.isfinite(se_obs) or se_obs <= 1e-15:
+        raise ValueError(
+            f"Observed CR1 SE is degenerate (se={se_obs:.3e}). "
+            "Treatment may be collinear with fixed effects after FWL projection."
+        )
     t_obs = beta_obs / se_obs
 
     logger.info(

@@ -11,7 +11,10 @@ Nav måler effekten av sitt arbeid gjennom månedlige **arbeidsindikatorer** per
 | atid3 | Gjennomsnittlig ukentlig arbeidstid neste 3 måneder |
 | jobb3 | I jobb (mer enn 19 timer i uken) etter 3 måneder |
 
-Analysen søker å besvare spørsmålet: *Bidro tiltaksnedbyggingen til en ytterligere nedgang i indikatorene, utover den generelle trenden?*
+Analysen søker å besvare spørsmålene:
+-	Hva er effekten av redusert tiltaksbruk på arbeidsindikatoren? 
+-	I hvilken grad førte nedgangen i bruken av midlertidig lønnstilskudd fra juni 2025 til endringer i deltakergrunnlaget i tiltakene, målt ved arbeidsindikatorens forventningskomponent?
+-	Er effekten forskjellig for ulike grupper som de med nedsatt arbeidsevne, arbeidssøkere og tiltaksdeltakere?
 
 ---
 
@@ -19,9 +22,13 @@ Analysen søker å besvare spørsmålet: *Bidro tiltaksnedbyggingen til en ytter
 
 En binær behandlingsvariabel (behandlet/ikke behandlet) ville ikke fanget den gradvise og regionsspesifikke karakteren til nedbyggingen. I stedet bruker vi en **kontinuerlig, tidsvarierende nedbyggingsintensitet**:
 
-$$D_{it} = \max\!\left(0,\; \frac{\text{før}_i - \text{tiltak}_{it}}{\text{topp}_i}\right) \quad \text{for } t \geq \text{juni 2025}, \quad D_{it} = 0 \text{ ellers}$$
+$$D_{it} = \max\!\left(0,\; \frac{\text{ref}_i - \text{tiltak}_{it}}{\text{ref}_i}\right) \quad \text{for } t \geq \text{juni 2025}, \quad D_{it} = 0 \text{ ellers}$$
 
-Her er $\text{før}_i$ antallet tiltaksplasser region $i$ hadde i rett før pre-behandlingsperioden (en naturlig «baseline»), og $\text{tiltak}_{it}$ er faktisk antall tiltaksplasser i måned $t$. Variabelen går fra 0 (ingen reduksjon) til 1 (total eliminering) og er definert som null i alle måneder før juni 2025.
+Her er $\text{ref}_i$ referansenivået for antall tiltaksplasser i region $i$ rett før behandlingsperioden. I analysen brukes **siste pre-periode-måneden** ($t = -1$, mai 2025) som referanse. Variabelen går fra 0 (ingen reduksjon) til 1 (total eliminering) og er definert som null i alle måneder før juni 2025. Den observerte variasjonen i nedbyggingsintensitet strekker seg fra om lag 14 % for de minst berørte regionene til om lag 70 % for de hardest rammede, og intensiteten øker over tid gjennom post-perioden.
+
+### Valget av referansepunkt
+
+Alternativt kunne man brukt **toppen i pre-perioden** («peak») som referanse. Dette ble vurdert og forkastet. I noen regioner stammer det historiske toppunktet fra et tidligere syklisk oppsving i tiltaksbruken — et oppsving som fulgte ordinær arbeidsmarkedsutvikling og som ikke har noe med det administrative nedbygg-sjokket fra 2025 å gjøre. Å normalisere mot en slik topp ville overvurdert nedbyggingsintensiteten i disse regionene og skapt kunstige variasjoner på tvers av regioner. Referansepunktet $t = -1$ fanger derimot den faktiske størrelsen på kuttet fra det nivået som faktisk ble redusert. Robusthetssjekker med peak-normalisering gir i praksis lignende resultater.
 
 Dette gir to fordeler: det tillater en **dose-respons-tolkning** (større kutt gir større effekt), og det er mer informativt enn en binær indikator for analyser der behandlingsintensiteten varierer.
 
@@ -42,18 +49,30 @@ Der:
 
 To modellspesifikasjoner estimeres:
 
-| Modell | Faste effekter | Formål |
-|:-------|:---------------|:-------|
-| Baseline | Region + år-måned | Grunnmodell |
-| Foretrukket | Region + år-måned + region × kalendermåned | Kontrollerer for regionsspesifikke sesongmønstre |
+| Modell | Data | Faste effekter | Formål |
+|:-------|:-----|:---------------|:-------|
+| Basis | Ujustert indikator | Region + år-måned | Grunnmodell |
+| Foretrukket | Sesongjustert indikator | Region + år-måned | Håndterer sesongmønstre i data |
 
-Den **foretrukne modellen** legger til region × kalendermåned-samspill (12 månedsdummyer per region). Dette er begrunnet med at sesongvariasjonen i indikatorene kan variere systematisk mellom regioner — for eksempel kan arbeidsmarkedet i noen regioner svinge mer med sommer- og vinterferie. Uten denne kontrollen kan sesongmønstre som tilfeldigvis korrelerer med nedbyggingsintensiteten forurense effektestimaten. Med fem år med pre-periodedata er det tilstrekkelig frihetsgrader til å estimere disse sesongeffektene.
+Den **foretrukne modellen** bruker en sesongjustert versjon av indikatoren. Sesongjusteringen utføres i dataforberedelsen: for hver region og hver kalendermåned beregnes gjennomsnittlig avvik fra regionens pre-periode-gjennomsnitt, og dette trekkes fra observasjonene. Fordi sesongjusteringen er basert utelukkende på pre-periode-data, introduseres ingen fremtidig informasjon. Begge modeller bruker identisk regresjonsoppsett (region + år-måned faste effekter); de skiller seg kun i inputdata. Tester viser at resultatene er nær identiske, noe som bekrefter at regionsspesifikke sesongmønstre ikke er en vesentlig trussel mot identifikasjonen.
 
 ---
 
 ## Identifikasjonsantagelsen
 
 Den sentrale antagelsen i DiD er **parallelle trender**: fraværende tiltaksnedbyggingen ville regionene ha fulgt parallelle baner i indikatorene. Fordi år-måned-dummyene absorberer landsdekkende trender, reduseres dette i praksis til en antagelse om at *avvik fra den felles trenden* ikke ville variert systematisk med nedbyggingsintensiteten.
+
+### Eksogeitet: budsjettoverskridelse som kvasi-tilfeldig sjokk
+
+En sentral forutsetning er at nedbyggingsintensiteten er eksogen — det vil si ukorrelert med de potensielle utfallene. Denne antagelsen er godt støttet av mekanismen bak sjokket: overforbruket av tiltaksmidler ble oppdaget sent på grunn av forsinkelser i administrativ og finansiell rapportering. Alle regioner strammet inn, men regionene med størst budsjettoverskridelse måtte kutte mest. Intensiteten av kuttet er dermed i hovedsak en funksjon av en pre-determinert finansiell overskridelsesstørrelse — ikke av løpende arbeidsmarkedsforhold. Dette er nær en naturlig variasjon som kan betraktes som kvasi-tilfeldig betinget på region- og tidspunkt-faste effekter.
+
+### Fraværet av spillover-effekter (SUTVA)
+
+SUTVA-antagelsen (Stable Unit Treatment Value Assumption) krever at behandlingen i én region ikke påvirker utfallene i andre regioner. I dette tilfellet er antagelsen godt begrunnet: nedbyggingen innebærer ikke at det opprettes nye tiltaksplasser andre steder — det er ingen nye midler å fordele. Arbeidere som ikke lenger får tilbud om tiltak, vil typisk forbli registrert i sin hjemregion uten å flytte. Etterspørselen etter tiltak er heller ikke fluid nok til at reduksjoner i én region skaper kompenserende tilstrømning til andre regioner.
+
+### Utfallskohorten
+
+Arbeidsindikatoren er ikke beregnet utelukkende for tiltaksdeltakere, men for en bredere kohort av alle registrerte Nav-brukere (eller spesifiserte undergrupper) som potensielt kvalifiserer for tiltak. Dette betyr at endringer i hvem som faktisk mottar tiltak ikke direkte endrer hvem som inngår i nevneren. Sammensetningsskjevhet som følge av at tiltaksnedbygging endrer «tiltakspopulasjonen» er dermed ikke en vesentlig trussel.
 
 Et analytisk gunstig forvarsel er at regionene med størst kutt hadde en tendens til å *overutøve* i perioden før nedbyggingen. Dette gjør det lite sannsynlig at de hardest rammede regionene allerede var i selvstendig nedgang, noe som ellers ville vært en trussel mot identifikasjonen. Det innebærer dessuten at effektestimatene trolig er **konservative**: en region som presterte over forventning ville uansett hatt noe tilbaketrekning mot gjennomsnittet.
 

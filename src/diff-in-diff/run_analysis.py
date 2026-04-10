@@ -1,6 +1,8 @@
 """Run the full DID analysis for Nav employment indicators.
 
-All configuration is read from ``analysis-config.yml`` in the same directory.
+Pass a config file as the first argument (name or path).  A bare filename is
+resolved first relative to the current directory, then relative to the
+``configs/`` subdirectory.  Run without arguments to use the default config.
 """
 
 from __future__ import annotations
@@ -8,18 +10,20 @@ from __future__ import annotations
 import argparse
 import logging
 import re
+import shutil
 import sys
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import pandas as pd
 import yaml
 
 # ── Project paths ──────────────────────────────────────────────────────────────
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent
-CONFIG_PATH = Path(__file__).parent / "analysis-config.yml"
 CONFIGS_DIR = Path(__file__).parent / "configs"
+CONFIG_PATH = CONFIGS_DIR / "alle-kontinuerlig.yml"
 DATA_PROCESSED_BASE = PROJECT_ROOT / "data" / "processed"
 OUTPUTS_DID_BASE = PROJECT_ROOT / "outputs" / "did"
 
@@ -38,6 +42,12 @@ logger = logging.getLogger("run_analysis")
 
 def _load_config(path: Path = CONFIG_PATH) -> dict[str, Any]:
     """Load and return the YAML analysis configuration."""
+    if not path.exists():
+        raise FileNotFoundError(
+            f"Config file not found: {path}\n"
+            f"Available configs in configs/:\n"
+            + "\n".join(f"  {p.name}" for p in sorted(CONFIGS_DIR.glob("*.yml")))
+        )
     with open(path, encoding="utf-8") as f:
         return yaml.safe_load(f)  # type: ignore[no-any-return]
 
@@ -53,7 +63,7 @@ def _parse_args() -> argparse.Namespace:
             "Path or filename of the YAML config file. "
             "A bare filename (e.g. alle-discrete.yml) is resolved first relative "
             "to the current directory, then relative to diff-in-diff/configs/. "
-            f"Default: {CONFIG_PATH.name}"
+            f"Default: {CONFIG_PATH.name} (from configs/)"
         ),
     )
     parser.add_argument(
@@ -97,13 +107,21 @@ def _run_indicator(
     treatment_start: str,
     treatment_type: str,
     denominator: str,
-    flatten: bool,
     processed_dir: Path,
-    controll_regions: list[str] | None = None,
+    control_regions: list[str] | None = None,
 ) -> dict[str, Any] | None:
-    """Prepare data, run regression, event study, and bootstrap for one indicator; return result dict."""
+    """Prepare regular and flattened panels, run regression and supporting analyses.
+
+    The baseline model is estimated on the regular (non-flattened) panel.
+    The preferred model is estimated on the seasonally flattened panel.
+    Both use region FE + year-month FE only.
+
+    Returns an :class:`IndicatorResult` serialised to a plain dict for
+    backward-compatible downstream use, or ``None`` if skipped.
+    """
     from cluster_bootstrap import wild_cluster_bootstrap
     from event_study import run_event_study
+    from models import IndicatorResult
     from prep_data import prepare_panel
     from regression import (
         compute_mde,
@@ -113,31 +131,41 @@ def _run_indicator(
         run_preferred_model,
     )
 
-    logger.info("── Preparing panel for %s (%s) ──", indicator_name, result_name)
-    panel = prepare_panel(
+    shared_kwargs = dict(
         indicator_path=indicator_path,
         tiltak_path=tiltak_path,
         indicator_name=indicator_name,
         treatment_start=treatment_start,
         treatment_type=treatment_type,
         denominator=denominator,
-        flatten=flatten,
-        controll_regions=controll_regions,
-        processed_path=processed_dir / f"panel_{result_name}.csv",
+        control_regions=control_regions,
     )
 
-    n_post_obs = int(panel["post_treatment"].sum())
+    logger.info("── Preparing regular panel for %s ──", indicator_name)
+    panel_regular = prepare_panel(
+        **shared_kwargs,
+        flatten=False,
+        processed_path=processed_dir / f"panel_{result_name}_regular.csv",
+    )
+
+    logger.info("── Preparing flattened panel for %s ──", indicator_name)
+    panel_flattened = prepare_panel(
+        **shared_kwargs,
+        flatten=True,
+        processed_path=processed_dir / f"panel_{result_name}_flattened.csv",
+    )
+
+    n_post_obs = int(panel_regular["post_treatment"].sum())
     if n_post_obs == 0:
         logger.warning(
-            "%s (%s): skipping — no post-treatment months available.",
-            indicator_name,
+            "%s: skipping — no post-treatment months available.",
             result_name,
         )
         return None
 
-    n_obs = len(panel)
-    n_months = panel["aarmnd"].nunique()
-    n_regions = panel["region"].nunique()
+    n_obs = len(panel_regular)
+    n_months = panel_regular["aarmnd"].nunique()
+    n_regions = panel_regular["region"].nunique()
     logger.info(
         "%s: %d obs (%d months × %d regions)",
         result_name,
@@ -146,48 +174,65 @@ def _run_indicator(
         n_regions,
     )
 
-    logger.info("Running regression models for %s", result_name)
-    baseline = run_baseline_model(panel)
-    preferred = run_preferred_model(panel)
+    logger.info("Running baseline model (regular) for %s", result_name)
+    baseline = run_baseline_model(panel_regular)
 
-    logger.info("Running wild cluster bootstrap for %s", result_name)
-    bootstrap_baseline = wild_cluster_bootstrap(panel, preferred=False)
-    bootstrap_preferred = wild_cluster_bootstrap(panel, preferred=True)
+    logger.info("Running preferred model (flattened) for %s", result_name)
+    preferred = run_preferred_model(panel_flattened)
 
-    logger.info("Running event study for %s", result_name)
-    event_study = run_event_study(panel)
+    # Model registry: run all downstream analyses uniformly for both panels.
+    models: dict[str, Any] = {
+        "basis": dict(
+            panel=panel_regular,
+            main=baseline,
+            run_model=run_baseline_model,
+        ),
+        "flattet": dict(
+            panel=panel_flattened,
+            main=preferred,
+            run_model=run_preferred_model,
+        ),
+    }
 
-    logger.info("Running placebo test for %s", result_name)
-    placebo = run_placebo_test(panel, placebo_relative_month=-12)
-
-    logger.info("Running leave-one-out for %s", result_name)
-    leave_one_out = run_leave_one_out(panel, preferred_result=preferred)
+    for key, m in models.items():
+        panel = m["panel"]
+        main_result = m["main"]
+        logger.info("Bootstrap (%s) for %s", key, result_name)
+        m["bootstrap"] = wild_cluster_bootstrap(panel)
+        logger.info("Event study (%s) for %s", key, result_name)
+        m["event_study"] = run_event_study(panel)
+        logger.info("Placebo (%s) for %s", key, result_name)
+        m["placebo"] = run_placebo_test(panel, placebo_relative_month=-12)
+        logger.info("Leave-one-out (%s) for %s", key, result_name)
+        m["leave_one_out"] = run_leave_one_out(panel, preferred_result=main_result)
 
     mde = compute_mde(preferred)
     logger.info("MDE for %s: %.4f pp", result_name, mde)
 
-    # Baseline mean: pre-period average of indikator across all treated regions
-    pre_panel = panel[panel["relative_month"] < 0]
+    pre_panel = panel_flattened[panel_flattened["relative_month"] < 0]
     baseline_mean = float(pre_panel["indikator"].mean())
     baseline_mean_by_region = (
         pre_panel.groupby("region")["indikator"].mean().to_dict()
     )
 
-    return {
-        "baseline": baseline,
-        "preferred": preferred,
-        "bootstrap_baseline": bootstrap_baseline,
-        "bootstrap_preferred": bootstrap_preferred,
-        "event_study": event_study,
-        "placebo": placebo,
-        "leave_one_out": leave_one_out,
-        "mde": mde,
-        "baseline_mean": baseline_mean,
-        "baseline_mean_by_region": baseline_mean_by_region,
-        "panel": panel,
-        "indicator_name": indicator_name,
-        "prep_variant": "flattened" if flatten else "regular",
-    }
+    return IndicatorResult(
+        indicator_name=indicator_name,
+        baseline=baseline,
+        preferred=preferred,
+        bootstrap_baseline=models["basis"]["bootstrap"],
+        bootstrap_preferred=models["flattet"]["bootstrap"],
+        event_study=models["flattet"]["event_study"],
+        event_study_baseline=models["basis"]["event_study"],
+        placebo=models["flattet"]["placebo"],
+        placebo_baseline=models["basis"]["placebo"],
+        leave_one_out=models["flattet"]["leave_one_out"],
+        leave_one_out_baseline=models["basis"]["leave_one_out"],
+        mde=mde,
+        baseline_mean=baseline_mean,
+        baseline_mean_by_region=baseline_mean_by_region,
+        panel=panel_flattened,
+        panel_regular=panel_regular,
+    ).to_dict()
 
 
 def _save_regression_table(
@@ -205,7 +250,6 @@ def _save_regression_table(
         if res is None:
             continue
         indicator_base = str(res.get("indicator_name", ind))
-        prep_variant = str(res.get("prep_variant", "regular"))
         for model_name, result, boot_key in [
             ("baseline", res["baseline"], "bootstrap_baseline"),
             ("preferred", res["preferred"], "bootstrap_preferred"),
@@ -215,7 +259,6 @@ def _save_regression_table(
                 {
                     "indicator": ind,
                     "indicator_base": indicator_base,
-                    "prep_variant": prep_variant,
                     "model": model_name,
                     "baseline_mean": res.get("baseline_mean"),
                     "coefficient": result.coefficient,
@@ -257,10 +300,8 @@ def _save_coefficients_table(
         if res is None:
             continue
         indicator_base = str(res.get("indicator_name", ind))
-        prep_variant = str(res.get("prep_variant", "regular"))
         for result in (res["baseline"], res["preferred"]):
             df = extract_all_coefficients(result)
-            df.insert(0, "prep_variant", prep_variant)
             df.insert(0, "indikator_base", indicator_base)
             df.insert(0, "indikator", ind)
             frames.append(df)
@@ -299,9 +340,10 @@ def main() -> int:
 
     config_slug = _config_slug(cfg_path)
     output_root = OUTPUTS_DID_BASE / config_slug
-    figures_dir = output_root / "figures"
-    tables_dir = output_root / "tables"
-    report_dir = output_root / "report"
+    staging_root = output_root / "_staging"
+    figures_dir = staging_root / "figures"
+    tables_dir = staging_root / "tables"
+    report_dir = staging_root / "report"
     processed_dir = DATA_PROCESSED_BASE / config_slug
 
     figures_dir.mkdir(parents=True, exist_ok=True)
@@ -315,12 +357,11 @@ def main() -> int:
     # Use the first denominator definition from config, falling back to "peak".
     denom_defs = analysis.get("denominator_definitions", [])
     denominator = denom_defs[0]["id"] if denom_defs else "peak"
-    prep_setups = analysis.get("prep_setups", [{"id": "regular", "flatten": False}])
     # For discrete treatment: list of control regions (required by the discrete path).
-    controll_regions: list[str] | None = analysis.get("controll_regions", None)
-    if treatment_type == "discrete" and not controll_regions:
+    control_regions: list[str] | None = analysis.get("control_regions", None)
+    if treatment_type == "discrete" and not control_regions:
         logger.error(
-            "analysis.controll_regions must be a non-empty list for treatment_type='discrete'."
+            "analysis.control_regions must be a non-empty list for treatment_type='discrete'."
         )
         return 1
 
@@ -329,56 +370,33 @@ def main() -> int:
     all_results: dict[str, dict[str, Any] | None] = {}
     failed: list[str] = []
 
-    valid_setup_ids = {"regular", "flattened"}
-    normalized_setups: list[dict[str, Any]] = []
-    for i, setup in enumerate(prep_setups):
-        if not isinstance(setup, dict):
-            raise ValueError(f"analysis.prep_setups[{i}] must be a mapping.")
-        setup_id = str(setup.get("id", "")).strip()
-        flatten = bool(setup.get("flatten", False))
-        if setup_id == "":
-            setup_id = "flattened" if flatten else "regular"
-        if setup_id not in valid_setup_ids:
-            raise ValueError(
-                f"analysis.prep_setups[{i}].id must be one of "
-                f"{sorted(valid_setup_ids)}; got '{setup_id}'."
-            )
-        normalized_setups.append({"id": setup_id, "flatten": flatten})
-
     for ind in cfg["data"]["indikatorer"]:
         name = ind["name"]
         path = PROJECT_ROOT / ind["file"]
-        for setup in normalized_setups:
-            result_name = (
-                name if setup["id"] == "regular" else f"{name}__{setup['id']}"
+        try:
+            result = _run_indicator(
+                result_name=name,
+                indicator_name=name,
+                indicator_path=path,
+                tiltak_path=tiltak_path,
+                treatment_start=treatment_start,
+                treatment_type=treatment_type,
+                denominator=denominator,
+                processed_dir=processed_dir,
+                control_regions=control_regions,
             )
-            try:
-                result = _run_indicator(
-                    result_name=result_name,
-                    indicator_name=name,
-                    indicator_path=path,
-                    tiltak_path=tiltak_path,
-                    treatment_start=treatment_start,
-                    treatment_type=treatment_type,
-                    denominator=denominator,
-                    flatten=setup["flatten"],
-                    processed_dir=processed_dir,
-                    controll_regions=controll_regions,
-                )
-                all_results[result_name] = result
-                if result is None:
-                    logger.info("○ %s skipped (no post-treatment data)", result_name)
-                else:
-                    logger.info("✓ %s complete", result_name)
-            except Exception:
-                logger.exception("Failed to process %s", result_name)
-                failed.append(result_name)
-                all_results[result_name] = None
+            all_results[name] = result
+            if result is None:
+                logger.info("○ %s skipped (no post-treatment data)", name)
+            else:
+                logger.info("✓ %s complete", name)
+        except (ValueError, np.linalg.LinAlgError, KeyError, pd.errors.MergeError):
+            logger.exception("Failed to process %s", name)
+            failed.append(name)
+            all_results[name] = None
 
-    if failed:
-        logger.error("Indicators that failed: %s", ", ".join(failed))
-        if all(v is None for v in all_results.values()):
-            return 1
+    n_done = sum(1 for v in all_results.values() if v is not None)
+    n_total = len(cfg["data"]["indikatorer"])
 
     if any(v is not None for v in all_results.values()):
         _save_regression_table(all_results, tables_dir=tables_dir)
@@ -397,10 +415,37 @@ def main() -> int:
         )
         logger.info("Report written to %s", report_path)
 
-    n_done = sum(1 for v in all_results.values() if v is not None)
-    n_total = len(cfg["data"]["indikatorer"]) * len(normalized_setups)
+    # Promote staging → final output directory only when all indicators succeeded.
+    # On partial failure keep staging in place so prior complete outputs survive.
+    if failed:
+        logger.error(
+            "Run incomplete — %d/%d indicators failed: %s.  "
+            "Staged outputs kept at: %s",
+            len(failed),
+            n_total,
+            ", ".join(failed),
+            staging_root,
+        )
+        exit_code = 1 if n_done == 0 else 2
+    else:
+        # Full success: atomically replace previous final output with staging.
+        final_figures = output_root / "figures"
+        final_tables = output_root / "tables"
+        final_report = output_root / "report"
+        for src, dst in [
+            (figures_dir, final_figures),
+            (tables_dir, final_tables),
+            (report_dir, final_report),
+        ]:
+            if dst.exists():
+                shutil.rmtree(dst)
+            shutil.copytree(src, dst)
+        shutil.rmtree(staging_root)
+        logger.info("Outputs promoted to %s", output_root)
+        exit_code = 0
+
     logger.info("═══ Done (%d/%d indicators) ═══", n_done, n_total)
-    return 0 if not failed else 2
+    return exit_code
 
 
 if __name__ == "__main__":

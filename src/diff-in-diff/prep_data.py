@@ -34,36 +34,6 @@ def _convert_aarmnd_format(df: pd.DataFrame, date_col: str) -> pd.DataFrame:
     return df
 
 
-def convert_to_long_format(
-    df: pd.DataFrame, id_vars: list[str], value_vars_prefix: str
-) -> pd.DataFrame:
-    """Convert *df* from wide to long format based on *id_vars* and *value_vars_prefix*."""
-    value_vars = [col for col in df.columns if col.startswith(value_vars_prefix)]
-    long_df = df.melt(
-        id_vars=id_vars, value_vars=value_vars, var_name="variable", value_name="value"
-    )
-    return long_df
-
-
-def load_and_merge(indikator_path: Path, tiltak_path: Path) -> pd.DataFrame:
-    """Load indicator and tiltak data, standardize date formats, convert to long format, and merge on common keys."""
-    indikator_df = pd.read_csv(indikator_path)
-    tiltak_df = pd.read_csv(tiltak_path)
-
-    indikator_df = _convert_aarmnd_format(indikator_df, "aarmnd")
-    tiltak_df = _convert_aarmnd_format(tiltak_df, "aarmnd")
-
-    indikator_df = convert_to_long_format(
-        indikator_df, id_vars=["region", "aarmnd"], value_vars_prefix="indikator"
-    )
-    tiltak_df = convert_to_long_format(
-        tiltak_df, id_vars=["region", "aarmnd"], value_vars_prefix="tiltak"
-    )
-
-    merged_df = pd.merge(indikator_df, tiltak_df, on=["region", "aarmnd"], how="left")
-    return merged_df
-
-
 def _add_time_features(df: pd.DataFrame, treatment_start: str) -> pd.DataFrame:
     """Add time-based features to *df*."""
     df["aarmnd"] = pd.to_datetime(df["aarmnd"], format="%Y%m")
@@ -81,7 +51,7 @@ def build_treatment_variable(
     df: pd.DataFrame,
     treatment_type: str,
     denominator: str = "peak",
-    controll_regions: list[str] | None = None,
+    control_regions: list[str] | None = None,
 ) -> pd.DataFrame:
     """Create the treatment variable (``tiltaksnedgang``) for the panel.
 
@@ -95,7 +65,7 @@ def build_treatment_variable(
         For ``"continuous"`` only.  How to compute the reference level per region:
         - ``"peak"``     – maximum tiltak count in the pre-period (relative_month < 0)
         - ``"last_pre"`` – tiltak count in the last pre-treatment month (relative_month == -1)
-    controll_regions:
+    control_regions:
         For ``"discrete"`` only.  List of region names that serve as the
         control group.  All other regions are treated.
     """
@@ -142,11 +112,11 @@ def build_treatment_variable(
         # Rename for clarity in the output
         df = df.rename(columns={"ref_tiltak": "peak_tiltak"})
     elif treatment_type == "discrete":
-        if controll_regions is None:
+        if control_regions is None:
             raise ValueError(
-                "controll_regions must be provided for treatment_type='discrete'."
+                "control_regions must be provided for treatment_type='discrete'."
             )
-        controll_set = set(controll_regions)
+        controll_set = set(control_regions)
         # Binary indicator: 1 for treated regions, 0 for control regions
         df["treated"] = (~df["region"].isin(controll_set)).astype(float)
         # Treatment variable is 1 only for treated regions in the post-period
@@ -206,7 +176,7 @@ def prepare_panel(
     treatment_type: str,
     denominator: str = "peak",
     flatten: bool = False,
-    controll_regions: list[str] | None = None,
+    control_regions: list[str] | None = None,
     processed_path: Path | None = None,
 ) -> pd.DataFrame:
     """Prepare a panel DataFrame based on the specified indicator and tiltak data.
@@ -227,7 +197,7 @@ def prepare_panel(
     flatten:
         If ``True``, seasonally flatten ``indikator`` by subtracting each
         region-month pre-treatment mean and adding the region pre-treatment mean.
-    controll_regions:
+    control_regions:
         List of region names that serve as the control group.
         Required when ``treatment_type="discrete"``.
     processed_path:
@@ -266,7 +236,7 @@ def prepare_panel(
     df = _add_time_features(df, treatment_start)
     if flatten:
         df = _flatten_indicator_seasonally(df)
-    df = build_treatment_variable(df, treatment_type, denominator=denominator, controll_regions=controll_regions)
+    df = build_treatment_variable(df, treatment_type, denominator=denominator, control_regions=control_regions)
     # Add more feature engineering steps here as needed.
 
     if processed_path is not None:

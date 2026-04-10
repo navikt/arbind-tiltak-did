@@ -10,19 +10,9 @@ analysis:
   # Each entry produces a separate treatment variable series.
   #   peak     – denominator is the highest tiltak count in the pre-period
   #   last_pre – denominator is tiltak in the last month before treatment (t = -1)
-  controll_regions:
+  control_regions:
     - "Nav Innlandet"
     - "Nav Nordland"
-
-  # Data prep setups run in the same execution.
-  # Each setup creates one panel per indicator.
-  #   regular   – no seasonal flattening in prep
-  #   flattened – seasonally flatten indikator using pre-treatment months only
-  prep_setups:
-    - id: regular
-      flatten: false
-    - id: flattened
-      flatten: true
 
 # ── Data sources ───────────────────────────────────────────────────────────────
 data:

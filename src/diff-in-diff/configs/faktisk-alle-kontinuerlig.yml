@@ -1,6 +1,6 @@
 # ── Analysis parameters ────────────────────────────────────────────────────────
 analysis:
-  title: "DiD-analyse for alle"
+  title: "DiD-analyse for alle, faktisk"
   treatment_start: "202506"   # First month of treatment (YYYYMM)
   data_start:      "202010"   # First month of the full panel
   data_end:        "202509"   # Last month of the full panel
@@ -19,9 +19,9 @@ data:
 
   indikatorer:
     - name:        atid3
-      file:        data/raw/indikatorer/regioner/atid3.csv
+      file:        data/raw/indikatorer/nedbrytning/alle/faktisk_atid3.csv
       description: "Arbeidstid neste tre måneder"
 
     - name:        jobb3
-      file:        data/raw/indikatorer/regioner/jobb3.csv
+      file:        data/raw/indikatorer/nedbrytning/alle/faktisk_jobb3.csv
       description: "I jobb etter 3 måneder"

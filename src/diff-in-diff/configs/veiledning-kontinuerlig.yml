@@ -14,16 +14,6 @@ analysis:
     - id: last_pre
       label: "Siste pre-måned (t-1)"
 
-  # Data prep setups run in the same execution.
-  # Each setup creates one panel per indicator.
-  #   regular   – no seasonal flattening in prep
-  #   flattened – seasonally flatten indikator using pre-treatment months only
-  prep_setups:
-    - id: regular
-      flatten: false
-    - id: flattened
-      flatten: true
-
 # ── Data sources ───────────────────────────────────────────────────────────────
 data:
   tiltak_file: data/raw/tiltak/midl.-lønnstilskudd.csv
