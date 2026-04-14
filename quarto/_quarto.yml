@@ -1,29 +1,30 @@
 project:
   type: book
   output-dir: _book
-
 date: now
-date-format: "DD.MM.YYYY"
+date-format: DD.MM.YYYY
 author-title: Eier
-
 book:
-  title: "DiD-analyser: effekt av tiltaksnedgang"
-  description: "Arbeidsdokumenter for difference-in-differences-analyser av effekten av tiltaksnedgang i Nav"
-  author: "Jacob Sjødin"
+  title: 'DiD-analyser: effekt av tiltaksnedgang'
+  description: Arbeidsdokumenter for difference-in-differences-analyser av effekten
+    av tiltaksnedgang i Nav
+  author: Jacob Sjødin
   chapters:
-    - index.qmd
-    - part: regioner/intro.qmd
-      chapters: []
+  - index.qmd
+  - part: regioner/intro.qmd
+    chapters:
+    - regioner/alle-discrete/report_alle-discrete.qmd
+    - regioner/alle-kontinuerlig/report_alle-kontinuerlig.qmd
+    - regioner/faktisk-alle-kontinuerlig/report_faktisk-alle-kontinuerlig.qmd
+    - regioner/forventet-alle-kontinuerlig/report_forventet-alle-kontinuerlig.qmd
   page-navigation: true
-  page-footer: "Nav - {{< meta date >}}"
+  page-footer: Nav - {{< meta date >}}
   repo-url: https://github.com/navikt/arbind-tiltak-did
   reader-mode: false
   search: true
-
   navbar:
     logo: assets/nav_logo_hvit.png
-    logo-alt: "Logo til Nav - Arbeids- og velferdsetaten"
-
+    logo-alt: Logo til Nav - Arbeids- og velferdsetaten
 format:
   html:
     lang: no

@@ -1,0 +1,25 @@
+# ── Analysis parameters ────────────────────────────────────────────────────────
+analysis:
+  title: "DiD-analyse for innsatsgruppen 'nedsatt arbeidsevne', forventet"
+  treatment_start: "202506"   # First month of treatment (YYYYMM)
+  data_start:      "202010"   # First month of the full panel
+  data_end:        "202509"   # Last month of the full panel
+  treatment_type:  "continuous"  # "continuous" or "discrete"
+  variation:       regioner
+
+  denominator_definitions:
+    - id: last_pre
+      label: "Siste pre-måned (t-1)"
+
+# ── Data sources ───────────────────────────────────────────────────────────────
+data:
+  tiltak_file: data/raw/tiltak/midl.-lønnstilskudd.csv
+
+  indikatorer:
+    - name:        atid3
+      file:        data/raw/indikatorer/nedbrytning/innsatsgruppe_-_nedsatt_arbeidsevne/forventet_atid3.csv
+      description: "Arbeidstid neste tre måneder"
+
+    - name:        jobb3
+      file:        data/raw/indikatorer/nedbrytning/innsatsgruppe_-_nedsatt_arbeidsevne/forventet_jobb3.csv
+      description: "I jobb etter 3 måneder"

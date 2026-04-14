@@ -23,7 +23,7 @@ import yaml
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 CONFIGS_DIR = Path(__file__).parent / "configs"
-CONFIG_PATH = CONFIGS_DIR / "alle-kontinuerlig.yml"
+DEFAULT_CONFIG = CONFIGS_DIR / "alle" / "alle-kontinuerlig.yml"
 DATA_PROCESSED_BASE = PROJECT_ROOT / "data" / "processed"
 OUTPUTS_DID_BASE = PROJECT_ROOT / "outputs" / "did"
 QUARTO_DIR = PROJECT_ROOT / "quarto"
@@ -41,7 +41,7 @@ logger = logging.getLogger("run_analysis")
 # ── Config ─────────────────────────────────────────────────────────────────────
 
 
-def _load_config(path: Path = CONFIG_PATH) -> dict[str, Any]:
+def _load_config(path: Path = DEFAULT_CONFIG) -> dict[str, Any]:
     """Load and return the YAML analysis configuration."""
     if not path.exists():
         raise FileNotFoundError(
@@ -59,19 +59,19 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "config",
         nargs="?",
-        default=str(CONFIG_PATH),
+        default=str(DEFAULT_CONFIG),
         help=(
-            "Path or filename of the YAML config file. "
-            "A bare filename (e.g. alle-discrete.yml) is resolved first relative "
-            "to the current directory, then relative to diff-in-diff/configs/. "
-            f"Default: {CONFIG_PATH.name} (from configs/)"
+            "Path to a YAML config file, or a directory containing YAML config files. "
+            "A bare name is resolved first relative to the current directory, then "
+            "relative to the configs/ directory. "
+            f"Default: {DEFAULT_CONFIG.relative_to(CONFIGS_DIR)} (from configs/)"
         ),
     )
     parser.add_argument(
         "--config",
         dest="config_flag",
         default=None,
-        help="Path or filename of the YAML config file (overrides positional argument).",
+        help="Path or name of the YAML config file or directory (overrides positional argument).",
     )
     return parser.parse_args()
 
@@ -355,21 +355,8 @@ def _save_coefficients_table(
     logger.info("Full coefficients table saved to %s", out)
 
 
-def main() -> int:
-    """Entry point: run full pipeline for all indicators defined in the config."""
-    args = _parse_args()
-    cfg_path = Path(args.config_flag or args.config)
-    if not cfg_path.is_absolute():
-        cwd_candidate = (Path.cwd() / cfg_path).resolve()
-        configs_candidate = (CONFIGS_DIR / cfg_path).resolve()
-        # Prefer cwd-relative path if it exists; fall back to configs/ directory.
-        if cwd_candidate.exists():
-            cfg_path = cwd_candidate
-        elif configs_candidate.exists():
-            cfg_path = configs_candidate
-        else:
-            cfg_path = cwd_candidate  # will fail with a clear error below
-
+def _run_single_config(cfg_path: Path) -> int:
+    """Run the full pipeline for a single config file.  Returns 0 on success."""
     logger.info("═══ Nav DID analysis ═══")
     logger.info("Using config: %s", cfg_path)
 
@@ -491,6 +478,46 @@ def main() -> int:
 
     logger.info("═══ Done (%d/%d indicators) ═══", n_done, n_total)
     return exit_code
+
+
+def _resolve_path(raw: str) -> Path:
+    """Resolve a config path or folder, checking cwd then configs/ directory."""
+    p = Path(raw)
+    if p.is_absolute():
+        return p
+    cwd_candidate = (Path.cwd() / p).resolve()
+    configs_candidate = (CONFIGS_DIR / p).resolve()
+    if cwd_candidate.exists():
+        return cwd_candidate
+    if configs_candidate.exists():
+        return configs_candidate
+    return cwd_candidate  # will fail with a clear error downstream
+
+
+def main() -> int:
+    """Entry point: run pipeline for one config file or all configs in a folder."""
+    args = _parse_args()
+    resolved = _resolve_path(args.config_flag or args.config)
+
+    if resolved.is_dir():
+        cfg_paths = sorted(resolved.glob("*.yml"))
+        if not cfg_paths:
+            logger.error("No .yml config files found in %s", resolved)
+            return 1
+        logger.info("Running %d config(s) from folder: %s", len(cfg_paths), resolved)
+    elif resolved.is_file():
+        cfg_paths = [resolved]
+    else:
+        logger.error("Config path not found: %s", resolved)
+        return 1
+
+    overall_exit = 0
+    for cfg_path in cfg_paths:
+        exit_code = _run_single_config(cfg_path)
+        if exit_code != 0:
+            overall_exit = exit_code
+
+    return overall_exit
 
 
 if __name__ == "__main__":
