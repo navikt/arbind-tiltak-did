@@ -39,7 +39,7 @@ book:
     logo-alt: Logo til Nav - Arbeids- og velferdsetaten
 format:
   html:
-    lang: false
+    lang: no
     theme:
       light: flatly
       dark: darkly
