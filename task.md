@@ -34,7 +34,7 @@ data/
 ├── raw/                 CSVs of the indikator and tiltak
 └── processed/           Where processed panels are stored
 outputs
-└── did/                 Main results: figures, tables and report. 
+└── did/                 Main results: figures, tables and report.
 ```
 
 
@@ -70,7 +70,7 @@ Pipeline entry point. Reads config, loops over indicators. Per-indicator: `prepa
 
 ## Report
 
-The report should be written in a professional but readable tone — intended for a non-technical audience familiar with the business context. Key numbers (the estimated effect, confidence interval, and bootstrap p-value) should be stated clearly in plain language. The pre-period overperformance finding and its implications for causal interpretation should be discussed explicitly. The report should be written in Norwegian. 
+The report should be written in a professional but readable tone — intended for a non-technical audience familiar with the business context. Key numbers (the estimated effect, confidence interval, and bootstrap p-value) should be stated clearly in plain language. The pre-period overperformance finding and its implications for causal interpretation should be discussed explicitly. The report should be written in Norwegian.
 
 ---
 

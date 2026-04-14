@@ -12,7 +12,7 @@ Nav måler effekten av sitt arbeid gjennom månedlige **arbeidsindikatorer** per
 | jobb3 | I jobb (mer enn 19 timer i uken) etter 3 måneder |
 
 Analysen søker å besvare spørsmålene:
--	Hva er effekten av redusert tiltaksbruk på arbeidsindikatoren? 
+-	Hva er effekten av redusert tiltaksbruk på arbeidsindikatoren?
 -	I hvilken grad førte nedgangen i bruken av midlertidig lønnstilskudd fra juni 2025 til endringer i deltakergrunnlaget i tiltakene, målt ved arbeidsindikatorens forventningskomponent?
 -	Er effekten forskjellig for ulike grupper som de med nedsatt arbeidsevne, arbeidssøkere og tiltaksdeltakere?
 
