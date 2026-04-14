@@ -71,10 +71,14 @@ def _merge_one_outcome(outcome: str, group_a: str, group_b: str) -> pd.DataFrame
             f"{int(invalid.sum())} rows."
         )
 
-    df["indikator"] = (df["indikator_1"] * df["n_1"] + df["indikator_2"] * df["n_2"]) / denom
+    df["indikator"] = (
+        df["indikator_1"] * df["n_1"] + df["indikator_2"] * df["n_2"]
+    ) / denom
 
     wide = (
-        df.pivot_table(index="aarmnd", columns="region", values="indikator", aggfunc="first")
+        df.pivot_table(
+            index="aarmnd", columns="region", values="indikator", aggfunc="first"
+        )
         .sort_index()
         .reset_index()
     )

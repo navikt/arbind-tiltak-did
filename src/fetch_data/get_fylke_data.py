@@ -82,12 +82,19 @@ def fetch_and_save(nedbrytning: str) -> list[Path]:
         raise ValueError(f"No rows returned for nedbrytning='{nedbrytning}'.")
 
     df = pd.DataFrame(records)
-    required = {"aarmnd", "org_sted", "utfall", "indikator", "forventet", "faktisk", "antall_personer"}
+    required = {
+        "aarmnd",
+        "org_sted",
+        "utfall",
+        "indikator",
+        "forventet",
+        "faktisk",
+        "antall_personer",
+    }
     missing = required - set(df.columns)
     if missing:
         raise ValueError(
-            "Query result is missing required columns: "
-            f"{', '.join(sorted(missing))}."
+            f"Query result is missing required columns: {', '.join(sorted(missing))}."
         )
     df["aarmnd"] = pd.to_datetime(df["aarmnd"], errors="raise").dt.strftime("%Y%m")
 
@@ -104,15 +111,18 @@ def fetch_and_save(nedbrytning: str) -> list[Path]:
         sub = df[df["utfall"] == utfall].copy()
         if sub.empty:
             continue
-        for col, prefix in [("indikator", ""), ("forventet", "forventet_"), ("faktisk", "faktisk_")]:
+        for col, prefix in [
+            ("indikator", ""),
+            ("forventet", "forventet_"),
+            ("faktisk", "faktisk_"),
+        ]:
             out_path = indikator_dir / f"{prefix}{utfall}.csv"
             _pivot_wide(sub, col).to_csv(out_path, index=False)
             saved.append(out_path)
 
     # antall_personer: one value per region per month regardless of utfall
-    personer_df = (
-        df.drop_duplicates(subset=["aarmnd", "org_sted"])
-        .pipe(_pivot_wide, "antall_personer")
+    personer_df = df.drop_duplicates(subset=["aarmnd", "org_sted"]).pipe(
+        _pivot_wide, "antall_personer"
     )
     personer_path = personer_dir / "antall_personer.csv"
     personer_df.to_csv(personer_path, index=False)

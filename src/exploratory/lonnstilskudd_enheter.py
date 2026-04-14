@@ -34,9 +34,10 @@ def _slugify(value: str) -> str:
 
 
 def _read_items(path: Path) -> list[dict[str, Any]]:
-    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
     try:
-        return payload["results"][0]["items"]
+        result: list[dict[str, Any]] = payload["results"][0]["items"]
+        return result
     except (KeyError, IndexError, TypeError) as exc:  # pragma: no cover
         raise ValueError(f"Ugyldig JSON-format i {path}") from exc
 

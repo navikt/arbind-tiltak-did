@@ -90,7 +90,9 @@ def _update_quarto_chapters(quarto_dir: Path, variation: str) -> None:
     """Scan quarto/<variation>/*/ for report QMDs and update _quarto.yml chapters."""
     quarto_yml = quarto_dir / "_quarto.yml"
     if not quarto_yml.exists():
-        logger.warning("_quarto.yml not found at %s, skipping chapter update", quarto_yml)
+        logger.warning(
+            "_quarto.yml not found at %s, skipping chapter update", quarto_yml
+        )
         return
 
     variation_dir = quarto_dir / variation
@@ -103,7 +105,7 @@ def _update_quarto_chapters(quarto_dir: Path, variation: str) -> None:
         cfg_yaml = yaml.safe_load(f)
 
     part_path = f"{variation}/intro.qmd"
-    chapters: list = cfg_yaml["book"]["chapters"]
+    chapters: list[Any] = cfg_yaml["book"]["chapters"]
 
     part_entry = next(
         (ch for ch in chapters if isinstance(ch, dict) and ch.get("part") == part_path),
@@ -116,9 +118,13 @@ def _update_quarto_chapters(quarto_dir: Path, variation: str) -> None:
     part_entry["chapters"] = report_qmds
 
     with open(quarto_yml, "w", encoding="utf-8") as f:
-        yaml.dump(cfg_yaml, f, allow_unicode=True, default_flow_style=False, sort_keys=False)
+        yaml.dump(
+            cfg_yaml, f, allow_unicode=True, default_flow_style=False, sort_keys=False
+        )
 
-    logger.info("Updated _quarto.yml: %d chapters for '%s'", len(report_qmds), variation)
+    logger.info(
+        "Updated _quarto.yml: %d chapters for '%s'", len(report_qmds), variation
+    )
 
 
 # ── Pipeline ───────────────────────────────────────────────────────────────────
@@ -172,7 +178,8 @@ def _run_indicator(
         run_preferred_model,
     )
 
-    shared_kwargs = dict(
+    logger.info("── Preparing regular panel for %s ──", indicator_name)
+    panel_regular = prepare_panel(
         indicator_path=indicator_path,
         tiltak_path=tiltak_path,
         indicator_name=indicator_name,
@@ -180,18 +187,19 @@ def _run_indicator(
         treatment_type=treatment_type,
         denominator=denominator,
         control_regions=control_regions,
-    )
-
-    logger.info("── Preparing regular panel for %s ──", indicator_name)
-    panel_regular = prepare_panel(
-        **shared_kwargs,
         flatten=False,
         processed_path=processed_dir / f"panel_{result_name}_regular.csv",
     )
 
     logger.info("── Preparing flattened panel for %s ──", indicator_name)
     panel_flattened = prepare_panel(
-        **shared_kwargs,
+        indicator_path=indicator_path,
+        tiltak_path=tiltak_path,
+        indicator_name=indicator_name,
+        treatment_start=treatment_start,
+        treatment_type=treatment_type,
+        denominator=denominator,
+        control_regions=control_regions,
         flatten=True,
         processed_path=processed_dir / f"panel_{result_name}_flattened.csv",
     )

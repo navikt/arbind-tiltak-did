@@ -29,7 +29,7 @@ def _convert_aarmnd_format(df: pd.DataFrame, date_col: str) -> pd.DataFrame:
                     "%Y%m"
                 )
                 break
-            except (ValueError, TypeError):
+            except ValueError, TypeError:
                 continue
     return df
 
@@ -154,7 +154,9 @@ def _flatten_indicator_seasonally(df: pd.DataFrame) -> pd.DataFrame:
 
     missing_means = out["pre_region_mean"].isna() | out["pre_region_month_mean"].isna()
     if missing_means.any():
-        bad_regions = sorted(out.loc[missing_means, "region"].dropna().unique().tolist())
+        bad_regions = sorted(
+            out.loc[missing_means, "region"].dropna().unique().tolist()
+        )
         sample = ", ".join(bad_regions[:5])
         raise ValueError(
             "Cannot flatten indikator: missing pre-period seasonal means for "
@@ -236,7 +238,9 @@ def prepare_panel(
     df = _add_time_features(df, treatment_start)
     if flatten:
         df = _flatten_indicator_seasonally(df)
-    df = build_treatment_variable(df, treatment_type, denominator=denominator, control_regions=control_regions)
+    df = build_treatment_variable(
+        df, treatment_type, denominator=denominator, control_regions=control_regions
+    )
     # Add more feature engineering steps here as needed.
 
     if processed_path is not None:
@@ -250,7 +254,9 @@ if __name__ == "__main__":
     treatment_start = cfg["analysis"]["treatment_start"]
     treatment_type = cfg["analysis"]["treatment_type"]
     tiltak_path = Path(cfg["data"]["tiltak_file"])
-    prep_setups = cfg["analysis"].get("prep_setups", [{"id": "regular", "flatten": False}])
+    prep_setups = cfg["analysis"].get(
+        "prep_setups", [{"id": "regular", "flatten": False}]
+    )
 
     for ind in cfg["data"]["indikatorer"]:
         for setup in prep_setups:

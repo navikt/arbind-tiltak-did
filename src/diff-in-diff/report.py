@@ -702,7 +702,9 @@ def _section_summary_table(cfg: dict[str, Any]) -> list[str]:
     indikatorer = cfg["data"].get("indikatorer", [])
 
     treatment_type = analysis.get("treatment_type", "continuous")
-    treatment_type_label = "Kontinuerlig" if treatment_type == "continuous" else "Diskret"
+    treatment_type_label = (
+        "Kontinuerlig" if treatment_type == "continuous" else "Diskret"
+    )
 
     ts = str(analysis.get("treatment_start", ""))
     treatment_start_label = f"{ts[:4]}-{ts[4:]}" if len(ts) == 6 else ts
@@ -717,9 +719,7 @@ def _section_summary_table(cfg: dict[str, Any]) -> list[str]:
     )
 
     control_regions = analysis.get("control_regions")
-    control_label = (
-        ", ".join(control_regions) if control_regions else "—"
-    )
+    control_label = ", ".join(control_regions) if control_regions else "—"
 
     rows = [
         ("Behandlingstype", treatment_type_label),

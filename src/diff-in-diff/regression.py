@@ -380,8 +380,10 @@ def run_placebo_test(
     post_mask = pre["post_treatment"]
     valid_ref = pre["ref_tiltak_placebo"] > 0
     pre.loc[post_mask & valid_ref, "tiltaksnedgang"] = np.clip(
-        (pre.loc[post_mask & valid_ref, "ref_tiltak_placebo"]
-         - pre.loc[post_mask & valid_ref, "tiltak"])
+        (
+            pre.loc[post_mask & valid_ref, "ref_tiltak_placebo"]
+            - pre.loc[post_mask & valid_ref, "tiltak"]
+        )
         / pre.loc[post_mask & valid_ref, "ref_tiltak_placebo"],
         0.0,
         1.0,
@@ -438,7 +440,9 @@ def run_leave_one_out(
         n_remaining = sub["region"].nunique()
         if n_remaining < 3:
             logger.warning(
-                "Skipping leave-out of %s: only %d clusters remain.", region, n_remaining
+                "Skipping leave-out of %s: only %d clusters remain.",
+                region,
+                n_remaining,
             )
             continue
         try:
@@ -453,7 +457,7 @@ def run_leave_one_out(
                     "p_value": res.p_value,
                 }
             )
-        except (ValueError, np.linalg.LinAlgError):
+        except ValueError, np.linalg.LinAlgError:
             logger.exception("Leave-one-out failed for dropped region %s", region)
 
     return LeaveOneOutResult(
