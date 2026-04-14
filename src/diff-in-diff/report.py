@@ -130,9 +130,13 @@ def _plot_tiltak_trends(
     fig, ax = plt.subplots(figsize=(12, 5))
     for i, region in enumerate(regions):
         sub = tbl[tbl["region"] == region].sort_values("aarmnd")
-        ax.plot(sub["aarmnd"], sub["tiltak"], color=cmap(i), linewidth=1.4, label=region)
+        ax.plot(
+            sub["aarmnd"], sub["tiltak"], color=cmap(i), linewidth=1.4, label=region
+        )
 
-    ax.axvline(ts_dt, color="black", linestyle="--", linewidth=1, label="Behandlingsstart")
+    ax.axvline(
+        ts_dt, color="black", linestyle="--", linewidth=1, label="Behandlingsstart"
+    )
     ax.set_ylabel("Antall tiltak", fontsize=11)
     ax.set_title("Tiltaksbruk per region", fontsize=13)
     ax.legend(frameon=False, fontsize=7, ncol=2, loc="upper left")
@@ -159,11 +163,47 @@ def _plot_placebo_combined(
     """
     items = []
     if placebo_baseline is not None:
-        items.append(("Basis — placebo (τ=−12)", placebo_baseline.coefficient, placebo_baseline.ci_lower, placebo_baseline.ci_upper, _LIGHT_BLUE, "o"))
-    items.append(("Basis — modell", baseline.coefficient, baseline.ci_lower, baseline.ci_upper, _BLUE, "D"))
+        items.append(
+            (
+                "Basis — placebo (τ=−12)",
+                placebo_baseline.coefficient,
+                placebo_baseline.ci_lower,
+                placebo_baseline.ci_upper,
+                _LIGHT_BLUE,
+                "o",
+            )
+        )
+    items.append(
+        (
+            "Basis — modell",
+            baseline.coefficient,
+            baseline.ci_lower,
+            baseline.ci_upper,
+            _BLUE,
+            "D",
+        )
+    )
     if placebo_preferred is not None:
-        items.append(("Sesongjustert — placebo (τ=−12)", placebo_preferred.coefficient, placebo_preferred.ci_lower, placebo_preferred.ci_upper, _LIGHT_RED, "o"))
-    items.append(("Sesongjustert — modell", preferred.coefficient, preferred.ci_lower, preferred.ci_upper, _RED, "D"))
+        items.append(
+            (
+                "Sesongjustert — placebo (τ=−12)",
+                placebo_preferred.coefficient,
+                placebo_preferred.ci_lower,
+                placebo_preferred.ci_upper,
+                _LIGHT_RED,
+                "o",
+            )
+        )
+    items.append(
+        (
+            "Sesongjustert — modell",
+            preferred.coefficient,
+            preferred.ci_lower,
+            preferred.ci_upper,
+            _RED,
+            "D",
+        )
+    )
 
     fig, ax = plt.subplots(figsize=(8, max(3, len(items) * 0.7)))
     yticks = list(range(len(items)))
@@ -196,16 +236,31 @@ def _plot_leave_one_out_combined(
     Each panel shows per-region LOO estimates with the full-sample CI as a band.
     Returns the saved figure path.
     """
+
     def _loo_panel(ax: Any, loo: Any, model_label: str) -> None:
         df = loo.rows.sort_values("coefficient")
         n = len(df)
-        ax.axvspan(loo.full_ci_lower, loo.full_ci_upper, color=_LIGHT_BLUE, alpha=0.20, label="Full-utvalg 95% KI")
-        ax.axvline(loo.full_coefficient, color=_BLUE, linewidth=1.5, linestyle="--", label=f"Full: {loo.full_coefficient:.3f}")
+        ax.axvspan(
+            loo.full_ci_lower,
+            loo.full_ci_upper,
+            color=_LIGHT_BLUE,
+            alpha=0.20,
+            label="Full-utvalg 95% KI",
+        )
+        ax.axvline(
+            loo.full_coefficient,
+            color=_BLUE,
+            linewidth=1.5,
+            linestyle="--",
+            label=f"Full: {loo.full_coefficient:.3f}",
+        )
         ax.axvline(0, color="black", linewidth=0.8)
         yticks = list(range(n))
         for y, (_, row) in enumerate(df.iterrows()):
             color = _RED if row["p_value"] < 0.05 else _LIGHT_BLUE
-            ax.plot([row["ci_lower"], row["ci_upper"]], [y, y], color=color, linewidth=1.5)
+            ax.plot(
+                [row["ci_lower"], row["ci_upper"]], [y, y], color=color, linewidth=1.5
+            )
             ax.scatter([row["coefficient"]], [y], color=color, s=40, zorder=3)
         ax.set_yticks(yticks)
         ax.set_yticklabels(df["dropped_region"].tolist(), fontsize=8)
@@ -305,8 +360,18 @@ def _plot_region_season_heatmap(
     import re
 
     MONTH_NAMES = [
-        "Jan", "Feb", "Mar", "Apr", "Mai", "Jun",
-        "Jul", "Aug", "Sep", "Okt", "Nov", "Des",
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "Mai",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Okt",
+        "Nov",
+        "Des",
     ]
 
     # Parse rm_{region}_m{month} into (region_display, month_int, coef)
@@ -324,9 +389,8 @@ def _plot_region_season_heatmap(
         ax.text(0.5, 0.5, "Ingen data", ha="center", va="center")
         return fig
 
-    pivot = (
-        pd.DataFrame(records)
-        .pivot(index="month", columns="region", values="estimat")
+    pivot = pd.DataFrame(records).pivot(
+        index="month", columns="region", values="estimat"
     )
 
     # Add any missing months (dropped reference months → 0)
@@ -363,9 +427,13 @@ def _plot_region_season_heatmap(
             val = pivot.values[r, c]
             text_color = "white" if abs(val) > vmax * 0.6 else "black"
             ax.text(
-                c, r, f"{val:.2f}",
-                ha="center", va="center",
-                fontsize=6.5, color=text_color,
+                c,
+                r,
+                f"{val:.2f}",
+                ha="center",
+                va="center",
+                fontsize=6.5,
+                color=text_color,
             )
 
     ax.set_title(f"Region × Sesong FE — {indicator_label}", fontsize=13)
@@ -381,9 +449,14 @@ def _plot_region_season_heatmap(
             if pivot.values[r, c] == 0.0:
                 ax.add_patch(
                     plt.Rectangle(
-                        (c - 0.5, r - 0.5), 1, 1,
-                        fill=False, hatch="///", edgecolor="grey",
-                        linewidth=0, alpha=0.5,
+                        (c - 0.5, r - 0.5),
+                        1,
+                        1,
+                        fill=False,
+                        hatch="///",
+                        edgecolor="grey",
+                        linewidth=0,
+                        alpha=0.5,
                     )
                 )
 
@@ -400,7 +473,7 @@ def _plot_event_study_combined(
 ) -> Path:
     """Plot event-study coefficients for both models on the same axes.
 
-    Baseline (regular panel) in blue, preferred (flattened panel) in red.
+    Baseline (regular panel) in blue, sesongjustert panel in red.
     A horizontal line at zero and a vertical dashed line at τ = 0 are included.
     Returns the saved figure path.
     """
@@ -421,7 +494,9 @@ def _plot_event_study_combined(
         ax.scatter(taus, betas, color=color, zorder=3, s=18, label=model_label)
 
     ax.axhline(0, color="black", linewidth=0.8, linestyle="-")
-    ax.axvline(0, color="black", linewidth=0.8, linestyle="--", label="Behandlingsstart")
+    ax.axvline(
+        0, color="black", linewidth=0.8, linestyle="--", label="Behandlingsstart"
+    )
     ax.set_xlabel("Måneder relativt til behandlingsstart (τ)", fontsize=11)
     ax.set_ylabel("Koeffisient (β_τ)", fontsize=11)
     ax.set_title(f"Eventstudie — {indicator_label}", fontsize=13)
@@ -484,7 +559,14 @@ def _plot_bootstrap_combined(
         t_obs = boot.observed_t_stat
         p_val = boot.bootstrap_p_value
 
-        ax.hist(t_boots, bins=60, color=_LIGHT_BLUE, edgecolor="none", density=True, label="Bootstrap t*")
+        ax.hist(
+            t_boots,
+            bins=60,
+            color=_LIGHT_BLUE,
+            edgecolor="none",
+            density=True,
+            label="Bootstrap t*",
+        )
 
         reject_mask = np.abs(t_boots) >= np.abs(t_obs)
         if reject_mask.any():
@@ -498,7 +580,13 @@ def _plot_bootstrap_combined(
                 label=f"|t*| ≥ |t_obs| ({reject_mask.mean():.3f})",
             )
 
-        ax.axvline(t_obs, color=_RED, linewidth=1.5, linestyle="--", label=f"t_obs = {t_obs:.2f}")
+        ax.axvline(
+            t_obs,
+            color=_RED,
+            linewidth=1.5,
+            linestyle="--",
+            label=f"t_obs = {t_obs:.2f}",
+        )
         ax.axvline(-t_obs, color=_RED, linewidth=1.5, linestyle="--")
         ax.set_xlabel("Bootstrap t-statistikk", fontsize=10)
         ax.set_ylabel("Tetthet", fontsize=10)
@@ -533,9 +621,7 @@ def _descriptive_stats_md(
     return stats.to_markdown() or ""
 
 
-def _intensity_table_md(
-    panel: pd.DataFrame, treatment_type: str = "continuous"
-) -> str:
+def _intensity_table_md(panel: pd.DataFrame, treatment_type: str = "continuous") -> str:
     """Return a markdown table of mean treatment variable per region."""
     post = panel[panel["post_treatment"]]
     tbl = (
@@ -587,6 +673,75 @@ def _regression_table_md(
 
 
 # ── Main entry point ──────────────────────────────────────────────────────────
+
+
+def _infer_subgroup(file_path: str) -> str:
+    """Infer the population subgroup from an indicator file path."""
+    parts = Path(file_path).parts
+    if "nedbrytning" in parts:
+        idx = parts.index("nedbrytning")
+        if idx + 1 < len(parts):
+            subdir = parts[idx + 1]
+            return subdir.capitalize()
+    return "Alle"
+
+
+def _infer_outcome_type(file_path: str) -> str:
+    """Infer whether the indicator is faktisk, forventet, or ujustert."""
+    stem = Path(file_path).stem.lower()
+    if stem.startswith("faktisk_"):
+        return "Faktisk"
+    if stem.startswith("forventet_"):
+        return "Forventet"
+    return "—"
+
+
+def _section_summary_table(cfg: dict[str, Any]) -> list[str]:
+    """Return a summary table of the analysis configuration."""
+    analysis = cfg["analysis"]
+    indikatorer = cfg["data"].get("indikatorer", [])
+
+    treatment_type = analysis.get("treatment_type", "continuous")
+    treatment_type_label = "Kontinuerlig" if treatment_type == "continuous" else "Diskret"
+
+    ts = str(analysis.get("treatment_start", ""))
+    treatment_start_label = f"{ts[:4]}-{ts[4:]}" if len(ts) == 6 else ts
+
+    # Infer subgroup and outcome type from first indicator file (they share the same)
+    first_file = indikatorer[0]["file"] if indikatorer else ""
+    subgroup = _infer_subgroup(first_file)
+    outcome_type = _infer_outcome_type(first_file)
+
+    ind_labels = ", ".join(
+        f"{ind['name']} — {ind.get('description', ind['name'])}" for ind in indikatorer
+    )
+
+    control_regions = analysis.get("control_regions")
+    control_label = (
+        ", ".join(control_regions) if control_regions else "—"
+    )
+
+    rows = [
+        ("Behandlingstype", treatment_type_label),
+        ("Behandlingsstart", treatment_start_label),
+        ("Variasjon i behandling", "Nav-regioner"),
+        ("Undergruppe (populasjon)", subgroup),
+        ("Utfallsmål (indikatortype)", outcome_type),
+        ("Indikatorer", ind_labels),
+    ]
+    if treatment_type == "discrete":
+        rows.append(("Kontrollregioner", control_label))
+
+    table_lines = [
+        "| Egenskap | Verdi |",
+        "|---|---|",
+    ] + [f"| {k} | {v} |" for k, v in rows]
+
+    return [
+        "",
+        *table_lines,
+        "",
+    ]
 
 
 def _section_frontmatter(title: str) -> list[str]:
@@ -741,11 +896,7 @@ def _section_regression(
     n_boot = bootstrap_preferred.n_boot if bootstrap_preferred else 0
     coef_val = preferred.coefficient
     baseline_mean_str = f"{baseline_mean:.1f} %" if baseline_mean is not None else "—"
-    rel_change_str = (
-        f"{coef_val / baseline_mean * 100:.1f} %"
-        if baseline_mean
-        else "—"
-    )
+    rel_change_str = f"{coef_val / baseline_mean * 100:.1f} %" if baseline_mean else "—"
     mde_str = f"±{mde:.2f} pp" if mde is not None else "—"
 
     lines: list[str] = [
@@ -796,7 +947,7 @@ def _section_regression(
         lines += [
             "### Faste effekter",
             "",
-            "Stolpediagrammene viser koeffisientene for de faste effektene i den foretrukne modellen. "
+            "Stolpediagrammene viser koeffisientene for de faste effektene i den sesongjusterte modellen. "
             "Røde søyler er signifikante på 5 %-nivå.",
             "",
         ]
@@ -839,12 +990,15 @@ def _section_event_study(
         f"(F({dfn},{dfd}) = {f:.2f}, p = {p:.3f}), noe som svekker DiD-antakelsen."
     )
     es_desc = (
-        "Eventsstudien samhandler periodevise indikatorer med en tidsinvariant "
-        "behandlingindikator per region (0 = kontroll, 1 = behandlet). "
-        if treatment_type == "discrete"
-        else "Eventsstudien samhandler periodevise indikatorer med en tidsinvariant "
-        "intensitetsscore per region (maksimal tiltaksnedgang i post-perioden). "
-    ) + "Pre-periode-koeffisientene (τ < 0) bør ligge nær null dersom parallelle trender holder. Blå = basis, rød = sesongjustert modell."
+        (
+            "Eventsstudien samhandler periodevise indikatorer med en tidsinvariant "
+            "behandlingindikator per region (0 = kontroll, 1 = behandlet). "
+            if treatment_type == "discrete"
+            else "Eventsstudien samhandler periodevise indikatorer med en tidsinvariant "
+            "intensitetsscore per region (maksimal tiltaksnedgang i post-perioden). "
+        )
+        + "Pre-periode-koeffisientene (τ < 0) bør ligge nær null dersom parallelle trender holder. Blå = basis, rød = sesongjustert modell."
+    )
     return [
         "### Eventstudie og parallell-trend-test",
         "",
@@ -965,11 +1119,17 @@ def generate_report(
     report_dir = output_path.parent
 
     coef_interp = (
-        "Koeffisienten angir estimert gjennomsnittlig behandlingseffekt (ATT) "
+        "Koeffisienten for behandlingsvariabelen angir estimert gjennomsnittlig behandlingseffekt (ATT) "
         "på indikatoren, i prosentpoeng. "
+        "Et positivt fortegn betyr at behandlede regioner hadde en høyere verdi på indikatoren "
+        "i post-perioden sammenlignet med kontrafaktum; et negativt fortegn betyr lavere verdi. "
+        "Størrelsen angir den absolutte endringen i prosentpoeng. "
         if treatment_type == "discrete"
-        else "Koeffisienten angir estimert effekt av å gå fra null til full tiltaksnedgang "
-        "(behandlingsintensitet = 1) på indikatoren, i prosentpoeng. "
+        else "Koeffisienten for behandlingsvariabelen angir estimert effekt av å gå fra null til full "
+        "tiltaksnedgang (behandlingsintensitet = 1) på indikatoren, i prosentpoeng. "
+        "Et positivt fortegn betyr at regioner med større tiltaksnedgang hadde høyere indikatorverdier "
+        "i post-perioden sammenlignet med kontrafaktum; et negativt fortegn betyr lavere verdier. "
+        "Størrelsen angir den absolutte endringen i prosentpoeng ved full tiltaksnedgang. "
     )
 
     ind_labels: dict[str, str] = {
@@ -979,6 +1139,7 @@ def generate_report(
 
     lines: list[str] = []
     lines += _section_frontmatter(report_title)
+    lines += _section_summary_table(cfg)
     lines += _section_intro(treatment_start, treatment_type, control_regions)
 
     first_res = next((r for r in all_results.values() if r is not None), None)

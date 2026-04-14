@@ -26,6 +26,7 @@ CONFIGS_DIR = Path(__file__).parent / "configs"
 CONFIG_PATH = CONFIGS_DIR / "alle-kontinuerlig.yml"
 DATA_PROCESSED_BASE = PROJECT_ROOT / "data" / "processed"
 OUTPUTS_DID_BASE = PROJECT_ROOT / "outputs" / "did"
+QUARTO_DIR = PROJECT_ROOT / "quarto"
 
 # ── Logging ────────────────────────────────────────────────────────────────────
 
@@ -78,6 +79,46 @@ def _parse_args() -> argparse.Namespace:
 def _config_slug(cfg_path: Path) -> str:
     """Return a filesystem-safe slug based on config filename."""
     return re.sub(r"[^a-z0-9._-]+", "_", cfg_path.stem.lower()).strip("_")
+
+
+def _variation_from_cfg(cfg: dict[str, Any]) -> str:
+    """Return the treatment variation folder name (default: 'regioner')."""
+    return str(cfg["analysis"].get("variation", "regioner"))
+
+
+def _update_quarto_chapters(quarto_dir: Path, variation: str) -> None:
+    """Scan quarto/<variation>/*/ for report QMDs and update _quarto.yml chapters."""
+    quarto_yml = quarto_dir / "_quarto.yml"
+    if not quarto_yml.exists():
+        logger.warning("_quarto.yml not found at %s, skipping chapter update", quarto_yml)
+        return
+
+    variation_dir = quarto_dir / variation
+    report_qmds = sorted(
+        p.relative_to(quarto_dir).as_posix()
+        for p in variation_dir.glob("*/report_*.qmd")
+    )
+
+    with open(quarto_yml, encoding="utf-8") as f:
+        cfg_yaml = yaml.safe_load(f)
+
+    part_path = f"{variation}/intro.qmd"
+    chapters: list = cfg_yaml["book"]["chapters"]
+
+    part_entry = next(
+        (ch for ch in chapters if isinstance(ch, dict) and ch.get("part") == part_path),
+        None,
+    )
+    if part_entry is None:
+        part_entry = {"part": part_path, "chapters": []}
+        chapters.append(part_entry)
+
+    part_entry["chapters"] = report_qmds
+
+    with open(quarto_yml, "w", encoding="utf-8") as f:
+        yaml.dump(cfg_yaml, f, allow_unicode=True, default_flow_style=False, sort_keys=False)
+
+    logger.info("Updated _quarto.yml: %d chapters for '%s'", len(report_qmds), variation)
 
 
 # ── Pipeline ───────────────────────────────────────────────────────────────────
@@ -211,9 +252,7 @@ def _run_indicator(
 
     pre_panel = panel_flattened[panel_flattened["relative_month"] < 0]
     baseline_mean = float(pre_panel["indikator"].mean())
-    baseline_mean_by_region = (
-        pre_panel.groupby("region")["indikator"].mean().to_dict()
-    )
+    baseline_mean_by_region = pre_panel.groupby("region")["indikator"].mean().to_dict()
 
     return IndicatorResult(
         indicator_name=indicator_name,
@@ -339,11 +378,14 @@ def main() -> int:
         return 1
 
     config_slug = _config_slug(cfg_path)
+    variation = _variation_from_cfg(cfg)
     output_root = OUTPUTS_DID_BASE / config_slug
     staging_root = output_root / "_staging"
-    figures_dir = staging_root / "figures"
-    tables_dir = staging_root / "tables"
+    # figures_dir lives inside report_dir so relative paths in the QMD are
+    # preserved correctly after the report is promoted to quarto/.
     report_dir = staging_root / "report"
+    figures_dir = report_dir / "figures"
+    tables_dir = staging_root / "tables"
     processed_dir = DATA_PROCESSED_BASE / config_slug
 
     figures_dir.mkdir(parents=True, exist_ok=True)
@@ -390,7 +432,7 @@ def main() -> int:
                 logger.info("○ %s skipped (no post-treatment data)", name)
             else:
                 logger.info("✓ %s complete", name)
-        except (ValueError, np.linalg.LinAlgError, KeyError, pd.errors.MergeError):
+        except ValueError, np.linalg.LinAlgError, KeyError, pd.errors.MergeError:
             logger.exception("Failed to process %s", name)
             failed.append(name)
             all_results[name] = None
@@ -415,12 +457,11 @@ def main() -> int:
         )
         logger.info("Report written to %s", report_path)
 
-    # Promote staging → final output directory only when all indicators succeeded.
+    # Promote staging → final destinations only when all indicators succeeded.
     # On partial failure keep staging in place so prior complete outputs survive.
     if failed:
         logger.error(
-            "Run incomplete — %d/%d indicators failed: %s.  "
-            "Staged outputs kept at: %s",
+            "Run incomplete — %d/%d indicators failed: %s.  Staged outputs kept at: %s",
             len(failed),
             n_total,
             ", ".join(failed),
@@ -428,20 +469,24 @@ def main() -> int:
         )
         exit_code = 1 if n_done == 0 else 2
     else:
-        # Full success: atomically replace previous final output with staging.
-        final_figures = output_root / "figures"
+        # Tables → outputs/did/<slug>/tables/
         final_tables = output_root / "tables"
-        final_report = output_root / "report"
-        for src, dst in [
-            (figures_dir, final_figures),
-            (tables_dir, final_tables),
-            (report_dir, final_report),
-        ]:
-            if dst.exists():
-                shutil.rmtree(dst)
-            shutil.copytree(src, dst)
+        if final_tables.exists():
+            shutil.rmtree(final_tables)
+        shutil.copytree(tables_dir, final_tables)
+
+        # Report + figures → quarto/<variation>/<slug>/
+        quarto_output_dir = QUARTO_DIR / variation / config_slug
+        if quarto_output_dir.exists():
+            shutil.rmtree(quarto_output_dir)
+        quarto_output_dir.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(report_dir, quarto_output_dir)
+
         shutil.rmtree(staging_root)
-        logger.info("Outputs promoted to %s", output_root)
+        logger.info("Tables promoted to %s", final_tables)
+        logger.info("Report promoted to %s", quarto_output_dir)
+
+        _update_quarto_chapters(QUARTO_DIR, variation)
         exit_code = 0
 
     logger.info("═══ Done (%d/%d indicators) ═══", n_done, n_total)

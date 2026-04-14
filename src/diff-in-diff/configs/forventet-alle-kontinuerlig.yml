@@ -4,7 +4,8 @@ analysis:
   treatment_start: "202506"   # First month of treatment (YYYYMM)
   data_start:      "202010"   # First month of the full panel
   data_end:        "202509"   # Last month of the full panel
-  treatment_type:  "continuous"  # "continuous" or "discrete" (may expand in the future)
+  treatment_type:  "continuous"  # "continuous" or "discrete"
+  variation:       regioner
 
   # Denominator definitions compared in the exploratory treatment analysis.
   # Each entry produces a separate treatment variable series.

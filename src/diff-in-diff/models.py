@@ -47,13 +47,14 @@ class IndicatorResult:
     # ── Summary statistics ────────────────────────────────────────────────────
     mde: float
     baseline_mean: float
-    baseline_mean_by_region: dict[str, float] = field(default_factory=dict)
 
     # ── Panels ────────────────────────────────────────────────────────────────
-    #: Seasonally flattened panel (preferred model input).
+    #: Seasonally adjusted panel (preferred model input).
     panel: pd.DataFrame = field(repr=False)
-    #: Regular (non-flattened) panel (baseline model input).
+    #: Regular (non-adjusted) panel (baseline model input).
     panel_regular: pd.DataFrame = field(repr=False)
+
+    baseline_mean_by_region: dict[str, float] = field(default_factory=dict)
 
     # ── Convenience ──────────────────────────────────────────────────────────
 
