@@ -20,9 +20,9 @@ data:
 
   indikatorer:
     - name:        atid3
-      file:        data/raw/indikatorer/regioner/atid3.csv
+      file:        data/raw/indikatorer/nedbrytning/alle/atid3.csv
       description: "Arbeidstid neste tre måneder"
 
     - name:        jobb3
-      file:        data/raw/indikatorer/regioner/jobb3.csv
+      file:        data/raw/indikatorer/nedbrytning/alle/jobb3.csv
       description: "I jobb etter 3 måneder"

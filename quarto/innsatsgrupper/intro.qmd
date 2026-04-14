@@ -1,3 +1,3 @@
 # Innsatsgrupper
 
-Denne biten tar utgangspunkt i at gruppen "Gode muligheter" i liten grad får tildelt lønnstilskudd, mens de som mottar veiledning i større grad mottar lønnstilskudd. 
+Denne biten tar utgangspunkt i at gruppen "Gode muligheter" i liten grad får tildelt lønnstilskudd, mens de som mottar veiledning i større grad mottar lønnstilskudd.

@@ -35,8 +35,8 @@ To modellspesifikasjoner estimeres:
 - **Basis:** Ujustert indikator, region FE + år-måned FE
 - **Sesongjustert:** Sesongjustert indikator, region FE + år-måned FE
 
-> **Signifikansnivå:** \* p < 0,10 &nbsp; \*\* p < 0,05 &nbsp; \*\*\* p < 0,01  
-> Standardfeil er clustret på regionnivå (CR1 småutvalgskorrigering).  
+> **Signifikansnivå:** \* p < 0,10 &nbsp; \*\* p < 0,05 &nbsp; \*\*\* p < 0,01
+> Standardfeil er clustret på regionnivå (CR1 småutvalgskorrigering).
 > Med kun G = 12 regioner er asymptotisk clusterinferens upålitelig; primær p-verdi er basert på wild cluster bootstrap med Webb-vekter (B = 4 999).
 
 ## Tiltaksbruk over tid
@@ -89,7 +89,7 @@ Koeffisienten for behandlingsvariabelen angir estimert gjennomsnittlig behandlin
 
 > **Signifikansnivå (bootstrap):** \* p < 0,10 &nbsp; \*\* p < 0,05 &nbsp; \*\*\* p < 0,01
 
-**Gjennomsnittlig pre-periode-nivå:** 0.0 % — koeffisienten tilsvarer en relativ endring på -213.2 %.  
+**Gjennomsnittlig pre-periode-nivå:** 0.0 % — koeffisienten tilsvarer en relativ endring på -213.2 %.
 **Minimum detekterbar effekt (80 % styrke, α = 0,05):** ±0.06 pp.
 
 ### Bootstrap-fordeling
@@ -176,7 +176,7 @@ Koeffisienten for behandlingsvariabelen angir estimert gjennomsnittlig behandlin
 
 > **Signifikansnivå (bootstrap):** \* p < 0,10 &nbsp; \*\* p < 0,05 &nbsp; \*\*\* p < 0,01
 
-**Gjennomsnittlig pre-periode-nivå:** 0.3 % — koeffisienten tilsvarer en relativ endring på -39.5 %.  
+**Gjennomsnittlig pre-periode-nivå:** 0.3 % — koeffisienten tilsvarer en relativ endring på -39.5 %.
 **Minimum detekterbar effekt (80 % styrke, α = 0,05):** ±0.39 pp.
 
 ### Bootstrap-fordeling

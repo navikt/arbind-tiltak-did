@@ -16,7 +16,19 @@ book:
     - regioner/alle-discrete/report_alle-discrete.qmd
     - regioner/alle-kontinuerlig/report_alle-kontinuerlig.qmd
     - regioner/faktisk-alle-kontinuerlig/report_faktisk-alle-kontinuerlig.qmd
+    - regioner/faktisk-gode-muligheter-kontinuerlig/report_faktisk-gode-muligheter-kontinuerlig.qmd
+    - regioner/faktisk-nedsatt-arbeidsevne-kontinuerlig/report_faktisk-nedsatt-arbeidsevne-kontinuerlig.qmd
+    - regioner/faktisk-trenger-veiledning-kontinuerlig/report_faktisk-trenger-veiledning-kontinuerlig.qmd
     - regioner/forventet-alle-kontinuerlig/report_forventet-alle-kontinuerlig.qmd
+    - regioner/forventet-gode-muligheter-kontinuerlig/report_forventet-gode-muligheter-kontinuerlig.qmd
+    - regioner/forventet-nedsatt-arbeidsevne-kontinuerlig/report_forventet-nedsatt-arbeidsevne-kontinuerlig.qmd
+    - regioner/forventet-trenger-veiledning-kontinuerlig/report_forventet-trenger-veiledning-kontinuerlig.qmd
+    - regioner/gode-muligheter-discrete/report_gode-muligheter-discrete.qmd
+    - regioner/gode-muligheter-kontinuerlig/report_gode-muligheter-kontinuerlig.qmd
+    - regioner/nedsatt-arbeidsevne-discrete/report_nedsatt-arbeidsevne-discrete.qmd
+    - regioner/nedsatt-arbeidsevne-kontinuerlig/report_nedsatt-arbeidsevne-kontinuerlig.qmd
+    - regioner/trenger-veiledning-discrete/report_trenger-veiledning-discrete.qmd
+    - regioner/trenger-veiledning-kontinuerlig/report_trenger-veiledning-kontinuerlig.qmd
   page-navigation: true
   page-footer: Nav - {{< meta date >}}
   repo-url: https://github.com/navikt/arbind-tiltak-did
@@ -27,7 +39,7 @@ book:
     logo-alt: Logo til Nav - Arbeids- og velferdsetaten
 format:
   html:
-    lang: no
+    lang: false
     theme:
       light: flatly
       dark: darkly

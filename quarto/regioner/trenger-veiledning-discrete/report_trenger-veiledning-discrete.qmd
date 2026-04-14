@@ -1,0 +1,224 @@
+---
+title: "DiD-analyse for innsatsgruppen 'trenger veiledning'"
+lang: nb
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    embed-resources: true
+  pdf:
+    toc: true
+execute:
+  echo: false
+  warning: false
+---
+
+
+| Egenskap | Verdi |
+|---|---|
+| Behandlingstype | Diskret |
+| Behandlingsstart | 2025-06 |
+| Variasjon i behandling | Nav-regioner |
+| Undergruppe (populasjon) | Innsatsgruppe_-_trenger_veiledning |
+| Utfallsmål (indikatortype) | — |
+| Indikatorer | atid3 — Arbeidstid neste tre måneder, jobb3 — I jobb etter 3 måneder |
+| Kontrollregioner | Nav Innlandet, Nav Nordland |
+
+## Bakgrunn og metode
+
+Denne rapporten analyserer om nedgangen i arbeidsmarkedstiltak fra og med 2025-06 har hatt målbar effekt på Nav-indikatorer for overgang til arbeid.
+
+Analysen bruker en *difference-in-differences*-tilnærming med **diskret behandling**. Behandlingsvariabelen er binær: 1 for behandlede regioner i post-perioden, 0 ellers. Kontrollregioner: Nav Innlandet, Nav Nordland. Alle øvrige regioner klassifiseres som behandlede. Modellen inkluderer region-faste effekter og tidspunkt-faste effekter for å kontrollere for tidsinvariante regionforskjeller og felles nasjonale trender.
+
+To modellspesifikasjoner estimeres:
+
+- **Basis:** Ujustert indikator, region FE + år-måned FE
+- **Sesongjustert:** Sesongjustert indikator, region FE + år-måned FE
+
+> **Signifikansnivå:** \* p < 0,10 &nbsp; \*\* p < 0,05 &nbsp; \*\*\* p < 0,01  
+> Standardfeil er clustret på regionnivå (CR1 småutvalgskorrigering).  
+> Med kun G = 12 regioner er asymptotisk clusterinferens upålitelig; primær p-verdi er basert på wild cluster bootstrap med Webb-vekter (B = 4 999).
+
+## Tiltaksbruk over tid
+
+Tiltaksbruk (midlertidig lønnstilskudd) per region over tid. Den stiplede linjen markerer behandlingsstart.
+
+![](figures/tiltak_trend_shared.png){fig-align='center' width=95%}
+
+## Arbeidstid neste tre måneder (`atid3`)
+
+### Deskriptiv statistikk
+
+|                 |   Gjennomsnitt |   Std.avvik |     Min |     Maks |
+|:----------------|---------------:|------------:|--------:|---------:|
+| atid3           |          0.26  |       0.53  |  -1.061 |    2.214 |
+| Behandlet (0/1) |          0.056 |       0.229 |   0     |    1     |
+| Tiltak (antall) |        593.907 |     224.287 | 134     | 1224     |
+
+**Behandlingsvariabel per region (gjennomsnitt i post-perioden):**
+
+| Region                   |   Behandlet (0=kontroll, 1=behandlet) |
+|:-------------------------|--------------------------------------:|
+| Nav Agder                |                                     1 |
+| Nav Møre og Romsdal      |                                     1 |
+| Nav Oslo                 |                                     1 |
+| Nav Rogaland             |                                     1 |
+| Nav Troms og Finnmark    |                                     1 |
+| Nav Trøndelag            |                                     1 |
+| Nav Vest-Viken           |                                     1 |
+| Nav Vestfold og Telemark |                                     1 |
+| Nav Vestland             |                                     1 |
+| Nav Øst-Viken            |                                     1 |
+| Nav Innlandet            |                                     0 |
+| Nav Nordland             |                                     0 |
+
+### Trender over tid
+
+Regionene er delt inn i behandlet og kontrollgruppe.
+
+![](figures/trend_atid3.png){fig-align='center' width=90%}
+
+### Regresjonsresultater
+
+Koeffisienten for behandlingsvariabelen angir estimert gjennomsnittlig behandlingseffekt (ATT) på indikatoren, i prosentpoeng. Et positivt fortegn betyr at behandlede regioner hadde en høyere verdi på indikatoren i post-perioden sammenlignet med kontrafaktum; et negativt fortegn betyr lavere verdi. Størrelsen angir den absolutte endringen i prosentpoeng. Signifikansstjerner og primær p-verdi basert på wild cluster bootstrap (Webb-vekter, G = 12, B = 4,999).
+
+| Modell        |   Koeffisient |   Std.feil (CR1) |   t-stat |   p (bootstrap) |   p (asymptotisk) | 95% KI             |   Obs. |   Clustere |
+|:--------------|--------------:|-----------------:|---------:|----------------:|------------------:|:-------------------|-------:|-----------:|
+| Basis         |       -0.1019 |           0.061  |   -1.669 |           0.189 |            0.1233 | [-0.2363, 0.0325]  |    720 |         12 |
+| Sesongjustert |       -0.1868 |           0.0829 |   -2.254 |           0.132 |            0.0456 | [-0.3692, -0.0044] |    720 |         12 |
+
+> **Signifikansnivå (bootstrap):** \* p < 0,10 &nbsp; \*\* p < 0,05 &nbsp; \*\*\* p < 0,01
+
+**Gjennomsnittlig pre-periode-nivå:** 0.3 % — koeffisienten tilsvarer en relativ endring på -64.9 %.  
+**Minimum detekterbar effekt (80 % styrke, α = 0,05):** ±0.25 pp.
+
+### Bootstrap-fordeling
+
+![](figures/bootstrap_atid3.png){fig-align='center' width=95%}
+
+### Faste effekter
+
+Stolpediagrammene viser koeffisientene for de faste effektene i den sesongjusterte modellen. Røde søyler er signifikante på 5 %-nivå.
+
+**Region FE**
+
+![](figures/fe_region_fe_atid3.png){fig-align='center' width=90%}
+
+**Tidspunkt FE**
+
+![](figures/fe_tidspunkt_fe_atid3.png){fig-align='center' width=90%}
+
+### Eventstudie og parallell-trend-test
+
+Eventsstudien samhandler periodevise indikatorer med en tidsinvariant behandlingindikator per region (0 = kontroll, 1 = behandlet). Pre-periode-koeffisientene (τ < 0) bør ligge nær null dersom parallelle trender holder. Blå = basis, rød = sesongjustert modell.
+
+**Advarsel:** pre-trend-testen er signifikant (F(10,11) = 15.04, p = 0.000), noe som svekker DiD-antakelsen.
+
+![](figures/event_study_atid3.png){fig-align='center' width=95%}
+
+### Placebotest (τ = −12)
+
+Begge modeller re-estimeres med en falsk behandlingsstart tolv måneder tidligere, utelukkende i pre-perioden. Estimater nær null styrker antakelsen om at resultatene ikke skyldes pre-eksisterende trender.
+
+Sesongjustert modell — placebo-koeffisienten er 0.4181 (p = 0.204). Dette er ikke signifikant, noe som styrker identifikasjonsstrategien.
+
+![](figures/placebo_atid3.png){fig-align='center' width=80%}
+
+### Leave-one-out robusthet
+
+Begge modeller re-estimeres tolv ganger, én for hver region som droppes. Det skyggelagte feltet viser 95 %-konfidensintervallet for full-utvalgsmodellen.
+
+Sesongjustert modell: koeffisienten varierer mellom -0.2621 til -0.1115 når én region utelates.
+
+![](figures/loo_atid3.png){fig-align='center' width=95%}
+
+## I jobb etter 3 måneder (`jobb3`)
+
+### Deskriptiv statistikk
+
+|                 |   Gjennomsnitt |   Std.avvik |     Min |     Maks |
+|:----------------|---------------:|------------:|--------:|---------:|
+| jobb3           |          1.194 |       1.709 |  -3.486 |    6.858 |
+| Behandlet (0/1) |          0.056 |       0.229 |   0     |    1     |
+| Tiltak (antall) |        593.907 |     224.287 | 134     | 1224     |
+
+**Behandlingsvariabel per region (gjennomsnitt i post-perioden):**
+
+| Region                   |   Behandlet (0=kontroll, 1=behandlet) |
+|:-------------------------|--------------------------------------:|
+| Nav Agder                |                                     1 |
+| Nav Møre og Romsdal      |                                     1 |
+| Nav Oslo                 |                                     1 |
+| Nav Rogaland             |                                     1 |
+| Nav Troms og Finnmark    |                                     1 |
+| Nav Trøndelag            |                                     1 |
+| Nav Vest-Viken           |                                     1 |
+| Nav Vestfold og Telemark |                                     1 |
+| Nav Vestland             |                                     1 |
+| Nav Øst-Viken            |                                     1 |
+| Nav Innlandet            |                                     0 |
+| Nav Nordland             |                                     0 |
+
+### Trender over tid
+
+Regionene er delt inn i behandlet og kontrollgruppe.
+
+![](figures/trend_jobb3.png){fig-align='center' width=90%}
+
+### Regresjonsresultater
+
+Koeffisienten for behandlingsvariabelen angir estimert gjennomsnittlig behandlingseffekt (ATT) på indikatoren, i prosentpoeng. Et positivt fortegn betyr at behandlede regioner hadde en høyere verdi på indikatoren i post-perioden sammenlignet med kontrafaktum; et negativt fortegn betyr lavere verdi. Størrelsen angir den absolutte endringen i prosentpoeng. Signifikansstjerner og primær p-verdi basert på wild cluster bootstrap (Webb-vekter, G = 12, B = 4,999).
+
+| Modell        |   Koeffisient |   Std.feil (CR1) |   t-stat |   p (bootstrap) |   p (asymptotisk) | 95% KI            |   Obs. |   Clustere |
+|:--------------|--------------:|-----------------:|---------:|----------------:|------------------:|:------------------|-------:|-----------:|
+| Basis         |        0.0337 |           0.2371 |    0.142 |           0.879 |            0.8894 | [-0.4880, 0.5555] |    720 |         12 |
+| Sesongjustert |       -0.4694 |           0.2616 |   -1.794 |           0.147 |            0.1003 | [-1.0452, 0.1064] |    720 |         12 |
+
+> **Signifikansnivå (bootstrap):** \* p < 0,10 &nbsp; \*\* p < 0,05 &nbsp; \*\*\* p < 0,01
+
+**Gjennomsnittlig pre-periode-nivå:** 1.3 % — koeffisienten tilsvarer en relativ endring på -36.1 %.  
+**Minimum detekterbar effekt (80 % styrke, α = 0,05):** ±0.80 pp.
+
+### Bootstrap-fordeling
+
+![](figures/bootstrap_jobb3.png){fig-align='center' width=95%}
+
+### Faste effekter
+
+Stolpediagrammene viser koeffisientene for de faste effektene i den sesongjusterte modellen. Røde søyler er signifikante på 5 %-nivå.
+
+**Region FE**
+
+![](figures/fe_region_fe_jobb3.png){fig-align='center' width=90%}
+
+**Tidspunkt FE**
+
+![](figures/fe_tidspunkt_fe_jobb3.png){fig-align='center' width=90%}
+
+### Eventstudie og parallell-trend-test
+
+Eventsstudien samhandler periodevise indikatorer med en tidsinvariant behandlingindikator per region (0 = kontroll, 1 = behandlet). Pre-periode-koeffisientene (τ < 0) bør ligge nær null dersom parallelle trender holder. Blå = basis, rød = sesongjustert modell.
+
+**Advarsel:** pre-trend-testen er signifikant (F(10,11) = 22.60, p = 0.000), noe som svekker DiD-antakelsen.
+
+![](figures/event_study_jobb3.png){fig-align='center' width=95%}
+
+### Placebotest (τ = −12)
+
+Begge modeller re-estimeres med en falsk behandlingsstart tolv måneder tidligere, utelukkende i pre-perioden. Estimater nær null styrker antakelsen om at resultatene ikke skyldes pre-eksisterende trender.
+
+Sesongjustert modell — placebo-koeffisienten er 2.3202 (p = 0.045). **Advarsel:** placebo-estimatet er signifikant, noe som kan indikere pre-eksisterende trender.
+
+![](figures/placebo_jobb3.png){fig-align='center' width=80%}
+
+### Leave-one-out robusthet
+
+Begge modeller re-estimeres tolv ganger, én for hver region som droppes. Det skyggelagte feltet viser 95 %-konfidensintervallet for full-utvalgsmodellen.
+
+Sesongjustert modell: koeffisienten varierer mellom -0.7412 til -0.1975 når én region utelates.
+
+![](figures/loo_jobb3.png){fig-align='center' width=95%}
+
+---
+
+*Rapporten er automatisk generert av analysepipelinen.*

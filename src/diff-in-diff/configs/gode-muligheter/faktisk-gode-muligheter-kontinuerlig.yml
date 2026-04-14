@@ -1,6 +1,6 @@
 # ── Analysis parameters ────────────────────────────────────────────────────────
 analysis:
-  title: "DiD-analyse for innsatsgruppen 'trenger veiledning', faktisk"
+  title: "DiD-analyse for innsatsgruppen 'gode muligheter', faktisk"
   treatment_start: "202506"   # First month of treatment (YYYYMM)
   data_start:      "202010"   # First month of the full panel
   data_end:        "202509"   # Last month of the full panel
@@ -20,9 +20,9 @@ data:
 
   indikatorer:
     - name:        atid3
-      file:        data/raw/indikatorer/nedbrytning/innsatsgruppe_-_trenger_veiledning/faktisk_atid3.csv
+      file:        data/raw/indikatorer/nedbrytning/innsatsgruppe_-_gode_muligheter/faktisk_atid3.csv
       description: "Arbeidstid neste tre måneder"
 
     - name:        jobb3
-      file:        data/raw/indikatorer/nedbrytning/innsatsgruppe_-_trenger_veiledning/faktisk_jobb3.csv
+      file:        data/raw/indikatorer/nedbrytning/innsatsgruppe_-_gode_muligheter/faktisk_jobb3.csv
       description: "I jobb etter 3 måneder"
