@@ -1,0 +1,5 @@
+# Regioner
+
+En inngang til analysen er å se på forskjeller mellom regioner. Noen regioner hadde større fall enn andre, og slik kan man bruke noen av dem som kontroll, eller man kan få forskjeller på grunn av forskjellige "doser". 
+
+Vi ser på forskjeller i regioner for forskjellige grupper, både for indikator, faktisk og forventet. 

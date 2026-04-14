@@ -1,0 +1,8 @@
+# Arbeidsdokumenter for tiltakscrash-analyse
+
+Dokumentene er delt inn i tre varianter, basert på hvilke forskjeller vi ser på: 
+- Regioner, der forskjeller i hvordan regioner ble truffet av innstrammingen brukes som treatment
+- Innsatsgrupper, der noen grupper i stort får tiltak, mens andre ikke får det
+- En trippel-forskjell-inngang, der vi ser på kombinasjonen av de to overnevnte
+
+Vi ser på både kontinuerlige og diskrete (binære) modeller for diff-in-diff. 
