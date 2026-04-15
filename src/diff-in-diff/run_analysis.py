@@ -104,6 +104,14 @@ def _update_quarto_chapters(quarto_dir: Path, variation: str) -> None:
     with open(quarto_yml, encoding="utf-8") as f:
         cfg_yaml = yaml.safe_load(f)
 
+    # PyYAML parses `lang: no` / `lang: nb` as boolean False. Restore the
+    # Norwegian Bokmål language tag so Quarto doesn't receive `lang: false`.
+    try:
+        if cfg_yaml["format"]["html"].get("lang") is False:
+            cfg_yaml["format"]["html"]["lang"] = "nb"
+    except KeyError, TypeError:
+        pass
+
     part_path = f"{variation}/intro.qmd"
     chapters: list[Any] = cfg_yaml["book"]["chapters"]
 

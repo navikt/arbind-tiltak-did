@@ -1,13 +1,5 @@
 ---
-title: "DiD-analyse for innsatsgruppen 'trenger veiledning'"
-lang: nb
-format:
-  html:
-    toc: true
-    toc-depth: 3
-    embed-resources: true
-  pdf:
-    toc: true
+title: "Innsatsgruppen 'trenger veiledning', diskret"
 execute:
   echo: false
   warning: false
@@ -43,7 +35,7 @@ To modellspesifikasjoner estimeres:
 
 Tiltaksbruk (midlertidig lønnstilskudd) per region over tid. Den stiplede linjen markerer behandlingsstart.
 
-![](figures/tiltak_trend_shared.png){fig-align='center' width=95%}
+![](figures/tiltak_trend_shared.svg){fig-align='center' width=95%}
 
 ## Arbeidstid neste tre måneder (`atid3`)
 
@@ -76,7 +68,7 @@ Tiltaksbruk (midlertidig lønnstilskudd) per region over tid. Den stiplede linje
 
 Regionene er delt inn i behandlet og kontrollgruppe.
 
-![](figures/trend_atid3.png){fig-align='center' width=90%}
+![](figures/trend_atid3.svg){fig-align='center' width=90%}
 
 ### Regresjonsresultater
 
@@ -114,7 +106,7 @@ Eventsstudien samhandler periodevise indikatorer med en tidsinvariant behandling
 
 **Advarsel:** pre-trend-testen er signifikant (F(10,11) = 15.04, p = 0.000), noe som svekker DiD-antakelsen.
 
-![](figures/event_study_atid3.png){fig-align='center' width=95%}
+![](figures/event_study_atid3.svg){fig-align='center' width=95%}
 
 ### Placebotest (τ = −12)
 
@@ -122,7 +114,7 @@ Begge modeller re-estimeres med en falsk behandlingsstart tolv måneder tidliger
 
 Sesongjustert modell — placebo-koeffisienten er 0.4181 (p = 0.204). Dette er ikke signifikant, noe som styrker identifikasjonsstrategien.
 
-![](figures/placebo_atid3.png){fig-align='center' width=80%}
+![](figures/placebo_atid3.svg){fig-align='center' width=80%}
 
 ### Leave-one-out robusthet
 
@@ -130,7 +122,7 @@ Begge modeller re-estimeres tolv ganger, én for hver region som droppes. Det sk
 
 Sesongjustert modell: koeffisienten varierer mellom -0.2621 til -0.1115 når én region utelates.
 
-![](figures/loo_atid3.png){fig-align='center' width=95%}
+![](figures/loo_atid3.svg){fig-align='center' width=95%}
 
 ## I jobb etter 3 måneder (`jobb3`)
 
@@ -163,7 +155,7 @@ Sesongjustert modell: koeffisienten varierer mellom -0.2621 til -0.1115 når én
 
 Regionene er delt inn i behandlet og kontrollgruppe.
 
-![](figures/trend_jobb3.png){fig-align='center' width=90%}
+![](figures/trend_jobb3.svg){fig-align='center' width=90%}
 
 ### Regresjonsresultater
 
@@ -201,7 +193,7 @@ Eventsstudien samhandler periodevise indikatorer med en tidsinvariant behandling
 
 **Advarsel:** pre-trend-testen er signifikant (F(10,11) = 22.60, p = 0.000), noe som svekker DiD-antakelsen.
 
-![](figures/event_study_jobb3.png){fig-align='center' width=95%}
+![](figures/event_study_jobb3.svg){fig-align='center' width=95%}
 
 ### Placebotest (τ = −12)
 
@@ -209,7 +201,7 @@ Begge modeller re-estimeres med en falsk behandlingsstart tolv måneder tidliger
 
 Sesongjustert modell — placebo-koeffisienten er 2.3202 (p = 0.045). **Advarsel:** placebo-estimatet er signifikant, noe som kan indikere pre-eksisterende trender.
 
-![](figures/placebo_jobb3.png){fig-align='center' width=80%}
+![](figures/placebo_jobb3.svg){fig-align='center' width=80%}
 
 ### Leave-one-out robusthet
 
@@ -217,7 +209,7 @@ Begge modeller re-estimeres tolv ganger, én for hver region som droppes. Det sk
 
 Sesongjustert modell: koeffisienten varierer mellom -0.7412 til -0.1975 når én region utelates.
 
-![](figures/loo_jobb3.png){fig-align='center' width=95%}
+![](figures/loo_jobb3.svg){fig-align='center' width=95%}
 
 ---
 

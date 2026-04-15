@@ -1,6 +1,6 @@
 # ── Analysis parameters ────────────────────────────────────────────────────────
 analysis:
-  title: "DiD-analyse for alle, faktisk"
+  title: "Alle, kontinuerlig, faktisk"
   treatment_start: "202506"   # First month of treatment (YYYYMM)
   data_start:      "202010"   # First month of the full panel
   data_end:        "202509"   # Last month of the full panel

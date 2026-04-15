@@ -14,9 +14,15 @@ import os
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+
+# Simplify paths in SVG output — merges nearly-collinear segments, reducing
+# file size significantly for line-heavy charts.
+mpl.rcParams["path.simplify"] = True
+mpl.rcParams["path.simplify_threshold"] = 1.0
 
 if TYPE_CHECKING:
     from regression import RegressionResult
@@ -34,7 +40,10 @@ _LIGHT_RED = "#f4a582"
 
 def _save_fig(fig: plt.Figure, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(path, dpi=150, bbox_inches="tight")
+    kwargs: dict[str, Any] = {"bbox_inches": "tight"}
+    if path.suffix == ".png":
+        kwargs["dpi"] = 96
+    fig.savefig(path, **kwargs)
     plt.close(fig)
 
 
@@ -105,7 +114,7 @@ def _plot_trends(
     ax.legend(frameon=False)
     ax.spines[["top", "right"]].set_visible(False)
 
-    out = figures_dir / f"trend_{indicator_name}.png"
+    out = figures_dir / f"trend_{indicator_name}.svg"
     _save_fig(fig, out)
     return out
 
@@ -142,7 +151,7 @@ def _plot_tiltak_trends(
     ax.legend(frameon=False, fontsize=7, ncol=2, loc="upper left")
     ax.spines[["top", "right"]].set_visible(False)
 
-    out = figures_dir / f"tiltak_trend_{filename_slug}.png"
+    out = figures_dir / f"tiltak_trend_{filename_slug}.svg"
     _save_fig(fig, out)
     return out
 
@@ -219,7 +228,7 @@ def _plot_placebo_combined(
     ax.spines[["top", "right"]].set_visible(False)
     fig.tight_layout()
 
-    out = figures_dir / f"placebo_{indicator_name}.png"
+    out = figures_dir / f"placebo_{indicator_name}.svg"
     _save_fig(fig, out)
     return out
 
@@ -276,7 +285,7 @@ def _plot_leave_one_out_combined(
     fig.suptitle(f"Leave-one-out robusthet — {indicator_label}", fontsize=13)
     fig.tight_layout()
 
-    out = figures_dir / f"loo_{indicator_name}.png"
+    out = figures_dir / f"loo_{indicator_name}.svg"
     _save_fig(fig, out)
     return out
 
@@ -531,7 +540,7 @@ def _plot_event_study_combined(
         color=_BLUE,
     )
 
-    out = figures_dir / f"event_study_{indicator_name}.png"
+    out = figures_dir / f"event_study_{indicator_name}.svg"
     _save_fig(fig, out)
     return out
 
@@ -749,14 +758,6 @@ def _section_frontmatter(title: str) -> list[str]:
     return [
         "---",
         f'title: "{title}"',
-        "lang: nb",
-        "format:",
-        "  html:",
-        "    toc: true",
-        "    toc-depth: 3",
-        "    embed-resources: true",
-        "  pdf:",
-        "    toc: true",
         "execute:",
         "  echo: false",
         "  warning: false",

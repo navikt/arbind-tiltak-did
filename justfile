@@ -22,11 +22,14 @@ lint:
 preview:
     uv run --group quarto quarto preview .
 
-# Bygg Quarto-prosjektet
+# Bygg Quarto-boken
 render:
-    uv run --group quarto quarto render .
+    cd quarto && uv run --group quarto quarto render
 
-# Bygg prosjektet i Docker
+# Publiser Quarto-boken til Datamarkedsplassen (krever TEAM_TOKEN_PROD, kjør `just render` først)
+publish:
+    uv run src/utils/publish.py 
+
 [arg('image', pattern='chainguard_python.Dockerfile|Dockerfile')]
 build image='Dockerfile':
     docker build -f {{image}} .

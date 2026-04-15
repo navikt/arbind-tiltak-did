@@ -29,6 +29,10 @@ book:
     - regioner/nedsatt-arbeidsevne-kontinuerlig/report_nedsatt-arbeidsevne-kontinuerlig.qmd
     - regioner/trenger-veiledning-discrete/report_trenger-veiledning-discrete.qmd
     - regioner/trenger-veiledning-kontinuerlig/report_trenger-veiledning-kontinuerlig.qmd
+  - part: innsatsgrupper/intro.qmd
+    chapters: []
+  - part: trippel-diff/intro.qmd
+    chapters: []
   page-navigation: true
   page-footer: Nav - {{< meta date >}}
   repo-url: https://github.com/navikt/arbind-tiltak-did
@@ -39,7 +43,9 @@ book:
     logo-alt: Logo til Nav - Arbeids- og velferdsetaten
 format:
   html:
-    lang: no
+    lang: nb
+    toc: true
+    toc-depth: 3
     theme:
       light: flatly
       dark: darkly
