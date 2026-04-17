@@ -5,7 +5,7 @@ description = "Mal for Python-prosjekt med 'best-practice' i 2025"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "pandas>=2.2",
+    "pandas>=3.0.2",
     "numpy>=2.4.4",
     "matplotlib>=3.8",
     "statsmodels>=0.14",
