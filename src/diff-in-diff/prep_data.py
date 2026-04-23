@@ -86,6 +86,7 @@ def build_treatment_variable(
         elif denominator == "last_pre":
             ref = (
                 df.loc[df["relative_month"] == -1, ["region", "tiltak"]]
+                .drop_duplicates(subset=["region"])
                 .set_index("region")["tiltak"]
                 .rename("ref_tiltak")
             )
@@ -109,8 +110,10 @@ def build_treatment_variable(
             )
 
         df["tiltaksnedgang"] = 0.0
-        post_num = df.loc[post_mask, "ref_tiltak"] - df.loc[post_mask, "tiltak"]
-        post_den = df.loc[post_mask, "ref_tiltak"]
+        post_num = (
+            df.loc[post_mask, "ref_tiltak"].values - df.loc[post_mask, "tiltak"].values
+        )
+        post_den = df.loc[post_mask, "ref_tiltak"].values
         post_fraction = np.where(post_den > 0, post_num / post_den, np.nan)
         df.loc[post_mask, "tiltaksnedgang"] = np.clip(post_fraction, 0.0, 1.0)
         # Rename for clarity in the output
