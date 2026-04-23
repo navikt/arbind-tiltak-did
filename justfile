@@ -42,6 +42,22 @@ triple-diff-regioner config='trippel-diff-regioner':
 triple-diff-enheter config='trippel-diff-enheter':
     cd src/diff-in-diff && uv run python run_analysis.py --config {{config}}
 
+# Hent indikatordata på enhetsnivå fra BigQuery (f.eks. `just fetch-enhet 'Alle'`)
+fetch-enhet +groups:
+    uv run python src/fetch_data/get_enhet_data.py {{groups}}
+
+# Hent indikatordata på fylkesnivå fra BigQuery (f.eks. `just fetch-fylke 'Alle'`)
+fetch-fylke +groups:
+    uv run python src/fetch_data/get_fylke_data.py {{groups}}
+
+# Slå sammen veiledning-grupper på enhetsnivå
+merge-veiledning-enhet:
+    uv run python src/fetch_data/merge_veiledning_enhet.py
+
+# Slå sammen veiledning-grupper på fylkesnivå
+merge-veiledning-fylke:
+    uv run python src/fetch_data/merge_veiledning.py
+
 [arg('image', pattern='chainguard_python.Dockerfile|Dockerfile')]
 build image='Dockerfile':
     docker build -f {{image}} .
