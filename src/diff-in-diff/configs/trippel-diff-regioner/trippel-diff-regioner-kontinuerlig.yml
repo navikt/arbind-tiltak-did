@@ -26,7 +26,7 @@ data:
   indikatorer:
     - name:        atid3
       group:       treated
-      file:        data/raw/indikatorer/nedbrytning/innsatsgruppe_-_trenger_veiledning/atid3.csv
+      file:        data/raw/indikatorer/nedbrytning/veiledning/atid3.csv
       description: "Arbeidstid neste tre måneder (veiledning)"
 
     - name:        atid3
@@ -36,7 +36,7 @@ data:
 
     - name:        jobb3
       group:       treated
-      file:        data/raw/indikatorer/nedbrytning/innsatsgruppe_-_trenger_veiledning/jobb3.csv
+      file:        data/raw/indikatorer/nedbrytning/veiledning/jobb3.csv
       description: "I jobb etter 3 måneder (veiledning)"
 
     - name:        jobb3

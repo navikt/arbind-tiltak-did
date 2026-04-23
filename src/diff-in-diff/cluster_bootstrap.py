@@ -340,6 +340,16 @@ def wild_cluster_bootstrap_triple_diff(
     """
     rng = np.random.default_rng(seed)
 
+    # Drop rows with NaN to avoid silent NaN propagation
+    cols_needed = ["indikator", "treatment_x_group", "tiltaksnedgang", "treated"]
+    valid = panel[cols_needed].notna().all(axis=1)
+    if not valid.all():
+        n_drop = int((~valid).sum())
+        logger.warning(
+            "Triple-diff bootstrap: dropping %d/%d rows with NaN.", n_drop, len(panel)
+        )
+        panel = panel.loc[valid].reset_index(drop=True)
+
     y = panel["indikator"].astype(float).values
     x_raw = panel["treatment_x_group"].astype(float).values
     regions = panel["region"].values

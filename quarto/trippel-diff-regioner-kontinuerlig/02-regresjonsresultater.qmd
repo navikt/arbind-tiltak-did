@@ -1,0 +1,30 @@
+---
+title: "Regresjonsresultater — Trippel-diff, regioner, kontinuerlig"
+---
+
+## Hovedresultater
+
+Trippel-diff-koeffisienten ($\beta$) måler den differensielle effekten 
+av tiltaksnedgangen på den behandlede gruppen sammenlignet med kontrollgruppen.
+
+| Indikator | Modell | Koeffisient | SE | t | p (asymp.) | p (bootstrap) | 95% KI | N | Clustere |
+|:--|:--|--:|--:|--:|--:|--:|:--|--:|--:|
+| atid3 | Basis | 1.3519*** | 0.3226 | 4.190 | 0.0015 | 0.0014 | [0.6418, 2.0620] | 1440 | 12 |
+| atid3 | Sesongjustert | 1.8358*** | 0.3338 | 5.500 | 0.0002 | 0.0000 | [1.1012, 2.5704] | 1440 | 12 |
+| jobb3 | Basis | 3.8037*** | 1.0706 | 3.553 | 0.0045 | 0.0012 | [1.4472, 6.1601] | 1440 | 12 |
+| jobb3 | Sesongjustert | 5.2169*** | 1.0384 | 5.024 | 0.0004 | 0.0004 | [2.9313, 7.5025] | 1440 | 12 |
+
+::: {.callout-note}
+Signifikansnivå basert på bootstrap p-verdi: \*\*\* p < 0,01; \*\* p < 0,05; \* p < 0,10.
+:::
+
+## Detaljert: atid3
+
+- MDE (minimum detekterbar effekt): **1.0268** prosentpoeng
+- Gjennomsnittlig indikator i pre-perioden: **0.4445**
+
+## Detaljert: jobb3
+
+- MDE (minimum detekterbar effekt): **3.1947** prosentpoeng
+- Gjennomsnittlig indikator i pre-perioden: **1.4697**
+

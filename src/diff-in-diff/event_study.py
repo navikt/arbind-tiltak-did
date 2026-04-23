@@ -426,6 +426,19 @@ def run_triple_diff_event_study(panel: pd.DataFrame) -> EventStudyResult:
     y = panel["indikator"].astype(float)
     clusters = panel["region"]
 
+    # Drop rows with NaN to avoid silent NaN propagation in OLS
+    valid = y.notna() & X.notna().all(axis=1)
+    if not valid.all():
+        n_drop = int((~valid).sum())
+        logger.warning(
+            "Triple-diff event study: dropping %d/%d rows with NaN.",
+            n_drop,
+            len(y),
+        )
+        y = y.loc[valid].reset_index(drop=True)
+        X = X.loc[valid].reset_index(drop=True)
+        clusters = clusters.loc[valid].reset_index(drop=True)
+
     logger.info(
         "Fitting triple-diff event study: %d obs, %d regressors "
         "(%d triple interactions), %d clusters",

@@ -31,20 +31,20 @@ data:
   indikatorer:
     - name:        atid3
       group:       treated
-      file:        data/raw/indikatorer/nedbrytning/innsatsgruppe_-_trenger_veiledning/enheter/atid3.csv
+      file:        data/raw/indikatorer/enhet/nedbrytning/veiledning/atid3.csv
       description: "Arbeidstid neste tre måneder (veiledning, enheter)"
 
     - name:        atid3
       group:       control
-      file:        data/raw/indikatorer/nedbrytning/innsatsgruppe_-_gode_muligheter/enheter/atid3.csv
+      file:        data/raw/indikatorer/enhet/nedbrytning/innsatsgruppe_-_gode_muligheter/atid3.csv
       description: "Arbeidstid neste tre måneder (gode muligheter, enheter)"
 
     - name:        jobb3
       group:       treated
-      file:        data/raw/indikatorer/nedbrytning/innsatsgruppe_-_trenger_veiledning/enheter/jobb3.csv
+      file:        data/raw/indikatorer/enhet/nedbrytning/veiledning/jobb3.csv
       description: "I jobb etter 3 måneder (veiledning, enheter)"
 
     - name:        jobb3
       group:       control
-      file:        data/raw/indikatorer/nedbrytning/innsatsgruppe_-_gode_muligheter/enheter/jobb3.csv
+      file:        data/raw/indikatorer/enhet/nedbrytning/innsatsgruppe_-_gode_muligheter/jobb3.csv
       description: "I jobb etter 3 måneder (gode muligheter, enheter)"

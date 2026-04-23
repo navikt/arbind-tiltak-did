@@ -255,9 +255,23 @@ def _estimate_triple_diff(
 
     The coefficient of interest is ``treatment_x_group``.
     """
-    y = panel["indikator"].astype(float)
     X = _build_triple_diff_regressors(panel)
+    y = panel["indikator"].astype(float)
     clusters = panel["region"]
+
+    # Drop rows with NaN in y or X to avoid silent NaN propagation in OLS
+    valid = y.notna() & X.notna().all(axis=1)
+    if not valid.all():
+        n_drop = int((~valid).sum())
+        logger.warning(
+            "%s: dropping %d/%d rows with NaN before fitting.",
+            model_name,
+            n_drop,
+            len(y),
+        )
+        y = y.loc[valid].reset_index(drop=True)
+        X = X.loc[valid].reset_index(drop=True)
+        clusters = clusters.loc[valid].reset_index(drop=True)
 
     logger.info(
         "Fitting %s (triple-diff): %d obs, %d regressors, %d clusters",

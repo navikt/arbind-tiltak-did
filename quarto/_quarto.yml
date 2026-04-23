@@ -33,6 +33,12 @@ book:
     chapters: []
   - part: trippel-diff/intro.qmd
     chapters: []
+  - part: trippel-diff-regioner-kontinuerlig/intro.qmd
+    chapters:
+    - trippel-diff-regioner-kontinuerlig/01-deskriptiv.qmd
+    - trippel-diff-regioner-kontinuerlig/02-regresjonsresultater.qmd
+    - trippel-diff-regioner-kontinuerlig/03-bootstrap.qmd
+    - trippel-diff-regioner-kontinuerlig/04-antagelser.qmd
   page-navigation: true
   page-footer: Nav - {{< meta date >}}
   repo-url: https://github.com/navikt/arbind-tiltak-did

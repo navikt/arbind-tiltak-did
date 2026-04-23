@@ -1,0 +1,13 @@
+---
+title: "Trippel-diff, regioner, kontinuerlig"
+---
+
+Trippel-diff-analyse med behandlet gruppe **trenger-veiledning** og kontrollgruppe **gode-muligheter**.
+Analysenivå: **region**.
+
+Analysen er delt inn i fire kapitler:
+
+1. Deskriptiv statistikk og bakgrunn
+2. Regresjonsresultater og koeffisienter
+3. Bootstrap og inferens
+4. Test av antagelser

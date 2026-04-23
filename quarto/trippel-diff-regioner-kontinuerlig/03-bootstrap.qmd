@@ -1,0 +1,50 @@
+---
+title: "Bootstrap og inferens — Trippel-diff, regioner, kontinuerlig"
+---
+
+## Wild cluster bootstrap
+
+Bootstrap-p-verdien er det primære inferensresultatet. Alle standardfeil 
+er clustret på regionsnivå. Webb (6-punkt) vekter brukes for å håndtere 
+det lave antallet clustere (G = 12).
+
+### atid3 — basis
+
+- Observert koeffisient: **1.3519**
+- Observert SE: **0.3143**
+- Observert t-statistikk: **4.301**
+- Bootstrap p-verdi: **0.0014**
+- Antall replikasjoner: **4999**
+
+![Bootstrap-fordeling atid3 (basis)](figures/bootstrap_atid3_basis.svg)
+
+### atid3 — sesongjustert
+
+- Observert koeffisient: **1.8358**
+- Observert SE: **0.3252**
+- Observert t-statistikk: **5.645**
+- Bootstrap p-verdi: **0.0000**
+- Antall replikasjoner: **4999**
+
+![Bootstrap-fordeling atid3 (sesongjustert)](figures/bootstrap_atid3_sesongjustert.svg)
+
+### jobb3 — basis
+
+- Observert koeffisient: **3.8037**
+- Observert SE: **1.0431**
+- Observert t-statistikk: **3.646**
+- Bootstrap p-verdi: **0.0012**
+- Antall replikasjoner: **4999**
+
+![Bootstrap-fordeling jobb3 (basis)](figures/bootstrap_jobb3_basis.svg)
+
+### jobb3 — sesongjustert
+
+- Observert koeffisient: **5.2169**
+- Observert SE: **1.0117**
+- Observert t-statistikk: **5.156**
+- Bootstrap p-verdi: **0.0004**
+- Antall replikasjoner: **4999**
+
+![Bootstrap-fordeling jobb3 (sesongjustert)](figures/bootstrap_jobb3_sesongjustert.svg)
+
