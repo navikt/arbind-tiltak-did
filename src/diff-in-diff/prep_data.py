@@ -73,6 +73,7 @@ def build_treatment_variable(
         For ``"discrete"`` only.  List of region names that serve as the
         control group.  All other regions are treated.
     """
+    df = df.reset_index(drop=True)
     pre_mask = df["relative_month"] < 0
     post_mask = df["relative_month"] >= 0
     if treatment_type == "continuous":
