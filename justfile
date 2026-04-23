@@ -43,12 +43,12 @@ triple-diff-enheter config='trippel-diff-enheter':
     cd src/diff-in-diff && uv run python run_analysis.py --config {{config}}
 
 # Hent indikatordata på enhetsnivå fra BigQuery (f.eks. `just fetch-enhet 'Alle'`)
-fetch-enhet +groups:
-    uv run python src/fetch_data/get_enhet_data.py {{groups}}
+fetch-enhet group:
+    uv run python src/fetch_data/get_enhet_data.py "{{group}}"
 
 # Hent indikatordata på fylkesnivå fra BigQuery (f.eks. `just fetch-fylke 'Alle'`)
-fetch-fylke +groups:
-    uv run python src/fetch_data/get_fylke_data.py {{groups}}
+fetch-fylke group:
+    uv run python src/fetch_data/get_fylke_data.py "{{group}}"
 
 # Slå sammen veiledning-grupper på enhetsnivå
 merge-veiledning-enhet:
