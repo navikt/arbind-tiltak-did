@@ -1,0 +1,45 @@
+# ── Analysis parameters ────────────────────────────────────────────────────────
+analysis:
+  title: "Trippel-diff, regioner, kontinuerlig"
+  treatment_start: "202506"   # First month of treatment (YYYYMM)
+  data_start:      "202010"   # First month of the full panel
+  data_end:        "202509"   # Last month of the full panel
+  treatment_type:  "continuous"  # "continuous" or "discrete"
+  variation:       trippel-diff-regioner
+
+  design:          "triple_diff"  # "did" (default) or "triple_diff"
+  analysis_level:  "region"       # "region" (default) or "enhet"
+
+  # Groups for triple-diff: treated_group is affected by tiltaksnedgang,
+  # control_group is not.
+  treated_group:   "trenger-veiledning"
+  control_group:   "gode-muligheter"
+
+  denominator_definitions:
+    - id: last_pre
+      label: "Siste pre-måned (t-1)"
+
+# ── Data sources ───────────────────────────────────────────────────────────────
+data:
+  tiltak_file: data/raw/tiltak/midl.-lønnstilskudd.csv
+
+  indikatorer:
+    - name:        atid3
+      group:       treated
+      file:        data/raw/indikatorer/nedbrytning/innsatsgruppe_-_trenger_veiledning/atid3.csv
+      description: "Arbeidstid neste tre måneder (veiledning)"
+
+    - name:        atid3
+      group:       control
+      file:        data/raw/indikatorer/nedbrytning/innsatsgruppe_-_gode_muligheter/atid3.csv
+      description: "Arbeidstid neste tre måneder (gode muligheter)"
+
+    - name:        jobb3
+      group:       treated
+      file:        data/raw/indikatorer/nedbrytning/innsatsgruppe_-_trenger_veiledning/jobb3.csv
+      description: "I jobb etter 3 måneder (veiledning)"
+
+    - name:        jobb3
+      group:       control
+      file:        data/raw/indikatorer/nedbrytning/innsatsgruppe_-_gode_muligheter/jobb3.csv
+      description: "I jobb etter 3 måneder (gode muligheter)"

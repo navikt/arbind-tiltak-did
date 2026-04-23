@@ -30,6 +30,18 @@ render:
 publish:
     uv run src/utils/publish.py 
 
+# Kjør standard DiD-analyse for en gitt konfigurasjon (f.eks. `just did alle/alle-kontinuerlig`)
+did config='alle/alle-kontinuerlig':
+    cd src/diff-in-diff && uv run python run_analysis.py --config {{config}}
+
+# Kjør trippel-diff-analyse for regioner
+triple-diff-regioner config='trippel-diff-regioner':
+    cd src/diff-in-diff && uv run python run_analysis.py --config {{config}}
+
+# Kjør trippel-diff-analyse for enheter
+triple-diff-enheter config='trippel-diff-enheter':
+    cd src/diff-in-diff && uv run python run_analysis.py --config {{config}}
+
 [arg('image', pattern='chainguard_python.Dockerfile|Dockerfile')]
 build image='Dockerfile':
     docker build -f {{image}} .

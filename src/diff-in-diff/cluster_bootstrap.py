@@ -291,3 +291,132 @@ def wild_cluster_bootstrap(
         seed=seed,
         bootstrap_t_stats=t_boots,
     )
+
+
+# ── Triple-diff bootstrap ─────────────────────────────────────────────────────
+
+
+def _build_triple_diff_fe_matrix(panel: pd.DataFrame) -> np.ndarray:
+    """Build the FE matrix for a triple-diff panel.
+
+    Includes entity FE, year-month FE, and the lower-order treatment and
+    group terms (``tiltaksnedgang``, ``treated``).  These are partialled out
+    so the bootstrap isolates the ``treatment_x_group`` coefficient.
+    """
+    entity_fe = pd.get_dummies(
+        panel["entity"], prefix="e", drop_first=True, dtype=float
+    )
+    yearmonth_fe = pd.get_dummies(
+        panel["aarmnd"].astype(str), prefix="t", drop_first=True, dtype=float
+    )
+    parts: list[np.ndarray] = [
+        np.ones((len(panel), 1)),
+        panel[["tiltaksnedgang", "treated"]].to_numpy(dtype=float),
+        entity_fe.values,
+        yearmonth_fe.values,
+    ]
+    return np.hstack(parts)
+
+
+def wild_cluster_bootstrap_triple_diff(
+    panel: pd.DataFrame,
+    n_boot: int = DEFAULT_N_BOOT,
+    seed: int = DEFAULT_SEED,
+) -> BootstrapResult:
+    """Wild cluster bootstrap for the triple-diff interaction coefficient.
+
+    Tests H₀: β_{treatment_x_group} = 0.  Clustering is at the region level.
+    Uses Webb (2014) weights.  The FWL projection partials out entity FE,
+    time FE, the main treatment effect, and the group indicator.
+
+    Parameters
+    ----------
+    panel:
+        Triple-diff panel from :func:`prep_data.prepare_triple_diff_panel`.
+    n_boot:
+        Number of bootstrap replications.
+    seed:
+        Random seed.
+    """
+    rng = np.random.default_rng(seed)
+
+    y = panel["indikator"].astype(float).values
+    x_raw = panel["treatment_x_group"].astype(float).values
+    regions = panel["region"].values
+    unique_clusters = np.unique(regions)
+    G = len(unique_clusters)
+    if G < 2:
+        raise ValueError("Wild cluster bootstrap requires at least 2 clusters.")
+
+    cluster_map = {r: i for i, r in enumerate(unique_clusters)}
+    cluster_ids = np.array([cluster_map[r] for r in regions], dtype=int)
+
+    logger.info("Building FE matrix for triple-diff bootstrap (G=%d) …", G)
+    Z = _build_triple_diff_fe_matrix(panel)
+
+    logger.info("Projecting Y and X out of FE space …")
+    y_tilde = _partial_out(Z, y)
+    x_tilde = _partial_out(Z, x_raw)
+
+    Q = float(x_tilde @ x_tilde)
+    if Q <= 1e-12:
+        raise ValueError("Triple-diff interaction not identified after FE projection.")
+    beta_obs = float(x_tilde @ y_tilde) / Q
+    resid_obs = y_tilde - x_tilde * beta_obs
+    se_obs = _cr1_se(x_tilde, resid_obs, cluster_ids, G)
+    if not math.isfinite(se_obs) or se_obs <= 1e-15:
+        raise ValueError(f"Observed CR1 SE is degenerate (se={se_obs:.3e}).")
+    t_obs = beta_obs / se_obs
+
+    logger.info(
+        "Triple-diff observed: β = %.4f  SE = %.4f  t = %.3f",
+        beta_obs,
+        se_obs,
+        t_obs,
+    )
+
+    # Vectorised bootstrap (same algorithm as standard bootstrap)
+    all_weights = rng.choice(WEBB_WEIGHTS, size=(n_boot, G))
+    all_cluster_weights = all_weights[:, cluster_ids]
+    y_tilde_boot = all_cluster_weights * y_tilde[np.newaxis, :]
+    beta_boots = (y_tilde_boot @ x_tilde) / Q
+    resid_boots = y_tilde_boot - beta_boots[:, np.newaxis] * x_tilde[np.newaxis, :]
+
+    N = len(y_tilde)
+    scores = np.zeros((n_boot, G), dtype=float)
+    for g in range(G):
+        mask = cluster_ids == g
+        scores[:, g] = resid_boots[:, mask] @ x_tilde[mask]
+
+    K = 1
+    cr1_factor = (G / (G - 1)) * ((N - 1) / (N - K))
+    var_boots = cr1_factor * np.sum(scores**2, axis=1) / (Q * Q)
+    se_boots = np.sqrt(np.maximum(var_boots, 0.0))
+
+    valid = se_boots > 1e-15
+    n_invalid = int((~valid).sum())
+    if n_invalid > 0:
+        logger.warning(
+            "Discarding %d/%d bootstrap draws with near-zero SE.", n_invalid, n_boot
+        )
+    if not valid.any():
+        raise ValueError("All bootstrap draws had near-zero SE.")
+    t_boots = beta_boots[valid] / se_boots[valid]
+
+    p_value = float(np.mean(np.abs(t_boots) >= np.abs(t_obs)))
+
+    logger.info(
+        "Triple-diff bootstrap complete: n_boot=%d  p_bootstrap=%.4f",
+        n_boot,
+        p_value,
+    )
+
+    return BootstrapResult(
+        observed_coefficient=beta_obs,
+        observed_t_stat=t_obs,
+        observed_se=se_obs,
+        bootstrap_p_value=p_value,
+        n_boot=int(valid.sum()),
+        seed=seed,
+        bootstrap_t_stats=t_boots,
+    )

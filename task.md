@@ -51,20 +51,34 @@ All analysis parameters live in `src/diff-in-diff/analysis-config.yml`. The pipe
 ### `prep_data.py`
 Loads raw CSVs (wide or long format), standardises `aarmnd` to YYYYMM, merges indicator and tiltak data, and engineers features. Column contract for all downstream modules: `region`, `aarmnd` (datetime), `indikator` (float), `tiltak` (float), `tiltaksnedgang` (float 0–1), `relative_month` (int), `post_treatment` (bool), `month_of_year` (int), `year` (int).
 
+For triple-diff: `prepare_triple_diff_panel()` loads treated and control group indicators, stacks them with a `group` column, and adds `treated` (0/1) and `treatment_x_group` (interaction) columns. For unit-level analysis, reads long-format unit data and joins with `enhetsmapping.json`. Additional columns: `entity`, `group`, `treated`, `treatment_x_group`.
+
 ### `regression.py`
 Two model specs — **Baseline** (region FE + year-month FE) and **Preferred** (+ region × calendar-month FE). CR1 small-sample correction: `G/(G−1) × (N−1)/(N−K)`. `extract_all_coefficients(result)` returns a tidy DataFrame with a `koeffisient_type` column classifying each parameter.
+
+For triple-diff: `run_triple_diff_baseline()` and `run_triple_diff_preferred()` estimate the triple-diff model with `treatment_x_group` as the main estimand. Also includes `run_triple_diff_placebo()` and `run_triple_diff_leave_one_out()`.
 
 ### `event_study.py`
 Specification: `Y_{it} = Σ_τ β_τ · s_i · 1{relative_month = τ} + α_i + γ_t + ε_{it}`, where `s_i = max post-period tiltaksnedgang` per region. Window τ ∈ [−24, +4], base period τ = −1 omitted. Includes a joint pre-trend Wald F-test using a pseudoinverse when the covariance matrix is rank-deficient (common since 23 pre-period lags > G−1 = 11).
 
+For triple-diff: `run_triple_diff_event_study()` uses triple interactions `s_i · Treated_g · 1{τ}` as the coefficients of interest.
+
 ### `cluster_bootstrap.py`
 Wild cluster bootstrap imposing H₀: β_tiltaksnedgang = 0, using Webb 6-point weights. Algorithm: FWL projection once, then vectorised bootstrap (B × N matrix ops), CR1 SE per replicate, two-sided p-value. Run on both baseline and preferred models. **Bootstrap p-values are the primary inferential result.**
+
+For triple-diff: `wild_cluster_bootstrap_triple_diff()` tests H₀: β_{treatment_x_group} = 0 with region-level clustering.
 
 ### `report.py`
 Writes `report.qmd` (Quarto, Norwegian). Significance stars in the regression table use bootstrap p-values; both bootstrap and asymptotic p-values are shown. Figures: trends, FE coefficients, event study, bootstrap distribution.
 
+### `report_triple_diff.py`
+Multi-chapter report generator for triple-diff. Produces four `.qmd` files per config: descriptive statistics, regression results, bootstrap inference, and assumption tests. Each chapter is self-contained with its own figures.
+
+### `models.py`
+Typed result containers: `IndicatorResult` for standard DiD, `TripleDiffResult` for triple-diff (adds `analysis_level`, `treated_group`, `control_group`, group-level baseline means).
+
 ### `run_analysis.py`
-Pipeline entry point. Reads config, loops over indicators. Per-indicator: `prepare_panel` → regressions → bootstrap → event study → report. Outputs: `regression_results.csv`, `alle_koeffisienter.csv`, `report.qmd`.
+Pipeline entry point. Reads config, loops over indicators. Branches on `analysis.design`: `"did"` (default) runs the standard two-way DiD flow; `"triple_diff"` pairs treated/control indicators and runs the triple-diff flow. Outputs: `regression_results.csv`, `alle_koeffisienter.csv`, report QMD(s).
 
 ---
 

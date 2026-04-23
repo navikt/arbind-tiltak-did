@@ -317,3 +317,169 @@ def _joint_pretrend_test(
         "df_num": df_num,
         "df_denom": df_denom,
     }
+
+
+# ── Triple-diff event study ──────────────────────────────────────────────────
+
+
+def _build_triple_diff_event_study_regressors(
+    panel: pd.DataFrame,
+    intensity: pd.Series,
+) -> tuple[pd.DataFrame, list[str]]:
+    """Build the design matrix for a triple-diff event study.
+
+    Interaction terms: ``s_i · Treated_g · 1{relative_month = τ}`` for each τ.
+    Also includes ``s_i · 1{relative_month = τ}`` and ``Treated_g · 1{relative_month = τ}``
+    as lower-order terms.
+
+    Parameters
+    ----------
+    panel:
+        Triple-diff panel with columns ``entity``, ``region``, ``treated``,
+        ``aarmnd``, ``relative_month``.
+    intensity:
+        Time-invariant region intensity from :func:`compute_region_intensity`.
+
+    Returns:
+    -------
+    Tuple of (design matrix X, list of triple-interaction column names).
+    """
+    panel = panel.copy()
+    panel["_intensity"] = panel["region"].map(intensity)
+
+    all_taus = [t for t in range(ES_WINDOW_PRE, ES_WINDOW_POST + 1) if t != BASE_PERIOD]
+    observed_taus = set(panel["relative_month"].astype(int).unique().tolist())
+    taus = [t for t in all_taus if t in observed_taus]
+    if not taus:
+        raise ValueError(
+            "Triple-diff event-study window has no overlap with observed relative months."
+        )
+
+    # Triple interaction: intensity × treated × period dummy
+    triple_cols: dict[str, pd.Series] = {}
+    # Lower-order terms: intensity × period dummy
+    intensity_period_cols: dict[str, pd.Series] = {}
+    # Lower-order terms: treated × period dummy
+    treated_period_cols: dict[str, pd.Series] = {}
+
+    for tau in taus:
+        tau_label = f"{tau:+d}".replace("+", "p").replace("-", "m")
+        period_dummy = (panel["relative_month"] == tau).astype(float)
+
+        triple_col = f"td_tau_{tau_label}"
+        triple_cols[triple_col] = period_dummy * panel["_intensity"] * panel["treated"]
+
+        ip_col = f"ip_tau_{tau_label}"
+        intensity_period_cols[ip_col] = period_dummy * panel["_intensity"]
+
+        tp_col = f"tp_tau_{tau_label}"
+        treated_period_cols[tp_col] = period_dummy * panel["treated"]
+
+    X_triple = pd.DataFrame(triple_cols, index=panel.index)
+    X_ip = pd.DataFrame(intensity_period_cols, index=panel.index)
+    X_tp = pd.DataFrame(treated_period_cols, index=panel.index)
+
+    # Entity FE
+    entity_fe = pd.get_dummies(
+        panel["entity"], prefix="e", drop_first=True, dtype=float
+    )
+    # Year-month FE
+    yearmonth_fe = pd.get_dummies(
+        panel["aarmnd"].astype(str), prefix="t", drop_first=True, dtype=float
+    )
+    # Group indicator (absorbed by entity FE if entities are entity×group, but
+    # include explicitly for safety)
+    treated_col = panel[["treated"]].copy()
+
+    X = pd.concat([X_triple, X_ip, X_tp, treated_col, entity_fe, yearmonth_fe], axis=1)
+
+    # Drop structurally zero columns
+    nonzero_cols = X.columns[(X != 0.0).any(axis=0)]
+    X = X.loc[:, nonzero_cols]
+    triple_cols_kept = [c for c in triple_cols if c in X.columns]
+    if not triple_cols_kept:
+        raise ValueError(
+            "No identified triple-diff event-study columns after removing empty columns."
+        )
+    X.insert(0, "const", 1.0)
+    return X, triple_cols_kept
+
+
+def run_triple_diff_event_study(panel: pd.DataFrame) -> EventStudyResult:
+    """Estimate triple-diff event-study coefficients.
+
+    The triple interaction ``s_i · Treated_g · 1{τ}`` captures the differential
+    effect on the treated group in more-treated regions over time.  Clustered
+    at the region level.
+
+    Parameters
+    ----------
+    panel:
+        Triple-diff panel from :func:`prep_data.prepare_triple_diff_panel`.
+
+    Returns:
+    -------
+    :class:`EventStudyResult` with per-period triple-diff coefficients.
+    """
+    intensity = compute_region_intensity(panel)
+    X, td_col_names = _build_triple_diff_event_study_regressors(panel, intensity)
+    y = panel["indikator"].astype(float)
+    clusters = panel["region"]
+
+    logger.info(
+        "Fitting triple-diff event study: %d obs, %d regressors "
+        "(%d triple interactions), %d clusters",
+        len(y),
+        X.shape[1],
+        len(td_col_names),
+        clusters.nunique(),
+    )
+
+    cl_fit = sm.OLS(y, X).fit(
+        cov_type="cluster",
+        cov_kwds={"groups": clusters.values},
+        use_t=True,
+    )
+
+    taus = [
+        int(col.split("_")[-1].replace("p", "+").replace("m", "-"))
+        for col in td_col_names
+    ]
+    param_names = list(X.columns)
+    ci_vals = cl_fit.conf_int()
+    coefs: list[EventStudyCoef] = []
+    for tau, col in zip(taus, td_col_names):
+        idx = param_names.index(col)
+        coefs.append(
+            EventStudyCoef(
+                tau=tau,
+                coefficient=float(cl_fit.params.iloc[idx]),
+                std_error=float(cl_fit.bse.iloc[idx]),
+                ci_lower=float(ci_vals.iloc[idx, 0]),
+                ci_upper=float(ci_vals.iloc[idx, 1]),
+                p_value=float(cl_fit.pvalues.iloc[idx]),
+            )
+        )
+
+    # Joint pre-trend test on triple-interaction coefficients
+    pre_cols = [col for col, tau in zip(td_col_names, taus) if tau < BASE_PERIOD]
+    pretrend = _joint_pretrend_test(
+        cl_fit, pre_cols, n_clusters=int(clusters.nunique())
+    )
+
+    logger.info(
+        "Triple-diff pre-trend test: F(%d, %d) = %.3f  p = %.4f",
+        pretrend["df_num"],
+        pretrend["df_denom"],
+        pretrend["f_stat"],
+        pretrend["p_value"],
+    )
+
+    return EventStudyResult(
+        coefs=coefs,
+        pretrend_f_stat=float(pretrend["f_stat"]),
+        pretrend_p_value=float(pretrend["p_value"]),
+        pretrend_df_num=int(pretrend["df_num"]),
+        pretrend_df_denom=int(pretrend["df_denom"]),
+        region_intensity=intensity,
+    )

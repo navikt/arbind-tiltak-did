@@ -78,3 +78,71 @@ class IndicatorResult:
             "panel": self.panel,
             "panel_regular": self.panel_regular,
         }
+
+
+@dataclass
+class TripleDiffResult:
+    """All analysis outputs for a single indicator in a triple-diff design."""
+
+    indicator_name: str
+    analysis_level: str  # "region" or "enhet"
+    treated_group: str
+    control_group: str
+
+    # ── Regression results ────────────────────────────────────────────────────
+    baseline: RegressionResult
+    preferred: RegressionResult
+
+    # ── Bootstrap results ─────────────────────────────────────────────────────
+    bootstrap_baseline: BootstrapResult
+    bootstrap_preferred: BootstrapResult
+
+    # ── Event study ───────────────────────────────────────────────────────────
+    event_study: EventStudyResult
+    event_study_baseline: EventStudyResult
+
+    # ── Placebo tests ─────────────────────────────────────────────────────────
+    placebo: RegressionResult | None
+    placebo_baseline: RegressionResult | None
+
+    # ── Leave-one-out ─────────────────────────────────────────────────────────
+    leave_one_out: LeaveOneOutResult
+    leave_one_out_baseline: LeaveOneOutResult
+
+    # ── Summary statistics ────────────────────────────────────────────────────
+    mde: float
+    baseline_mean: float
+    baseline_mean_treated: float
+    baseline_mean_control: float
+
+    # ── Panels ────────────────────────────────────────────────────────────────
+    panel: pd.DataFrame = field(repr=False)
+    panel_regular: pd.DataFrame = field(repr=False)
+
+    baseline_mean_by_region: dict[str, float] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return a plain dict."""
+        return {
+            "indicator_name": self.indicator_name,
+            "analysis_level": self.analysis_level,
+            "treated_group": self.treated_group,
+            "control_group": self.control_group,
+            "baseline": self.baseline,
+            "preferred": self.preferred,
+            "bootstrap_baseline": self.bootstrap_baseline,
+            "bootstrap_preferred": self.bootstrap_preferred,
+            "event_study": self.event_study,
+            "event_study_baseline": self.event_study_baseline,
+            "placebo": self.placebo,
+            "placebo_baseline": self.placebo_baseline,
+            "leave_one_out": self.leave_one_out,
+            "leave_one_out_baseline": self.leave_one_out_baseline,
+            "mde": self.mde,
+            "baseline_mean": self.baseline_mean,
+            "baseline_mean_treated": self.baseline_mean_treated,
+            "baseline_mean_control": self.baseline_mean_control,
+            "baseline_mean_by_region": self.baseline_mean_by_region,
+            "panel": self.panel,
+            "panel_regular": self.panel_regular,
+        }

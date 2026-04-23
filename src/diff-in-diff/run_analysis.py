@@ -135,6 +135,64 @@ def _update_quarto_chapters(quarto_dir: Path, variation: str) -> None:
     )
 
 
+def _update_quarto_triple_diff_chapters(quarto_dir: Path, config_slug: str) -> None:
+    """Register a triple-diff multi-chapter folder in _quarto.yml.
+
+    The folder ``quarto/<config_slug>/`` is added as a top-level ``part:`` entry
+    with its numbered sub-chapter QMD files.
+    """
+    quarto_yml = quarto_dir / "_quarto.yml"
+    if not quarto_yml.exists():
+        logger.warning(
+            "_quarto.yml not found at %s, skipping chapter update", quarto_yml
+        )
+        return
+
+    slug_dir = quarto_dir / config_slug
+    sub_qmds = sorted(
+        p.relative_to(quarto_dir).as_posix()
+        for p in slug_dir.glob("*.qmd")
+        if p.name != "intro.qmd"
+    )
+
+    with open(quarto_yml, encoding="utf-8") as f:
+        cfg_yaml = yaml.safe_load(f)
+
+    try:
+        if cfg_yaml["format"]["html"].get("lang") is False:
+            cfg_yaml["format"]["html"]["lang"] = "nb"
+    except KeyError, TypeError:
+        pass
+
+    intro_path = f"{config_slug}/intro.qmd"
+    chapters: list[Any] = cfg_yaml["book"]["chapters"]
+
+    part_entry = next(
+        (
+            ch
+            for ch in chapters
+            if isinstance(ch, dict) and ch.get("part") == intro_path
+        ),
+        None,
+    )
+    if part_entry is None:
+        part_entry = {"part": intro_path, "chapters": []}
+        chapters.append(part_entry)
+
+    part_entry["chapters"] = sub_qmds
+
+    with open(quarto_yml, "w", encoding="utf-8") as f:
+        yaml.dump(
+            cfg_yaml, f, allow_unicode=True, default_flow_style=False, sort_keys=False
+        )
+
+    logger.info(
+        "Updated _quarto.yml: %d chapters for triple-diff '%s'",
+        len(sub_qmds),
+        config_slug,
+    )
+
+
 # ── Pipeline ───────────────────────────────────────────────────────────────────
 
 
@@ -371,6 +429,160 @@ def _save_coefficients_table(
     logger.info("Full coefficients table saved to %s", out)
 
 
+def _run_triple_diff_indicator(
+    result_name: str,
+    indicator_name: str,
+    treated_indicator_path: Path,
+    control_indicator_path: Path,
+    tiltak_path: Path,
+    treatment_start: str,
+    treatment_type: str,
+    denominator: str,
+    analysis_level: str,
+    treated_group: str,
+    control_group: str,
+    processed_dir: Path,
+    control_regions: list[str] | None = None,
+    enhet_mapping_path: Path | None = None,
+) -> dict[str, Any] | None:
+    """Run the full triple-diff analysis for a single indicator.
+
+    Returns a :class:`TripleDiffResult` serialised to a plain dict, or
+    ``None`` if skipped.
+    """
+    from cluster_bootstrap import wild_cluster_bootstrap_triple_diff
+    from event_study import run_triple_diff_event_study
+    from models import TripleDiffResult
+    from prep_data import prepare_triple_diff_panel
+    from regression import (
+        compute_mde,
+        run_triple_diff_baseline,
+        run_triple_diff_leave_one_out,
+        run_triple_diff_placebo,
+        run_triple_diff_preferred,
+    )
+
+    logger.info("── Preparing regular triple-diff panel for %s ──", indicator_name)
+    panel_regular = prepare_triple_diff_panel(
+        treated_indicator_path=treated_indicator_path,
+        control_indicator_path=control_indicator_path,
+        tiltak_path=tiltak_path,
+        indicator_name=indicator_name,
+        treatment_start=treatment_start,
+        treatment_type=treatment_type,
+        analysis_level=analysis_level,
+        denominator=denominator,
+        flatten=False,
+        control_regions=control_regions,
+        enhet_mapping_path=enhet_mapping_path,
+        processed_path=processed_dir / f"panel_{result_name}_regular.csv",
+    )
+
+    logger.info("── Preparing flattened triple-diff panel for %s ──", indicator_name)
+    panel_flattened = prepare_triple_diff_panel(
+        treated_indicator_path=treated_indicator_path,
+        control_indicator_path=control_indicator_path,
+        tiltak_path=tiltak_path,
+        indicator_name=indicator_name,
+        treatment_start=treatment_start,
+        treatment_type=treatment_type,
+        analysis_level=analysis_level,
+        denominator=denominator,
+        flatten=True,
+        control_regions=control_regions,
+        enhet_mapping_path=enhet_mapping_path,
+        processed_path=processed_dir / f"panel_{result_name}_flattened.csv",
+    )
+
+    n_post_obs = int(panel_regular["post_treatment"].sum())
+    if n_post_obs == 0:
+        logger.warning(
+            "%s: skipping — no post-treatment months available.", result_name
+        )
+        return None
+
+    n_obs = len(panel_regular)
+    n_entities = panel_regular["entity"].nunique()
+    n_regions = panel_regular["region"].nunique()
+    logger.info(
+        "%s: %d obs (%d entities, %d regions, 2 groups)",
+        result_name,
+        n_obs,
+        n_entities,
+        n_regions,
+    )
+
+    logger.info("Running triple-diff baseline for %s", result_name)
+    baseline = run_triple_diff_baseline(panel_regular)
+
+    logger.info("Running triple-diff preferred for %s", result_name)
+    preferred = run_triple_diff_preferred(panel_flattened)
+
+    models: dict[str, Any] = {
+        "basis": dict(
+            panel=panel_regular,
+            main=baseline,
+            run_model=run_triple_diff_baseline,
+        ),
+        "flattet": dict(
+            panel=panel_flattened,
+            main=preferred,
+            run_model=run_triple_diff_preferred,
+        ),
+    }
+
+    for key, m in models.items():
+        panel = m["panel"]
+        main_result = m["main"]
+        logger.info("Triple-diff bootstrap (%s) for %s", key, result_name)
+        m["bootstrap"] = wild_cluster_bootstrap_triple_diff(panel)
+        logger.info("Triple-diff event study (%s) for %s", key, result_name)
+        m["event_study"] = run_triple_diff_event_study(panel)
+        logger.info("Triple-diff placebo (%s) for %s", key, result_name)
+        m["placebo"] = run_triple_diff_placebo(panel, placebo_relative_month=-12)
+        logger.info("Triple-diff leave-one-out (%s) for %s", key, result_name)
+        m["leave_one_out"] = run_triple_diff_leave_one_out(
+            panel, preferred_result=main_result
+        )
+
+    mde = compute_mde(preferred)
+    logger.info("MDE for %s: %.4f pp", result_name, mde)
+
+    pre_panel = panel_flattened[panel_flattened["relative_month"] < 0]
+    baseline_mean = float(pre_panel["indikator"].mean())
+    baseline_mean_treated = float(
+        pre_panel.loc[pre_panel["treated"] == 1.0, "indikator"].mean()
+    )
+    baseline_mean_control = float(
+        pre_panel.loc[pre_panel["treated"] == 0.0, "indikator"].mean()
+    )
+    baseline_mean_by_region = pre_panel.groupby("region")["indikator"].mean().to_dict()
+
+    return TripleDiffResult(
+        indicator_name=indicator_name,
+        analysis_level=analysis_level,
+        treated_group=treated_group,
+        control_group=control_group,
+        baseline=baseline,
+        preferred=preferred,
+        bootstrap_baseline=models["basis"]["bootstrap"],
+        bootstrap_preferred=models["flattet"]["bootstrap"],
+        event_study=models["flattet"]["event_study"],
+        event_study_baseline=models["basis"]["event_study"],
+        placebo=models["flattet"]["placebo"],
+        placebo_baseline=models["basis"]["placebo"],
+        leave_one_out=models["flattet"]["leave_one_out"],
+        leave_one_out_baseline=models["basis"]["leave_one_out"],
+        mde=mde,
+        baseline_mean=baseline_mean,
+        baseline_mean_treated=baseline_mean_treated,
+        baseline_mean_control=baseline_mean_control,
+        baseline_mean_by_region=baseline_mean_by_region,
+        panel=panel_flattened,
+        panel_regular=panel_regular,
+    ).to_dict()
+
+
 def _run_single_config(cfg_path: Path) -> int:
     """Run the full pipeline for a single config file.  Returns 0 on success."""
     logger.info("═══ Nav DID analysis ═══")
@@ -411,54 +623,140 @@ def _run_single_config(cfg_path: Path) -> int:
         return 1
 
     tiltak_path = PROJECT_ROOT / cfg["data"]["tiltak_file"]
+    design = analysis.get("design", "did")
 
     all_results: dict[str, dict[str, Any] | None] = {}
     failed: list[str] = []
 
-    for ind in cfg["data"]["indikatorer"]:
-        name = ind["name"]
-        path = PROJECT_ROOT / ind["file"]
-        try:
-            result = _run_indicator(
-                result_name=name,
-                indicator_name=name,
-                indicator_path=path,
-                tiltak_path=tiltak_path,
-                treatment_start=treatment_start,
-                treatment_type=treatment_type,
-                denominator=denominator,
-                processed_dir=processed_dir,
-                control_regions=control_regions,
-            )
-            all_results[name] = result
-            if result is None:
-                logger.info("○ %s skipped (no post-treatment data)", name)
-            else:
-                logger.info("✓ %s complete", name)
-        except ValueError, np.linalg.LinAlgError, KeyError, pd.errors.MergeError:
-            logger.exception("Failed to process %s", name)
-            failed.append(name)
-            all_results[name] = None
+    if design == "triple_diff":
+        # Triple-diff: pair treated/control indicators by name
+        analysis_level = analysis.get("analysis_level", "region")
+        treated_group = analysis.get("treated_group", "treated")
+        control_group = analysis.get("control_group", "control")
+
+        enhet_mapping_path: Path | None = None
+        if analysis_level == "enhet":
+            mapping_file = cfg["data"].get("enhet_mapping_file")
+            if not mapping_file:
+                logger.error(
+                    "data.enhet_mapping_file required when analysis_level='enhet'."
+                )
+                return 1
+            enhet_mapping_path = PROJECT_ROOT / mapping_file
+
+        # Group indicators by name, expecting one 'treated' and one 'control' per name
+        from collections import defaultdict
+
+        indicator_groups: dict[str, dict[str, Any]] = defaultdict(dict)
+        for ind in cfg["data"]["indikatorer"]:
+            group = ind.get("group", "treated")
+            indicator_groups[ind["name"]][group] = ind
+
+        for name, groups in indicator_groups.items():
+            if "treated" not in groups or "control" not in groups:
+                logger.warning(
+                    "Indicator %s missing treated or control group — skipping.", name
+                )
+                continue
+            treated_path = PROJECT_ROOT / groups["treated"]["file"]
+            control_path = PROJECT_ROOT / groups["control"]["file"]
+            try:
+                result = _run_triple_diff_indicator(
+                    result_name=name,
+                    indicator_name=name,
+                    treated_indicator_path=treated_path,
+                    control_indicator_path=control_path,
+                    tiltak_path=tiltak_path,
+                    treatment_start=treatment_start,
+                    treatment_type=treatment_type,
+                    denominator=denominator,
+                    analysis_level=analysis_level,
+                    treated_group=treated_group,
+                    control_group=control_group,
+                    processed_dir=processed_dir,
+                    control_regions=control_regions,
+                    enhet_mapping_path=enhet_mapping_path,
+                )
+                all_results[name] = result
+                if result is None:
+                    logger.info("○ %s skipped (no post-treatment data)", name)
+                else:
+                    logger.info("✓ %s complete (triple-diff)", name)
+            except (
+                ValueError,
+                np.linalg.LinAlgError,
+                KeyError,
+                pd.errors.MergeError,
+            ):
+                logger.exception("Failed to process %s (triple-diff)", name)
+                failed.append(name)
+                all_results[name] = None
+    else:
+        # Standard DiD
+        for ind in cfg["data"]["indikatorer"]:
+            name = ind["name"]
+            path = PROJECT_ROOT / ind["file"]
+            try:
+                result = _run_indicator(
+                    result_name=name,
+                    indicator_name=name,
+                    indicator_path=path,
+                    tiltak_path=tiltak_path,
+                    treatment_start=treatment_start,
+                    treatment_type=treatment_type,
+                    denominator=denominator,
+                    processed_dir=processed_dir,
+                    control_regions=control_regions,
+                )
+                all_results[name] = result
+                if result is None:
+                    logger.info("○ %s skipped (no post-treatment data)", name)
+                else:
+                    logger.info("✓ %s complete", name)
+            except (
+                ValueError,
+                np.linalg.LinAlgError,
+                KeyError,
+                pd.errors.MergeError,
+            ):
+                logger.exception("Failed to process %s", name)
+                failed.append(name)
+                all_results[name] = None
 
     n_done = sum(1 for v in all_results.values() if v is not None)
-    n_total = len(cfg["data"]["indikatorer"])
+    n_total = len(
+        indicator_groups if design == "triple_diff" else cfg["data"]["indikatorer"]
+    )
 
     if any(v is not None for v in all_results.values()):
         _save_regression_table(all_results, tables_dir=tables_dir)
         _save_coefficients_table(all_results, tables_dir=tables_dir)
 
-        logger.info("Generating report")
-        from report import generate_report
+        if design == "triple_diff":
+            logger.info("Generating triple-diff report")
+            from report_triple_diff import generate_triple_diff_report
 
-        report_path = report_dir / f"report_{config_slug}.qmd"
-        generate_report(
-            all_results=all_results,
-            cfg=cfg,
-            output_path=report_path,
-            figures_dir=figures_dir,
-            tables_dir=tables_dir,
-        )
-        logger.info("Report written to %s", report_path)
+            generate_triple_diff_report(
+                all_results=all_results,
+                cfg=cfg,
+                report_dir=report_dir,
+                figures_dir=figures_dir,
+                tables_dir=tables_dir,
+            )
+            logger.info("Triple-diff report chapters written to %s", report_dir)
+        else:
+            logger.info("Generating report")
+            from report import generate_report
+
+            report_path = report_dir / f"report_{config_slug}.qmd"
+            generate_report(
+                all_results=all_results,
+                cfg=cfg,
+                output_path=report_path,
+                figures_dir=figures_dir,
+                tables_dir=tables_dir,
+            )
+            logger.info("Report written to %s", report_path)
 
     # Promote staging → final destinations only when all indicators succeeded.
     # On partial failure keep staging in place so prior complete outputs survive.
@@ -478,8 +776,12 @@ def _run_single_config(cfg_path: Path) -> int:
             shutil.rmtree(final_tables)
         shutil.copytree(tables_dir, final_tables)
 
-        # Report + figures → quarto/<variation>/<slug>/
-        quarto_output_dir = QUARTO_DIR / variation / config_slug
+        # Report + figures → quarto/<variation>/<slug>/ (standard DiD)
+        # or quarto/<slug>/ (triple-diff, own top-level folder)
+        if design == "triple_diff":
+            quarto_output_dir = QUARTO_DIR / config_slug
+        else:
+            quarto_output_dir = QUARTO_DIR / variation / config_slug
         if quarto_output_dir.exists():
             shutil.rmtree(quarto_output_dir)
         quarto_output_dir.parent.mkdir(parents=True, exist_ok=True)
@@ -489,7 +791,10 @@ def _run_single_config(cfg_path: Path) -> int:
         logger.info("Tables promoted to %s", final_tables)
         logger.info("Report promoted to %s", quarto_output_dir)
 
-        _update_quarto_chapters(QUARTO_DIR, variation)
+        if design == "triple_diff":
+            _update_quarto_triple_diff_chapters(QUARTO_DIR, config_slug)
+        else:
+            _update_quarto_chapters(QUARTO_DIR, variation)
         exit_code = 0
 
     logger.info("═══ Done (%d/%d indicators) ═══", n_done, n_total)
