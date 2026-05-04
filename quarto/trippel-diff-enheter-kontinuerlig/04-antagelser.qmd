@@ -1,5 +1,5 @@
 ---
-title: "Test av antagelser — Trippel-diff, regioner, kontinuerlig"
+title: "Test av antagelser — Trippel-diff, enheter, kontinuerlig"
 ---
 
 ## Hendelsesstudie
@@ -13,25 +13,25 @@ behandlingsstart.
 
 ### atid3 — sesongjustert
 
-Det er **ikke** statistisk grunnlag for å forkaste parallelle trender (F(10,11) = 1.527, p = 0.2486). Dette styrker identifikasjonsstrategien.
+**Det er statistisk grunnlag for å forkaste parallelle trender** (F(11,11) = 7312.309, p = 0.0000). Dette er et advarselssignal for identifikasjonsstrategien.
 
 ![Hendelsesstudie atid3 (sesongjustert)](figures/event_study_atid3_sesongjustert.svg)
 
 ### atid3 — basis
 
-**Det er statistisk grunnlag for å forkaste parallelle trender** (F(10,11) = 9.414, p = 0.0005). Dette er et advarselssignal for identifikasjonsstrategien.
+**Det er statistisk grunnlag for å forkaste parallelle trender** (F(11,11) = 2361.015, p = 0.0000). Dette er et advarselssignal for identifikasjonsstrategien.
 
 ![Hendelsesstudie atid3 (basis)](figures/event_study_atid3_basis.svg)
 
 ### jobb3 — sesongjustert
 
-Pre-trend-testen er svakt signifikant (F(10,11) = 2.475, p = 0.0765), noe som bør tolkes med forsiktighet.
+**Det er statistisk grunnlag for å forkaste parallelle trender** (F(11,11) = 2009.275, p = 0.0000). Dette er et advarselssignal for identifikasjonsstrategien.
 
 ![Hendelsesstudie jobb3 (sesongjustert)](figures/event_study_jobb3_sesongjustert.svg)
 
 ### jobb3 — basis
 
-**Det er statistisk grunnlag for å forkaste parallelle trender** (F(10,11) = 7.255, p = 0.0015). Dette er et advarselssignal for identifikasjonsstrategien.
+**Det er statistisk grunnlag for å forkaste parallelle trender** (F(11,11) = 2310.061, p = 0.0000). Dette er et advarselssignal for identifikasjonsstrategien.
 
 ![Hendelsesstudie jobb3 (basis)](figures/event_study_jobb3_basis.svg)
 
@@ -45,22 +45,22 @@ trender mellom trenger-veiledning og gode-muligheter.
 
 ### atid3 — sesongjustert
 
-Placebo-koeffisienten er **-2.3782** (SE = 0.6395, p = 0.0034).
+Placebo-koeffisienten er **-2.7907** (SE = 0.8014, p = 0.0051).
 Dette er **statistisk signifikant (***) — dette er et advarselssignal**.
 
 ### atid3 — basis
 
-Placebo-koeffisienten er **-2.5985** (SE = 0.6225, p = 0.0016).
+Placebo-koeffisienten er **-3.5456** (SE = 0.8200, p = 0.0012).
 Dette er **statistisk signifikant (***) — dette er et advarselssignal**.
 
 ### jobb3 — sesongjustert
 
-Placebo-koeffisienten er **-11.0353** (SE = 1.8311, p = 0.0001).
+Placebo-koeffisienten er **-10.8911** (SE = 2.2106, p = 0.0005).
 Dette er **statistisk signifikant (***) — dette er et advarselssignal**.
 
 ### jobb3 — basis
 
-Placebo-koeffisienten er **-11.7304** (SE = 1.7429, p = 0.0000).
+Placebo-koeffisienten er **-14.4829** (SE = 2.1428, p = 0.0000).
 Dette er **statistisk signifikant (***) — dette er et advarselssignal**.
 
 ## Leave-one-out robusthet
@@ -73,29 +73,29 @@ undersøkes nærmere.
 
 ### atid3 — sesongjustert
 
-Fullmodell-koeffisienten er **1.8358**.
-Koeffisienten varierer mellom **1.6619** og **2.0814** når én region utelates. Fortegnet er stabilt på tvers av alle utelatelser.
+Fullmodell-koeffisienten er **1.6781**.
+Koeffisienten varierer mellom **1.5460** og **2.0156** når én region utelates. Fortegnet er stabilt på tvers av alle utelatelser.
 
 ![Leave-one-out atid3 (sesongjustert)](figures/loo_atid3_sesongjustert.svg)
 
 ### atid3 — basis
 
-Fullmodell-koeffisienten er **1.3519**.
-Koeffisienten varierer mellom **1.1971** og **1.5810** når én region utelates. Fortegnet er stabilt på tvers av alle utelatelser.
+Fullmodell-koeffisienten er **1.2849**.
+Koeffisienten varierer mellom **1.1806** og **1.6210** når én region utelates. Fortegnet er stabilt på tvers av alle utelatelser.
 
 ![Leave-one-out atid3 (basis)](figures/loo_atid3_basis.svg)
 
 ### jobb3 — sesongjustert
 
-Fullmodell-koeffisienten er **5.2169**.
-Koeffisienten varierer mellom **4.5758** og **5.8101** når én region utelates. Fortegnet er stabilt på tvers av alle utelatelser.
+Fullmodell-koeffisienten er **4.6107**.
+Koeffisienten varierer mellom **3.9168** og **5.5402** når én region utelates. Fortegnet er stabilt på tvers av alle utelatelser.
 
 ![Leave-one-out jobb3 (sesongjustert)](figures/loo_jobb3_sesongjustert.svg)
 
 ### jobb3 — basis
 
-Fullmodell-koeffisienten er **3.8037**.
-Koeffisienten varierer mellom **3.2435** og **4.3242** når én region utelates. Fortegnet er stabilt på tvers av alle utelatelser.
+Fullmodell-koeffisienten er **3.5630**.
+Koeffisienten varierer mellom **3.0619** og **4.3687** når én region utelates. Fortegnet er stabilt på tvers av alle utelatelser.
 
 ![Leave-one-out jobb3 (basis)](figures/loo_jobb3_basis.svg)
 

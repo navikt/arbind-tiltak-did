@@ -14,6 +14,7 @@ analysis:
 # ── Data sources ───────────────────────────────────────────────────────────────
 data:
   tiltak_file: data/raw/tiltak/midl.-lønnstilskudd.csv
+  tiltak_label: "Midlertidig lønnstilskudd"
 
   indikatorer:
     - name:        atid3

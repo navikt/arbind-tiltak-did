@@ -1,5 +1,5 @@
 ---
-title: "Regresjonsresultater — Trippel-diff, regioner, kontinuerlig"
+title: "Regresjonsresultater — Trippel-diff, enheter, kontinuerlig"
 ---
 
 ## Hovedresultater
@@ -17,10 +17,10 @@ To modellspesifikasjoner estimeres:
 
 | Indikator | Modell | Koeffisient | SE | t | p (asymp.) | p (bootstrap) | 95% KI | N | Clustere |
 |:--|:--|--:|--:|--:|--:|--:|:--|--:|--:|
-| atid3 | Basis | 1.3519*** | 0.3226 | 4.190 | 0.0015 | 0.0014 | [0.6418, 2.0620] | 1440 | 12 |
-| atid3 | Sesongjustert | 1.8358*** | 0.3338 | 5.500 | 0.0002 | 0.0000 | [1.1012, 2.5704] | 1440 | 12 |
-| jobb3 | Basis | 3.8037*** | 1.0706 | 3.553 | 0.0045 | 0.0012 | [1.4472, 6.1601] | 1440 | 12 |
-| jobb3 | Sesongjustert | 5.2169*** | 1.0384 | 5.024 | 0.0004 | 0.0004 | [2.9313, 7.5025] | 1440 | 12 |
+| atid3 | Basis | 1.2849*** | 0.3619 | 3.551 | 0.0045 | 0.0058 | [0.4884, 2.0815] | 24956 | 12 |
+| atid3 | Sesongjustert | 1.6781*** | 0.3782 | 4.437 | 0.0010 | 0.0010 | [0.8457, 2.5105] | 24926 | 12 |
+| jobb3 | Basis | 3.5630*** | 1.2186 | 2.924 | 0.0138 | 0.0044 | [0.8809, 6.2451] | 24956 | 12 |
+| jobb3 | Sesongjustert | 4.6107*** | 1.2939 | 3.563 | 0.0044 | 0.0012 | [1.7629, 7.4585] | 24926 | 12 |
 
 ::: {.callout-note}
 Signifikansnivå basert på bootstrap p-verdi: \*\*\* p < 0,01; \*\* p < 0,05; \* p < 0,10.  
@@ -31,28 +31,28 @@ Med et lavt antall clustere er bootstrap-p-verdien det primære inferensgrunnlag
 ## Detaljert: atid3
 
 Den foretrukne (sesongjusterte) modellen gir en koeffisient på
-**1.8358** (SE = 0.3338,
-t = 5.500, bootstrap p = 0.000***).
+**1.6781** (SE = 0.3782,
+t = 4.437, bootstrap p = 0.001***).
 Estimatet er **statistisk signifikant på 10%-nivå (***)** og har **positiv** fortegn.
-Relativt til det gjennomsnittlige pre-periode-nivået (0.4445) tilsvarer dette en relativ endring på **413.0 %**.
+Relativt til det gjennomsnittlige pre-periode-nivået (0.4592) tilsvarer dette en relativ endring på **365.4 %**.
 
-Basis-modellen gir koeffisient 1.3519 (bootstrap p = 0.001***).
+Basis-modellen gir koeffisient 1.2849 (bootstrap p = 0.006***).
 At de to modellene avviker noe fra hverandre gir et inntrykk av om sesongmønsteret spiller en rolle for resultatet.
 
-**Minimum detekterbar effekt (80 % styrke, α = 0,05):** ±1.0268 pp.  
-**Gjennomsnittlig pre-periode-nivå:** 0.4445
+**Minimum detekterbar effekt (80 % styrke, α = 0,05):** ±1.1635 pp.  
+**Gjennomsnittlig pre-periode-nivå:** 0.4592
 
 ## Detaljert: jobb3
 
 Den foretrukne (sesongjusterte) modellen gir en koeffisient på
-**5.2169** (SE = 1.0384,
-t = 5.024, bootstrap p = 0.000***).
+**4.6107** (SE = 1.2939,
+t = 3.563, bootstrap p = 0.001***).
 Estimatet er **statistisk signifikant på 10%-nivå (***)** og har **positiv** fortegn.
-Relativt til det gjennomsnittlige pre-periode-nivået (1.4697) tilsvarer dette en relativ endring på **355.0 %**.
+Relativt til det gjennomsnittlige pre-periode-nivået (1.5201) tilsvarer dette en relativ endring på **303.3 %**.
 
-Basis-modellen gir koeffisient 3.8037 (bootstrap p = 0.001***).
+Basis-modellen gir koeffisient 3.5630 (bootstrap p = 0.004***).
 At de to modellene avviker noe fra hverandre gir et inntrykk av om sesongmønsteret spiller en rolle for resultatet.
 
-**Minimum detekterbar effekt (80 % styrke, α = 0,05):** ±3.1947 pp.  
-**Gjennomsnittlig pre-periode-nivå:** 1.4697
+**Minimum detekterbar effekt (80 % styrke, α = 0,05):** ±3.9806 pp.  
+**Gjennomsnittlig pre-periode-nivå:** 1.5201
 

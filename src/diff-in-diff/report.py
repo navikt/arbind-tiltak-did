@@ -684,6 +684,24 @@ def _regression_table_md(
 # ── Main entry point ──────────────────────────────────────────────────────────
 
 
+def _get_tiltak_label(cfg: dict[str, Any]) -> str:
+    """Return a human-readable label for the tiltak data source.
+
+    Reads ``data.tiltak_label`` from config if present; otherwise derives a
+    label from the filename of ``data.tiltak_file``.
+    """
+    explicit = cfg.get("data", {}).get("tiltak_label")
+    if explicit:
+        return str(explicit)
+    path = cfg.get("data", {}).get("tiltak_file", "")
+    stem = Path(path).stem.lower()
+    if "lønnstilskudd" in stem or "lonnstilskudd" in stem:
+        return "midlertidig lønnstilskudd"
+    if "alle-tiltak" in stem or "alle_tiltak" in stem:
+        return "alle arbeidsmarkedstiltak"
+    return stem
+
+
 def _infer_subgroup(file_path: str) -> str:
     """Infer the population subgroup from an indicator file path."""
     parts = Path(file_path).parts
@@ -733,6 +751,7 @@ def _section_summary_table(cfg: dict[str, Any]) -> list[str]:
     rows = [
         ("Behandlingstype", treatment_type_label),
         ("Behandlingsstart", treatment_start_label),
+        ("Tiltaksdata", _get_tiltak_label(cfg).capitalize()),
         ("Variasjon i behandling", "Nav-regioner"),
         ("Undergruppe (populasjon)", subgroup),
         ("Utfallsmål (indikatortype)", outcome_type),
@@ -770,6 +789,7 @@ def _section_intro(
     treatment_start: str,
     treatment_type: str,
     control_regions: list[str] | None,
+    tiltak_label: str = "midlertidig lønnstilskudd",
 ) -> list[str]:
     """Return the method/background introduction section."""
     ts_formatted = f"{treatment_start[:4]}-{treatment_start[4:]}"
@@ -786,7 +806,7 @@ def _section_intro(
     else:
         method_para = (
             "Analysen bruker en *difference-in-differences*-tilnærming med **kontinuerlig behandling**. "
-            "Behandlingsvariabelen (`tiltaksnedgang`) måler hvor mye tiltaksnivået i en region har falt "
+            f"Behandlingsvariabelen (`tiltaksnedgang`) måler hvor mye nivået av *{tiltak_label}* i en region har falt "
             "relativt til toppen i pre-perioden, og varierer kontinuerlig mellom 0 (ingen nedgang) "
             "og 1 (full nedgang). Modellen inkluderer region-faste effekter og tidspunkt-faste effekter "
             "for å kontrollere for tidsinvariante regionforskjeller og felles nasjonale trender."
@@ -794,7 +814,7 @@ def _section_intro(
     return [
         "## Bakgrunn og metode",
         "",
-        f"Denne rapporten analyserer om nedgangen i arbeidsmarkedstiltak fra og med {ts_formatted} "
+        f"Denne rapporten analyserer om nedgangen i *{tiltak_label}* fra og med {ts_formatted} "
         "har hatt målbar effekt på Nav-indikatorer for overgang til arbeid.",
         "",
         method_para,
@@ -817,6 +837,7 @@ def _section_tiltak(
     treatment_start: str,
     figures_dir: Path,
     report_dir: Path,
+    tiltak_label: str = "midlertidig lønnstilskudd",
 ) -> list[str]:
     """Return the shared tiltaksbruk-over-tid section."""
     tiltak_path = _plot_tiltak_trends(
@@ -827,7 +848,7 @@ def _section_tiltak(
     return [
         "## Tiltaksbruk over tid",
         "",
-        "Tiltaksbruk (midlertidig lønnstilskudd) per region over tid. "
+        f"Tiltaksbruk ({tiltak_label}) per region over tid. "
         "Den stiplede linjen markerer behandlingsstart.",
         "",
         f"![]({_rel(tiltak_path, report_dir)}){{fig-align='center' width=95%}}",
@@ -1141,7 +1162,8 @@ def generate_report(
     lines: list[str] = []
     lines += _section_frontmatter(report_title)
     lines += _section_summary_table(cfg)
-    lines += _section_intro(treatment_start, treatment_type, control_regions)
+    tiltak_label = _get_tiltak_label(cfg)
+    lines += _section_intro(treatment_start, treatment_type, control_regions, tiltak_label)
 
     first_res = next((r for r in all_results.values() if r is not None), None)
     if first_res is not None:
@@ -1150,6 +1172,7 @@ def generate_report(
             treatment_start=treatment_start,
             figures_dir=figures_dir,
             report_dir=report_dir,
+            tiltak_label=tiltak_label,
         )
 
     for ind_name, res in all_results.items():

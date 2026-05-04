@@ -1,5 +1,5 @@
 ---
-title: "Trippel-diff, regioner, kontinuerlig"
+title: "Trippel-diff, enheter, kontinuerlig"
 ---
 
 ## Bakgrunn og metode
@@ -10,7 +10,7 @@ Denne analysen estimerer om nedgangen i arbeidsmarkedstiltak har hatt en
 likt, vil en standard diff-in-diff fange opp felles sjokk — trippel-diff
 isolerer i stedet den *ekstra* effekten for den behandlede gruppen.
 
-Analysen opererer på **region**-nivå. Behandlingsvariabelen
+Analysen opererer på **enhet**-nivå. Behandlingsvariabelen
 `tiltaksnedgang` er den samme som i den ordinære DiD-analysen: andelen av
 regionens pre-periode-topp i *Midlertidig lønnstilskudd* som er avviklet.
 

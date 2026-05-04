@@ -29,16 +29,18 @@ book:
     - regioner/nedsatt-arbeidsevne-kontinuerlig/report_nedsatt-arbeidsevne-kontinuerlig.qmd
     - regioner/trenger-veiledning-discrete/report_trenger-veiledning-discrete.qmd
     - regioner/trenger-veiledning-kontinuerlig/report_trenger-veiledning-kontinuerlig.qmd
-  - part: innsatsgrupper/intro.qmd
-    chapters: []
-  - part: trippel-diff/intro.qmd
-    chapters: []
   - part: trippel-diff-regioner-kontinuerlig/intro.qmd
     chapters:
     - trippel-diff-regioner-kontinuerlig/01-deskriptiv.qmd
     - trippel-diff-regioner-kontinuerlig/02-regresjonsresultater.qmd
     - trippel-diff-regioner-kontinuerlig/03-bootstrap.qmd
     - trippel-diff-regioner-kontinuerlig/04-antagelser.qmd
+  - part: trippel-diff-enheter-kontinuerlig/intro.qmd
+    chapters:
+    - trippel-diff-enheter-kontinuerlig/01-deskriptiv.qmd
+    - trippel-diff-enheter-kontinuerlig/02-regresjonsresultater.qmd
+    - trippel-diff-enheter-kontinuerlig/03-bootstrap.qmd
+    - trippel-diff-enheter-kontinuerlig/04-antagelser.qmd
   page-navigation: true
   page-footer: Nav - {{< meta date >}}
   repo-url: https://github.com/navikt/arbind-tiltak-did

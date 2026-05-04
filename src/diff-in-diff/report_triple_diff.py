@@ -42,6 +42,24 @@ _GREEN = "#2E8B57"
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 
+def _get_tiltak_label(cfg: dict[str, Any]) -> str:
+    """Return a human-readable label for the tiltak data source.
+
+    Reads ``data.tiltak_label`` from config if present; otherwise derives a
+    label from the filename of ``data.tiltak_file``.
+    """
+    explicit = cfg.get("data", {}).get("tiltak_label")
+    if explicit:
+        return str(explicit)
+    path = cfg.get("data", {}).get("tiltak_file", "")
+    stem = Path(path).stem.lower()
+    if "lønnstilskudd" in stem or "lonnstilskudd" in stem:
+        return "midlertidig lønnstilskudd"
+    if "alle-tiltak" in stem or "alle_tiltak" in stem:
+        return "alle arbeidsmarkedstiltak"
+    return stem
+
+
 def _save_fig(fig: plt.Figure, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     kwargs: dict[str, Any] = {"bbox_inches": "tight"}
@@ -270,15 +288,33 @@ def _generate_intro(
         f'title: "{title}"',
         "---",
         "",
-        f"Trippel-diff-analyse med behandlet gruppe **{treated}** og kontrollgruppe **{control}**.",
-        f"Analysenivå: **{analysis_level}**.",
+        "## Bakgrunn og metode",
+        "",
+        "Denne analysen estimerer om nedgangen i arbeidsmarkedstiltak har hatt en",
+        f"*differensiell* effekt på innsatsgruppen **{treated}** sammenlignet med",
+        f"**{control}**. Logikken er at dersom tiltaksnedgangen rammer de to gruppene",
+        "likt, vil en standard diff-in-diff fange opp felles sjokk — trippel-diff",
+        "isolerer i stedet den *ekstra* effekten for den behandlede gruppen.",
+        "",
+        f"Analysen opererer på **{analysis_level}**-nivå. Behandlingsvariabelen",
+        "`tiltaksnedgang` er den samme som i den ordinære DiD-analysen: andelen av",
+        f"regionens pre-periode-topp i *{_get_tiltak_label(cfg)}* som er avviklet.",
+        "",
+        "Modellen inkluderer region-faste effekter, tidspunkt-faste effekter og en",
+        f"gruppe × tid-interaksjon for å skille {treated}-trenden fra den nasjonale",
+        "trenden. Den foretrukne spesifikasjonen legger i tillegg til region ×",
+        "kalendermåned-faste effekter for å absorbere regionspesifikke sesongmønstre.",
+        "",
+        "> **Signifikansnivå:** \\* p < 0,10 &nbsp; \\*\\* p < 0,05 &nbsp; \\*\\*\\* p < 0,01  ",
+        "> Standardfeil er clustret på regionnivå (CR1 småutvalgskorrigering).  ",
+        "> Primær p-verdi basert på wild cluster bootstrap med Webb-vekter (B = 4 999).",
         "",
         "Analysen er delt inn i fire kapitler:",
         "",
-        "1. Deskriptiv statistikk og bakgrunn",
-        "2. Regresjonsresultater og koeffisienter",
-        "3. Bootstrap og inferens",
-        "4. Test av antagelser",
+        "1. **Deskriptiv statistikk og bakgrunn** — dataoversikt, trender og behandlingsintensitet",
+        "2. **Regresjonsresultater og koeffisienter** — trippel-diff-estimatene",
+        "3. **Bootstrap og inferens** — wild cluster bootstrap-fordelinger",
+        "4. **Test av antagelser** — hendelsesstudie, placebo og leave-one-out",
     ]
     output_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
@@ -306,6 +342,11 @@ def _generate_descriptive(
         f"Kontrollgruppe: **{control}**  ",
         f"Analysenivå: **{analysis_level}**",
         "",
+        "Dette kapittelet gir en oversikt over datamaterialet og viser trender for de",
+        "to gruppene over tid. Et viktig visuelt kriterium for trippel-diff-strategien",
+        f"er at **{treated}** og **{control}** fulgte parallelle trender i",
+        "pre-perioden — avvik her vil svekke identifikasjonen.",
+        "",
     ]
 
     for name, res in all_results.items():
@@ -313,9 +354,17 @@ def _generate_descriptive(
             continue
 
         panel = res["panel"]
+        n_treated = int((panel["treated"] == 1.0).sum())
+        n_control = int((panel["treated"] == 0.0).sum())
+        mean_treated = res.get("baseline_mean_treated", 0)
+        mean_control = res.get("baseline_mean_control", 0)
+        mean_diff = mean_treated - mean_control
+
         lines.extend(
             [
                 f"## {name}",
+                "",
+                "### Dataoversikt",
                 "",
                 f"- Antall observasjoner: **{len(panel)}**",
                 f"- Antall regioner: **{panel['region'].nunique()}**",
@@ -326,10 +375,20 @@ def _generate_descriptive(
         lines.extend(
             [
                 f"- Antall måneder: **{panel['aarmnd'].nunique()}**",
-                f"- Behandlet gruppe (n): **{int((panel['treated'] == 1.0).sum())}**",
-                f"- Kontrollgruppe (n): **{int((panel['treated'] == 0.0).sum())}**",
-                f"- Gjennomsnittlig indikator (pre, behandlet): **{res.get('baseline_mean_treated', 0):.4f}**",
-                f"- Gjennomsnittlig indikator (pre, kontroll): **{res.get('baseline_mean_control', 0):.4f}**",
+                f"- Behandlet gruppe ({treated}, n): **{n_treated}**",
+                f"- Kontrollgruppe ({control}, n): **{n_control}**",
+                "",
+                "**Gjennomsnittlig indikatorverdi i pre-perioden:**",
+                "",
+                "| Gruppe | Gjennomsnitt |",
+                "|:--|--:|",
+                f"| {treated} (behandlet) | {mean_treated:.4f} |",
+                f"| {control} (kontroll) | {mean_control:.4f} |",
+                f"| Differanse | {mean_diff:.4f} |",
+                "",
+                f"I pre-perioden lå {treated} i gjennomsnitt **{abs(mean_diff):.4f}** poeng",
+                f"{'høyere' if mean_diff > 0 else 'lavere'} enn {control} på indikatoren `{name}`.",
+                "Denne nivåforskjellen absorberes av gruppe-faste effekter i regresjonen.",
                 "",
             ]
         )
@@ -340,6 +399,10 @@ def _generate_descriptive(
             [
                 f"### Trender over tid — {name}",
                 "",
+                "Figuren viser gjennomsnittlig indikatorverdi per måned for de to gruppene.",
+                "Den stiplede linjen markerer behandlingsstart. Parallelle trender i",
+                "pre-perioden er en forutsetning for identifikasjonen.",
+                "",
                 f"![Gruppesammenlikning {name}]({_rel(fig_path, output_path.parent)})",
                 "",
             ]
@@ -349,7 +412,11 @@ def _generate_descriptive(
         fig_path = _plot_treatment_intensity(panel, name, figures_dir)
         lines.extend(
             [
-                f"### Behandlingsintensitet — {name}",
+                f"### Behandlingsintensitet per region — {name}",
+                "",
+                "Figuren viser tiltaksnedgangen per region over tid. Regionene skiller seg",
+                "fra hverandre i intensitet, noe som er kilden til identifikasjonen i den",
+                "kontinuerlige trippel-diff-modellen.",
                 "",
                 f"![Behandlingsintensitet {name}]({_rel(fig_path, output_path.parent)})",
                 "",
@@ -368,6 +435,9 @@ def _generate_regression(
 ) -> None:
     """Generate chapter 2: regression results."""
     title = cfg["analysis"].get("title", "Trippel-diff")
+    treated = cfg["analysis"].get("treated_group", "veiledning")
+    control = cfg["analysis"].get("control_group", "gode muligheter")
+    tiltak_label = _get_tiltak_label(cfg)
 
     lines = [
         "---",
@@ -376,8 +446,16 @@ def _generate_regression(
         "",
         "## Hovedresultater",
         "",
-        "Trippel-diff-koeffisienten ($\\beta$) måler den differensielle effekten ",
-        "av tiltaksnedgangen på den behandlede gruppen sammenlignet med kontrollgruppen.",
+        "Trippel-diff-koeffisienten ($\\beta_{DDD}$) måler den *differensielle* effekten",
+        f"av nedgangen i *{tiltak_label}* på **{treated}** sammenlignet med **{control}**.",
+        "Koeffisienten angir estimert effekt av å gå fra null til full tiltaksnedgang",
+        "(behandlingsintensitet = 1) på indikatoren, i prosentpoeng, *utover* den effekten",
+        f"som også observeres for {control}.",
+        "",
+        "To modellspesifikasjoner estimeres:",
+        "",
+        "- **Basis:** Region FE + år-måned FE + gruppe × tid",
+        "- **Sesongjustert (foretrukket):** Basis + region × kalendermåned FE",
         "",
     ]
 
@@ -409,7 +487,9 @@ def _generate_regression(
                 *rows,
                 "",
                 "::: {.callout-note}",
-                "Signifikansnivå basert på bootstrap p-verdi: \\*\\*\\* p < 0,01; \\*\\* p < 0,05; \\* p < 0,10.",
+                "Signifikansnivå basert på bootstrap p-verdi: \\*\\*\\* p < 0,01; \\*\\* p < 0,05; \\* p < 0,10.  ",
+                "Standardfeil er clustret på regionnivå (CR1 småutvalgskorrigering).  ",
+                "Med et lavt antall clustere er bootstrap-p-verdien det primære inferensgrunnlaget.",
                 ":::",
                 "",
             ]
@@ -418,12 +498,55 @@ def _generate_regression(
     for name, res in all_results.items():
         if res is None:
             continue
+
+        baseline = res["baseline"]
+        preferred = res["preferred"]
+        boot_pref = res.get("bootstrap_preferred")
+        boot_base = res.get("bootstrap_baseline")
+        baseline_mean = res.get("baseline_mean", 0)
+        mde = res.get("mde", 0)
+
+        pref_p = boot_pref.bootstrap_p_value if boot_pref else preferred.p_value
+        base_p = boot_base.bootstrap_p_value if boot_base else baseline.p_value
+        pref_stars = _sig_stars(pref_p)
+        base_stars = _sig_stars(base_p)
+
+        pref_dir = "positiv" if preferred.coefficient > 0 else "negativ"
+        pref_sig = (
+            f"statistisk signifikant på {10 if pref_p < 0.10 else 5 if pref_p < 0.05 else 1}%-nivå ({pref_stars})"
+            if pref_stars
+            else "ikke statistisk signifikant"
+        )
+
+        rel_change = (preferred.coefficient / baseline_mean * 100) if baseline_mean != 0 else float("nan")
+
         lines.extend(
             [
                 f"## Detaljert: {name}",
                 "",
-                f"- MDE (minimum detekterbar effekt): **{res.get('mde', 0):.4f}** prosentpoeng",
-                f"- Gjennomsnittlig indikator i pre-perioden: **{res.get('baseline_mean', 0):.4f}**",
+                "Den foretrukne (sesongjusterte) modellen gir en koeffisient på",
+                f"**{preferred.coefficient:.4f}** (SE = {preferred.std_error:.4f},",
+                f"t = {preferred.t_stat:.3f}, bootstrap p = {pref_p:.3f}{pref_stars}).",
+                f"Estimatet er **{pref_sig}** og har **{pref_dir}** fortegn.",
+            ]
+        )
+
+        if baseline_mean != 0 and not (rel_change != rel_change):  # not NaN
+            lines.append(
+                f"Relativt til det gjennomsnittlige pre-periode-nivået ({baseline_mean:.4f})"
+                f" tilsvarer dette en relativ endring på **{rel_change:.1f} %**."
+            )
+
+        lines.extend(
+            [
+                "",
+                f"Basis-modellen gir koeffisient {baseline.coefficient:.4f}"
+                f" (bootstrap p = {base_p:.3f}{base_stars}).",
+                f"At de to modellene {'er i rimelig overenstemmelse' if abs(preferred.coefficient - baseline.coefficient) < 0.05 else 'avviker noe fra hverandre'}"
+                f" gir et inntrykk av om sesongmønsteret spiller en rolle for resultatet.",
+                "",
+                f"**Minimum detekterbar effekt (80 % styrke, α = 0,05):** ±{mde:.4f} pp.  ",
+                f"**Gjennomsnittlig pre-periode-nivå:** {baseline_mean:.4f}",
                 "",
             ]
         )
@@ -447,9 +570,15 @@ def _generate_bootstrap(
         "",
         "## Wild cluster bootstrap",
         "",
-        "Bootstrap-p-verdien er det primære inferensresultatet. Alle standardfeil ",
-        "er clustret på regionsnivå. Webb (6-punkt) vekter brukes for å håndtere ",
-        "det lave antallet clustere (G = 12).",
+        "Med et lavt antall regioner (clustere) er asymptotisk clusterinferens upålitelig.",
+        "Primær p-verdi er derfor basert på **wild cluster bootstrap** med Webb 6-punkt-vekter",
+        "(B = 4 999 replikasjoner). Fordelingen av bootstrap-t-statistikken vises nedenfor",
+        "for å gi et intuitivt bilde av usikkerheten.",
+        "",
+        "Den røde vertikale linjen markerer den observerte t-statistikken. En smal fordeling",
+        "konsentrert rundt null med den observerte t-verdien langt ute i halen indikerer et",
+        "statistisk sjeldent resultat; en observert t-verdi tett på fordelingens sentrum",
+        "tilsvarer et ikke-signifikant funn.",
         "",
     ]
 
@@ -463,15 +592,23 @@ def _generate_bootstrap(
             boot = res.get(boot_key)
             if boot is None:
                 continue
+
+            stars = _sig_stars(boot.bootstrap_p_value)
+            sig_text = (
+                f"statistisk signifikant ({stars})" if stars else "ikke statistisk signifikant"
+            )
+
             lines.extend(
                 [
                     f"### {name} — {label}",
                     "",
-                    f"- Observert koeffisient: **{boot.observed_coefficient:.4f}**",
-                    f"- Observert SE: **{boot.observed_se:.4f}**",
-                    f"- Observert t-statistikk: **{boot.observed_t_stat:.3f}**",
-                    f"- Bootstrap p-verdi: **{boot.bootstrap_p_value:.4f}**",
-                    f"- Antall replikasjoner: **{boot.n_boot}**",
+                    f"Observert koeffisient: **{boot.observed_coefficient:.4f}**  ",
+                    f"Observert SE: **{boot.observed_se:.4f}**  ",
+                    f"Observert t-statistikk: **{boot.observed_t_stat:.3f}**  ",
+                    f"Bootstrap p-verdi: **{boot.bootstrap_p_value:.4f}**  ",
+                    f"Antall replikasjoner: **{boot.n_boot}**",
+                    "",
+                    f"Resultatet er **{sig_text}** på bootstrap-grunnlag.",
                     "",
                 ]
             )
@@ -495,6 +632,8 @@ def _generate_assumptions(
 ) -> None:
     """Generate chapter 4: assumption tests."""
     title = cfg["analysis"].get("title", "Trippel-diff")
+    treated = cfg["analysis"].get("treated_group", "veiledning")
+    control = cfg["analysis"].get("control_group", "gode muligheter")
 
     lines = [
         "---",
@@ -503,9 +642,12 @@ def _generate_assumptions(
         "",
         "## Hendelsesstudie",
         "",
-        "Trippel-diff-hendelsesstudien interagerer regionens behandlingsintensitet ",
-        "med gruppeindikator og tidsperiode. Koeffisientene i pre-perioden bør være ",
-        "nær null under parallell-trendantagelsen.",
+        "Trippel-diff-hendelsesstudien interagerer regionens behandlingsintensitet",
+        f"med gruppeindikator ({treated} vs. {control}) og tidsperiode.",
+        "Koeffisientene for τ < 0 (pre-perioden) bør ligge nær null dersom",
+        "parallell-trendantagelsen holder — det vil si at tiltaksnedgangen ikke",
+        f"predikerer divergerende trender mellom {treated} og {control} *før*",
+        "behandlingsstart.",
         "",
     ]
 
@@ -519,11 +661,36 @@ def _generate_assumptions(
             event_study = res.get(es_key)
             if event_study is None:
                 continue
+
+            f_stat = event_study.pretrend_f_stat
+            f_p = event_study.pretrend_p_value
+            df_num = event_study.pretrend_df_num
+            df_denom = event_study.pretrend_df_denom
+
+            if f_p < 0.05:
+                pretrend_verdict = (
+                    f"**Det er statistisk grunnlag for å forkaste parallelle trender** "
+                    f"(F({df_num},{df_denom}) = {f_stat:.3f}, p = {f_p:.4f}). "
+                    "Dette er et advarselssignal for identifikasjonsstrategien."
+                )
+            elif f_p < 0.10:
+                pretrend_verdict = (
+                    f"Pre-trend-testen er svakt signifikant "
+                    f"(F({df_num},{df_denom}) = {f_stat:.3f}, p = {f_p:.4f}), "
+                    "noe som bør tolkes med forsiktighet."
+                )
+            else:
+                pretrend_verdict = (
+                    f"Det er **ikke** statistisk grunnlag for å forkaste parallelle trender "
+                    f"(F({df_num},{df_denom}) = {f_stat:.3f}, p = {f_p:.4f}). "
+                    "Dette styrker identifikasjonsstrategien."
+                )
+
             lines.extend(
                 [
                     f"### {name} — {label}",
                     "",
-                    f"- Pre-trend F-test: F({event_study.pretrend_df_num}, {event_study.pretrend_df_denom}) = {event_study.pretrend_f_stat:.3f}, p = {event_study.pretrend_p_value:.4f}",
+                    pretrend_verdict,
                     "",
                 ]
             )
@@ -540,9 +707,11 @@ def _generate_assumptions(
         [
             "## Placebotest",
             "",
-            "Placebo-analysen bruker en falsk behandlingsdato 12 måneder før den virkelige, ",
-            "og estimerer trippel-diff-modellen på pre-perioden. En nær-null koeffisient ",
-            "tyder på at parallell-trendantagelsen holder.",
+            "Placebo-analysen re-estimerer trippel-diff-modellen med en *falsk*",
+            "behandlingsdato 12 måneder før den virkelige, utelukkende i pre-perioden.",
+            "Et estimat nær null og et ikke-signifikant resultat tyder på at parallell-",
+            "trendantagelsen holder og at det ikke er pre-eksisterende divergerende",
+            f"trender mellom {treated} og {control}.",
             "",
         ]
     )
@@ -555,16 +724,23 @@ def _generate_assumptions(
         ]:
             placebo = res.get(p_key)
             if placebo is None:
-                lines.append(f"- **{name}** ({label}): Ikke nok pre-periodedata.\n")
+                lines.append(
+                    f"**{name}** ({label}): Ikke nok pre-periodedata til å kjøre placebo-analyse.\n"
+                )
                 continue
             stars = _sig_stars(placebo.p_value)
+            sig_text = (
+                f"statistisk signifikant ({stars}) — dette er et advarselssignal"
+                if stars
+                else "ikke signifikant, noe som styrker identifikasjonsstrategien"
+            )
             lines.extend(
                 [
                     f"### {name} — {label}",
                     "",
-                    f"- Koeffisient: **{placebo.coefficient:.4f}**{stars}",
-                    f"- SE: {placebo.std_error:.4f}",
-                    f"- p-verdi: {placebo.p_value:.4f}",
+                    f"Placebo-koeffisienten er **{placebo.coefficient:.4f}**"
+                    f" (SE = {placebo.std_error:.4f}, p = {placebo.p_value:.4f}).",
+                    f"Dette er **{sig_text}**.",
                     "",
                 ]
             )
@@ -572,10 +748,13 @@ def _generate_assumptions(
     # Leave-one-out
     lines.extend(
         [
-            "## Leave-one-out",
+            "## Leave-one-out robusthet",
             "",
-            "Modellen re-estimeres med én region utelatt om gangen. ",
-            "Stabile koeffisienter viser at ingen enkeltregion driver resultatene.",
+            "Modellen re-estimeres med én region utelatt om gangen.",
+            "Stabile koeffisienter på tvers av utelatelsene tilsier at ingen enkeltregion",
+            "er avgjørende for resultatet. Dersom en utelatelse endrer koeffisienten",
+            "vesentlig eller flytter den over signifikansterskelen, bør den regionen",
+            "undersøkes nærmere.",
             "",
         ]
     )
@@ -589,11 +768,30 @@ def _generate_assumptions(
             loo = res.get(loo_key)
             if loo is None:
                 continue
-            fig_path = _plot_leave_one_out(loo, name, label, figures_dir)
+
+            coef_min = loo.rows["coefficient"].min()
+            coef_max = loo.rows["coefficient"].max()
+            full_coef = loo.full_coefficient
+            same_sign = (coef_min > 0) == (coef_max > 0)
+            sign_note = (
+                "Fortegnet er stabilt på tvers av alle utelatelser."
+                if same_sign
+                else "**Fortegnet skifter** for minst én utelatelse — tolkes med forsiktighet."
+            )
+
             lines.extend(
                 [
                     f"### {name} — {label}",
                     "",
+                    f"Fullmodell-koeffisienten er **{full_coef:.4f}**.",
+                    f"Koeffisienten varierer mellom **{coef_min:.4f}** og **{coef_max:.4f}**"
+                    f" når én region utelates. {sign_note}",
+                    "",
+                ]
+            )
+            fig_path = _plot_leave_one_out(loo, name, label, figures_dir)
+            lines.extend(
+                [
                     f"![Leave-one-out {name} ({label})]({_rel(fig_path, output_path.parent)})",
                     "",
                 ]
