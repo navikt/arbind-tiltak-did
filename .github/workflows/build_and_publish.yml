@@ -13,7 +13,7 @@ jobs:
 
     steps:
       - name: Checkout source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Install Quarto
         uses: quarto-dev/quarto-actions/setup@v2
       - name: Render project
@@ -21,7 +21,7 @@ jobs:
         with:
           path: quarto/
       - name: Last opp til Datamarkedsplassen
-        uses: navikt/story-upload@v1
+        uses: navikt/story-upload@v2
         with:
           id: a950f977-6423-4061-86da-c7c98c56bfcf
           dir: quarto/_book
