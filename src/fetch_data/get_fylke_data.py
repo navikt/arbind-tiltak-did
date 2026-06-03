@@ -10,28 +10,20 @@ For each nedbrytning, one BigQuery query is issued and the results are saved as:
 
 from __future__ import annotations
 
-import re
 import sys
 from pathlib import Path
 from typing import Any
 
 import pandas as pd
+from bq_client import _TABLE_URI, _TARGET_UTFALL, _slugify, run_query
 from google.cloud import bigquery
 
-_TABLE_URI = "arbeidsindikator-prod-51bc.arbeidsindikator.agg_indikator_siste_pub"
 _INDIKATOR_DIR = Path(__file__).resolve().parents[2] / "data" / "raw" / "indikatorer"
 _PERSONER_DIR = Path(__file__).resolve().parents[2] / "data" / "raw" / "personer"
-_TARGET_UTFALL = ("atid3", "jobb3")
-
-
-def _slugify(value: str) -> str:
-    """Return a filesystem-safe lower-case slug."""
-    return re.sub(r"[^a-z0-9._-]+", "_", value.strip().lower()).strip("_")
 
 
 def _query_nedbrytning(nedbrytning: str) -> list[dict[str, Any]]:
     """Fetch all indicator columns for one nedbrytning in a single query."""
-    client = bigquery.Client()
     query = f"""
         SELECT
             CAST(BEHOLDNINGSMAANED AS STRING) AS aarmnd,
@@ -49,14 +41,13 @@ def _query_nedbrytning(nedbrytning: str) -> list[dict[str, Any]]:
           AND UTFALL IN UNNEST(@utfall)
         ORDER BY BEHOLDNINGSMAANED
     """
-    job_config = bigquery.QueryJobConfig(
-        query_parameters=[
+    return run_query(
+        query,
+        [
             bigquery.ScalarQueryParameter("nedbrytning", "STRING", nedbrytning),
             bigquery.ArrayQueryParameter("utfall", "STRING", list(_TARGET_UTFALL)),
-        ]
+        ],
     )
-    results = client.query(query, job_config=job_config).result()
-    return [dict(row) for row in results]
 
 
 def _pivot_wide(df: pd.DataFrame, value_col: str) -> pd.DataFrame:

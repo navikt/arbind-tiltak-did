@@ -71,8 +71,18 @@ def missing_matrix(df: pd.DataFrame) -> pd.DataFrame:
 def fmt_aarmnd(val: int) -> str:
     """Format 202305 → 'mai 23'."""
     MONTHS_NO = [
-        "jan", "feb", "mar", "apr", "mai", "jun",
-        "jul", "aug", "sep", "okt", "nov", "des",
+        "jan",
+        "feb",
+        "mar",
+        "apr",
+        "mai",
+        "jun",
+        "jul",
+        "aug",
+        "sep",
+        "okt",
+        "nov",
+        "des",
     ]
     year = str(val)[2:4]
     month = int(str(val)[4:6])
@@ -98,8 +108,20 @@ def plot_missing_over_time(
     x = np.arange(len(xticks))
     xlabels = [fmt_aarmnd(v) for v in xticks]
 
-    ax.plot(x, time_v.values, color=NAV_BLUE, linewidth=2, label=f"Veiledning (n={n_enhet_v})")
-    ax.plot(x, time_g.values, color=NAV_RED, linewidth=2, label=f"Gode muligheter (n={n_enhet_g})")
+    ax.plot(
+        x,
+        time_v.values,
+        color=NAV_BLUE,
+        linewidth=2,
+        label=f"Veiledning (n={n_enhet_v})",
+    )
+    ax.plot(
+        x,
+        time_g.values,
+        color=NAV_RED,
+        linewidth=2,
+        label=f"Gode muligheter (n={n_enhet_g})",
+    )
 
     ax.set_ylabel("Antall enheter med manglende verdi", fontsize=10)
     ax.set_xlabel("")
@@ -141,7 +163,12 @@ def plot_heatmap(mat: pd.DataFrame, title: str, filename: str) -> Path:
     # X-axis: every 3rd month
     xtick_pos = list(range(0, n_time, 3))
     ax.set_xticks(xtick_pos)
-    ax.set_xticklabels([fmt_aarmnd(v) for v in mat_sorted.columns[xtick_pos]], rotation=45, ha="right", fontsize=7)
+    ax.set_xticklabels(
+        [fmt_aarmnd(v) for v in mat_sorted.columns[xtick_pos]],
+        rotation=45,
+        ha="right",
+        fontsize=7,
+    )
 
     # Y-axis: enhet names
     ax.set_yticks(range(n_enhet))
@@ -182,17 +209,37 @@ def plot_missing_per_enhet(
 
     y = np.arange(n)
     bar_h = 0.38
-    ax.barh(y + bar_h / 2, combined["Veiledning"], height=bar_h, color=NAV_BLUE, label="Veiledning")
-    ax.barh(y - bar_h / 2, combined["Gode muligheter"], height=bar_h, color=NAV_RED, label="Gode muligheter")
+    ax.barh(
+        y + bar_h / 2,
+        combined["Veiledning"],
+        height=bar_h,
+        color=NAV_BLUE,
+        label="Veiledning",
+    )
+    ax.barh(
+        y - bar_h / 2,
+        combined["Gode muligheter"],
+        height=bar_h,
+        color=NAV_RED,
+        label="Gode muligheter",
+    )
 
     ax.set_yticks(y)
     ax.set_yticklabels(combined.index, fontsize=7)
     ax.set_xlabel(f"Antall måneder med manglende verdi (av {n_time})", fontsize=9)
-    ax.axvline(n_time, color=MID_GREY, linestyle="--", linewidth=0.8, label=f"Alle {n_time} måneder")
+    ax.axvline(
+        n_time,
+        color=MID_GREY,
+        linestyle="--",
+        linewidth=0.8,
+        label=f"Alle {n_time} måneder",
+    )
     ax.legend(fontsize=8)
     ax.spines[["top", "right"]].set_visible(False)
     ax.grid(axis="x", color=LIGHT_GREY, linewidth=0.8)
-    ax.set_title("Manglende verdier per enhet (totalt over alle måneder)", fontsize=11, pad=8)
+    ax.set_title(
+        "Manglende verdier per enhet (totalt over alle måneder)", fontsize=11, pad=8
+    )
 
     fig.tight_layout()
     out = FIGURES_DIR / "missing_per_enhet.png"
@@ -230,15 +277,17 @@ def build_summary_table(
         total_missing = int(mat.sum().sum())
         pct = round(total_missing / total_cells * 100, 1)
         enheter_any = int((mat.sum(axis=1) > 0).sum())
-        rows.append({
-            "Datasett": label,
-            "Enheter": n_enhet,
-            "Måneder": n_time,
-            "Celler totalt": total_cells,
-            "Mangler": total_missing,
-            "Andel (%)": pct,
-            "Enheter med ≥1 mangler": enheter_any,
-        })
+        rows.append(
+            {
+                "Datasett": label,
+                "Enheter": n_enhet,
+                "Måneder": n_time,
+                "Celler totalt": total_cells,
+                "Mangler": total_missing,
+                "Andel (%)": pct,
+                "Enheter med ≥1 mangler": enheter_any,
+            }
+        )
     df = pd.DataFrame(rows)
     return _md_table(df)
 
@@ -254,7 +303,12 @@ def build_worst_enhet_table(
     combined = pd.concat([enhet_v, enhet_g], axis=1).fillna(0).astype(int)
     combined["Totalt"] = combined.sum(axis=1)
     top = combined.sort_values("Totalt", ascending=False).head(top_n).reset_index()
-    top.columns = ["Enhet", "Veiledning (måneder)", "Gode muligheter (måneder)", "Totalt"]
+    top.columns = [
+        "Enhet",
+        "Veiledning (måneder)",
+        "Gode muligheter (måneder)",
+        "Totalt",
+    ]
     return _md_table(top)
 
 
@@ -268,10 +322,12 @@ def build_enhet_diff_table(
     max_len = max(len(v_only), len(g_only))
     v_only_padded = v_only + [""] * (max_len - len(v_only))
     g_only_padded = g_only + [""] * (max_len - len(g_only))
-    df = pd.DataFrame({
-        "Kun i Veiledning": v_only_padded,
-        "Kun i Gode muligheter": g_only_padded,
-    })
+    df = pd.DataFrame(
+        {
+            "Kun i Veiledning": v_only_padded,
+            "Kun i Gode muligheter": g_only_padded,
+        }
+    )
     return _md_table(df)
 
 
@@ -285,6 +341,7 @@ def write_qmd(
     n_veiledning_files: int,
     n_gode_muligheter_files: int,
 ) -> None:
+    """Write the narrative QMD report, embedding the generated figures and tables."""
     content = f"""\
 # Manglende verdier — enhet-data (nedbrytning)
 
@@ -351,6 +408,7 @@ Diagrammet viser totalt antall måneder med manglende verdi for enheter med mins
 
 
 def main() -> None:
+    """Main function to run the analysis and generate outputs."""
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     FIGURES_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -366,8 +424,16 @@ def main() -> None:
 
     # Figures
     plot_missing_over_time(mat_v, mat_g, mat_v.shape[0], mat_g.shape[0])
-    plot_heatmap(mat_v, "Manglende verdier — Veiledning (enhet × måned)", "missing_heatmap_veiledning.png")
-    plot_heatmap(mat_g, "Manglende verdier — Gode muligheter (enhet × måned)", "missing_heatmap_gode_muligheter.png")
+    plot_heatmap(
+        mat_v,
+        "Manglende verdier — Veiledning (enhet × måned)",
+        "missing_heatmap_veiledning.png",
+    )
+    plot_heatmap(
+        mat_g,
+        "Manglende verdier — Gode muligheter (enhet × måned)",
+        "missing_heatmap_gode_muligheter.png",
+    )
     plot_missing_per_enhet(mat_v, mat_g, n_time)
 
     # Tables

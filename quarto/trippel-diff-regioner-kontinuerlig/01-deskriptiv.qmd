@@ -4,8 +4,8 @@ title: "Deskriptiv statistikk — Trippel-diff, regioner, kontinuerlig"
 
 ## Oversikt
 
-Behandlet gruppe: **trenger-veiledning**  
-Kontrollgruppe: **gode-muligheter**  
+Behandlet gruppe: **trenger-veiledning**
+Kontrollgruppe: **gode-muligheter**
 Analysenivå: **region**
 
 Dette kapittelet gir en oversikt over datamaterialet og viser trender for de
@@ -90,4 +90,3 @@ fra hverandre i intensitet, noe som er kilden til identifikasjonen i den
 kontinuerlige trippel-diff-modellen.
 
 ![Behandlingsintensitet jobb3](figures/treatment_intensity_jobb3.svg)
-

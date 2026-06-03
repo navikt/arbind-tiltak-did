@@ -21,6 +21,24 @@ from typing import TYPE_CHECKING, Any
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import pandas as pd
+from report_utils import (
+    BLUE_DARK as _BLUE,
+)
+from report_utils import (
+    RED_DARK as _RED,
+)
+from report_utils import (
+    get_tiltak_label as _get_tiltak_label,
+)
+from report_utils import (
+    rel as _rel,
+)
+from report_utils import (
+    save_fig as _save_fig,
+)
+from report_utils import (
+    sig_stars as _sig_stars,
+)
 
 mpl.rcParams["path.simplify"] = True
 mpl.rcParams["path.simplify_threshold"] = 1.0
@@ -31,56 +49,6 @@ if TYPE_CHECKING:
     from regression import LeaveOneOutResult
 
 logger = logging.getLogger(__name__)
-
-_BLUE = "#003366"
-_RED = "#C8102E"
-_LIGHT_BLUE = "#66A3C8"
-_LIGHT_RED = "#f4a582"
-_GREEN = "#2E8B57"
-
-
-# ── Helpers ───────────────────────────────────────────────────────────────────
-
-
-def _get_tiltak_label(cfg: dict[str, Any]) -> str:
-    """Return a human-readable label for the tiltak data source.
-
-    Reads ``data.tiltak_label`` from config if present; otherwise derives a
-    label from the filename of ``data.tiltak_file``.
-    """
-    explicit = cfg.get("data", {}).get("tiltak_label")
-    if explicit:
-        return str(explicit)
-    path = cfg.get("data", {}).get("tiltak_file", "")
-    stem = Path(path).stem.lower()
-    if "lønnstilskudd" in stem or "lonnstilskudd" in stem:
-        return "midlertidig lønnstilskudd"
-    if "alle-tiltak" in stem or "alle_tiltak" in stem:
-        return "alle arbeidsmarkedstiltak"
-    return stem
-
-
-def _save_fig(fig: plt.Figure, path: Path) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    kwargs: dict[str, Any] = {"bbox_inches": "tight"}
-    if path.suffix == ".png":
-        kwargs["dpi"] = 96
-    fig.savefig(path, **kwargs)
-    plt.close(fig)
-
-
-def _rel(path: Path, base: Path) -> str:
-    return path.relative_to(base).as_posix()
-
-
-def _sig_stars(p: float) -> str:
-    if p < 0.01:
-        return "***"
-    if p < 0.05:
-        return "**"
-    if p < 0.10:
-        return "*"
-    return ""
 
 
 # ── Figures ──────────────────────────────────────────────────────────────────
@@ -518,7 +486,11 @@ def _generate_regression(
             else "ikke statistisk signifikant"
         )
 
-        rel_change = (preferred.coefficient / baseline_mean * 100) if baseline_mean != 0 else float("nan")
+        rel_change = (
+            (preferred.coefficient / baseline_mean * 100)
+            if baseline_mean != 0
+            else float("nan")
+        )
 
         lines.extend(
             [
@@ -595,7 +567,9 @@ def _generate_bootstrap(
 
             stars = _sig_stars(boot.bootstrap_p_value)
             sig_text = (
-                f"statistisk signifikant ({stars})" if stars else "ikke statistisk signifikant"
+                f"statistisk signifikant ({stars})"
+                if stars
+                else "ikke statistisk signifikant"
             )
 
             lines.extend(

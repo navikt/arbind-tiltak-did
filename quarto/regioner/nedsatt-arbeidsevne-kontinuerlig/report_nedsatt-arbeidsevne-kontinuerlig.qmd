@@ -10,29 +10,30 @@ execute:
 |---|---|
 | Behandlingstype | Kontinuerlig |
 | Behandlingsstart | 2025-06 |
+| Tiltaksdata | Alle tiltak |
 | Variasjon i behandling | Nav-regioner |
-| Undergruppe (populasjon) | Innsatsgruppe_-_nedsatt_arbeidsevne |
+| Undergruppe (populasjon) | Innsatsgruppe_-_trenger_veiledning_nedsatt_arbeidsevne |
 | Utfallsmål (indikatortype) | — |
 | Indikatorer | atid3 — Arbeidstid neste tre måneder, jobb3 — I jobb etter 3 måneder |
 
 ## Bakgrunn og metode
 
-Denne rapporten analyserer om nedgangen i arbeidsmarkedstiltak fra og med 2025-06 har hatt målbar effekt på Nav-indikatorer for overgang til arbeid.
+Denne rapporten analyserer om nedgangen i *Alle tiltak* fra og med 2025-06 har hatt målbar effekt på Nav-indikatorer for overgang til arbeid.
 
-Analysen bruker en *difference-in-differences*-tilnærming med **kontinuerlig behandling**. Behandlingsvariabelen (`tiltaksnedgang`) måler hvor mye tiltaksnivået i en region har falt relativt til toppen i pre-perioden, og varierer kontinuerlig mellom 0 (ingen nedgang) og 1 (full nedgang). Modellen inkluderer region-faste effekter og tidspunkt-faste effekter for å kontrollere for tidsinvariante regionforskjeller og felles nasjonale trender.
+Analysen bruker en *difference-in-differences*-tilnærming med **kontinuerlig behandling**. Behandlingsvariabelen (`tiltaksnedgang`) måler hvor mye nivået av *Alle tiltak* i en region har falt relativt til toppen i pre-perioden, og varierer kontinuerlig mellom 0 (ingen nedgang) og 1 (full nedgang). Modellen inkluderer region-faste effekter og tidspunkt-faste effekter for å kontrollere for tidsinvariante regionforskjeller og felles nasjonale trender.
 
 To modellspesifikasjoner estimeres:
 
 - **Basis:** Ujustert indikator, region FE + år-måned FE
 - **Sesongjustert:** Sesongjustert indikator, region FE + år-måned FE
 
-> **Signifikansnivå:** \* p < 0,10 &nbsp; \*\* p < 0,05 &nbsp; \*\*\* p < 0,01  
-> Standardfeil er clustret på regionnivå (CR1 småutvalgskorrigering).  
+> **Signifikansnivå:** \* p < 0,10 &nbsp; \*\* p < 0,05 &nbsp; \*\*\* p < 0,01
+> Standardfeil er clustret på regionnivå (CR1 småutvalgskorrigering).
 > Med kun G = 12 regioner er asymptotisk clusterinferens upålitelig; primær p-verdi er basert på wild cluster bootstrap med Webb-vekter (B = 4 999).
 
 ## Tiltaksbruk over tid
 
-Tiltaksbruk (midlertidig lønnstilskudd) per region over tid. Den stiplede linjen markerer behandlingsstart.
+Tiltaksbruk (Alle tiltak) per region over tid. Den stiplede linjen markerer behandlingsstart.
 
 ![](figures/tiltak_trend_shared.svg){fig-align='center' width=95%}
 
@@ -40,28 +41,28 @@ Tiltaksbruk (midlertidig lønnstilskudd) per region over tid. Den stiplede linje
 
 ### Deskriptiv statistikk
 
-|                      |   Gjennomsnitt |   Std.avvik |     Min |    Maks |
-|:---------------------|---------------:|------------:|--------:|--------:|
-| atid3                |         -0.201 |       0.215 |  -0.849 |    0.52 |
-| Tiltaksnedgang (0–1) |          0.021 |       0.092 |   0     |    0.69 |
-| Tiltak (antall)      |        593.907 |     224.287 | 134     | 1224    |
+|                      |   Gjennomsnitt |   Std.avvik |      Min |      Maks |
+|:---------------------|---------------:|------------:|---------:|----------:|
+| atid3                |         -0.21  |       0.604 |   -4.242 |     4.459 |
+| Tiltaksnedgang (0–1) |          0.012 |       0.05  |    0     |     0.355 |
+| Tiltak (antall)      |       5375.39  |    2111.26  | 2003     | 11907     |
 
 **Behandlingsvariabel per region (gjennomsnitt i post-perioden):**
 
 | Region                   |   Gj.snitt nedgang (0–1) |
 |:-------------------------|-------------------------:|
-| Nav Vest-Viken           |                    0.425 |
-| Nav Møre og Romsdal      |                    0.401 |
-| Nav Troms og Finnmark    |                    0.391 |
-| Nav Agder                |                    0.388 |
-| Nav Vestland             |                    0.378 |
-| Nav Rogaland             |                    0.341 |
-| Nav Oslo                 |                    0.317 |
-| Nav Trøndelag            |                    0.303 |
-| Nav Øst-Viken            |                    0.282 |
-| Nav Vestfold og Telemark |                    0.23  |
-| Nav Nordland             |                    0.158 |
-| Nav Innlandet            |                    0.1   |
+| Nav Møre og Romsdal      |                    0.289 |
+| Nav Oslo                 |                    0.224 |
+| Nav Vestland             |                    0.213 |
+| Nav Rogaland             |                    0.203 |
+| Nav Øst-Viken            |                    0.19  |
+| Nav Agder                |                    0.19  |
+| Nav Troms og Finnmark    |                    0.179 |
+| Nav Trøndelag            |                    0.169 |
+| Nav Vest-Viken           |                    0.161 |
+| Nav Nordland             |                    0.152 |
+| Nav Innlandet            |                    0.138 |
+| Nav Vestfold og Telemark |                    0.114 |
 
 ### Trender over tid
 
@@ -75,13 +76,13 @@ Koeffisienten for behandlingsvariabelen angir estimert effekt av å gå fra null
 
 | Modell        |   Koeffisient |   Std.feil (CR1) |   t-stat |   p (bootstrap) |   p (asymptotisk) | 95% KI            |   Obs. |   Clustere |
 |:--------------|--------------:|-----------------:|---------:|----------------:|------------------:|:------------------|-------:|-----------:|
-| Basis         |       -0.1715 |           0.1339 |   -1.281 |           0.387 |            0.2266 | [-0.4661, 0.1232] |    720 |         12 |
-| Sesongjustert |       -0.256  |           0.1401 |   -1.827 |           0.211 |            0.095  | [-0.5644, 0.0524] |    720 |         12 |
+| Basis         |        0.3037 |           0.2045 |    1.485 |           0.35  |            0.1657 | [-0.1465, 0.7538] |  14541 |         12 |
+| Sesongjustert |        0.0981 |           0.1957 |    0.501 |           0.608 |            0.6261 | [-0.3326, 0.5287] |  14541 |         12 |
 
 > **Signifikansnivå (bootstrap):** \* p < 0,10 &nbsp; \*\* p < 0,05 &nbsp; \*\*\* p < 0,01
 
-**Gjennomsnittlig pre-periode-nivå:** -0.2 % — koeffisienten tilsvarer en relativ endring på 129.8 %.  
-**Minimum detekterbar effekt (80 % styrke, α = 0,05):** ±0.43 pp.
+**Gjennomsnittlig pre-periode-nivå:** -0.2 % — koeffisienten tilsvarer en relativ endring på -47.3 %.
+**Minimum detekterbar effekt (80 % styrke, α = 0,05):** ±0.60 pp.
 
 ### Bootstrap-fordeling
 
@@ -91,9 +92,9 @@ Koeffisienten for behandlingsvariabelen angir estimert effekt av å gå fra null
 
 Stolpediagrammene viser koeffisientene for de faste effektene i den sesongjusterte modellen. Røde søyler er signifikante på 5 %-nivå.
 
-**Region FE**
+**Entitet FE**
 
-![](figures/fe_region_fe_atid3.png){fig-align='center' width=90%}
+![](figures/fe_entitet_fe_atid3.png){fig-align='center' width=90%}
 
 **Tidspunkt FE**
 
@@ -103,7 +104,7 @@ Stolpediagrammene viser koeffisientene for de faste effektene i den sesongjuster
 
 Eventsstudien samhandler periodevise indikatorer med en tidsinvariant intensitetsscore per region (maksimal tiltaksnedgang i post-perioden). Pre-periode-koeffisientene (τ < 0) bør ligge nær null dersom parallelle trender holder. Blå = basis, rød = sesongjustert modell.
 
-Det er **ikke** statistisk grunnlag for å forkaste parallelle trender (F(10,11) = 1.79, p = 0.178, sesongjustert modell).
+**Advarsel:** pre-trend-testen er signifikant (F(11,11) = 50.13, p = 0.000), noe som svekker DiD-antakelsen.
 
 ![](figures/event_study_atid3.svg){fig-align='center' width=95%}
 
@@ -111,7 +112,7 @@ Det er **ikke** statistisk grunnlag for å forkaste parallelle trender (F(10,11)
 
 Begge modeller re-estimeres med en falsk behandlingsstart tolv måneder tidligere, utelukkende i pre-perioden. Estimater nær null styrker antakelsen om at resultatene ikke skyldes pre-eksisterende trender.
 
-Sesongjustert modell — placebo-koeffisienten er -0.1954 (p = 0.024). **Advarsel:** placebo-estimatet er signifikant, noe som kan indikere pre-eksisterende trender.
+Sesongjustert modell — placebo-koeffisienten er -0.9676 (p = 0.219). Dette er ikke signifikant, noe som styrker identifikasjonsstrategien.
 
 ![](figures/placebo_atid3.svg){fig-align='center' width=80%}
 
@@ -119,7 +120,7 @@ Sesongjustert modell — placebo-koeffisienten er -0.1954 (p = 0.024). **Advarse
 
 Begge modeller re-estimeres tolv ganger, én for hver region som droppes. Det skyggelagte feltet viser 95 %-konfidensintervallet for full-utvalgsmodellen.
 
-Sesongjustert modell: koeffisienten varierer mellom -0.3582 til -0.1174 når én region utelates.
+Sesongjustert modell: koeffisienten varierer mellom -0.0272 til 0.1673 når én region utelates.
 
 ![](figures/loo_atid3.svg){fig-align='center' width=95%}
 
@@ -127,28 +128,28 @@ Sesongjustert modell: koeffisienten varierer mellom -0.3582 til -0.1174 når én
 
 ### Deskriptiv statistikk
 
-|                      |   Gjennomsnitt |   Std.avvik |    Min |     Maks |
-|:---------------------|---------------:|------------:|-------:|---------:|
-| jobb3                |         -0.372 |       0.788 |  -2.28 |    2.361 |
-| Tiltaksnedgang (0–1) |          0.021 |       0.092 |   0    |    0.69  |
-| Tiltak (antall)      |        593.907 |     224.287 | 134    | 1224     |
+|                      |   Gjennomsnitt |   Std.avvik |     Min |      Maks |
+|:---------------------|---------------:|------------:|--------:|----------:|
+| jobb3                |         -0.446 |       2.375 |  -15.09 |    15.912 |
+| Tiltaksnedgang (0–1) |          0.012 |       0.05  |    0    |     0.355 |
+| Tiltak (antall)      |       5375.39  |    2111.26  | 2003    | 11907     |
 
 **Behandlingsvariabel per region (gjennomsnitt i post-perioden):**
 
 | Region                   |   Gj.snitt nedgang (0–1) |
 |:-------------------------|-------------------------:|
-| Nav Vest-Viken           |                    0.425 |
-| Nav Møre og Romsdal      |                    0.401 |
-| Nav Troms og Finnmark    |                    0.391 |
-| Nav Agder                |                    0.388 |
-| Nav Vestland             |                    0.378 |
-| Nav Rogaland             |                    0.341 |
-| Nav Oslo                 |                    0.317 |
-| Nav Trøndelag            |                    0.303 |
-| Nav Øst-Viken            |                    0.282 |
-| Nav Vestfold og Telemark |                    0.23  |
-| Nav Nordland             |                    0.158 |
-| Nav Innlandet            |                    0.1   |
+| Nav Møre og Romsdal      |                    0.289 |
+| Nav Oslo                 |                    0.224 |
+| Nav Vestland             |                    0.213 |
+| Nav Rogaland             |                    0.203 |
+| Nav Øst-Viken            |                    0.19  |
+| Nav Agder                |                    0.19  |
+| Nav Troms og Finnmark    |                    0.179 |
+| Nav Trøndelag            |                    0.169 |
+| Nav Vest-Viken           |                    0.161 |
+| Nav Nordland             |                    0.152 |
+| Nav Innlandet            |                    0.138 |
+| Nav Vestfold og Telemark |                    0.114 |
 
 ### Trender over tid
 
@@ -162,13 +163,13 @@ Koeffisienten for behandlingsvariabelen angir estimert effekt av å gå fra null
 
 | Modell        |   Koeffisient |   Std.feil (CR1) |   t-stat |   p (bootstrap) |   p (asymptotisk) | 95% KI            |   Obs. |   Clustere |
 |:--------------|--------------:|-----------------:|---------:|----------------:|------------------:|:------------------|-------:|-----------:|
-| Basis         |       -0.2814 |           0.7112 |   -0.396 |           0.741 |            0.6999 | [-1.8468, 1.2840] |    720 |         12 |
-| Sesongjustert |       -0.697  |           0.7266 |   -0.959 |           0.545 |            0.3581 | [-2.2963, 0.9023] |    720 |         12 |
+| Basis         |        0.913  |           0.6421 |    1.422 |           0.342 |            0.1828 | [-0.5003, 2.3262] |  14541 |         12 |
+| Sesongjustert |        0.3885 |           0.7787 |    0.499 |           0.621 |            0.6277 | [-1.3255, 2.1024] |  14541 |         12 |
 
 > **Signifikansnivå (bootstrap):** \* p < 0,10 &nbsp; \*\* p < 0,05 &nbsp; \*\*\* p < 0,01
 
-**Gjennomsnittlig pre-periode-nivå:** -0.4 % — koeffisienten tilsvarer en relativ endring på 197.1 %.  
-**Minimum detekterbar effekt (80 % styrke, α = 0,05):** ±2.24 pp.
+**Gjennomsnittlig pre-periode-nivå:** -0.4 % — koeffisienten tilsvarer en relativ endring på -90.7 %.
+**Minimum detekterbar effekt (80 % styrke, α = 0,05):** ±2.40 pp.
 
 ### Bootstrap-fordeling
 
@@ -178,9 +179,9 @@ Koeffisienten for behandlingsvariabelen angir estimert effekt av å gå fra null
 
 Stolpediagrammene viser koeffisientene for de faste effektene i den sesongjusterte modellen. Røde søyler er signifikante på 5 %-nivå.
 
-**Region FE**
+**Entitet FE**
 
-![](figures/fe_region_fe_jobb3.png){fig-align='center' width=90%}
+![](figures/fe_entitet_fe_jobb3.png){fig-align='center' width=90%}
 
 **Tidspunkt FE**
 
@@ -190,7 +191,7 @@ Stolpediagrammene viser koeffisientene for de faste effektene i den sesongjuster
 
 Eventsstudien samhandler periodevise indikatorer med en tidsinvariant intensitetsscore per region (maksimal tiltaksnedgang i post-perioden). Pre-periode-koeffisientene (τ < 0) bør ligge nær null dersom parallelle trender holder. Blå = basis, rød = sesongjustert modell.
 
-Det er **ikke** statistisk grunnlag for å forkaste parallelle trender (F(10,11) = 1.48, p = 0.266, sesongjustert modell).
+**Advarsel:** pre-trend-testen er signifikant (F(11,11) = 2170.29, p = 0.000), noe som svekker DiD-antakelsen.
 
 ![](figures/event_study_jobb3.svg){fig-align='center' width=95%}
 
@@ -198,7 +199,7 @@ Det er **ikke** statistisk grunnlag for å forkaste parallelle trender (F(10,11)
 
 Begge modeller re-estimeres med en falsk behandlingsstart tolv måneder tidligere, utelukkende i pre-perioden. Estimater nær null styrker antakelsen om at resultatene ikke skyldes pre-eksisterende trender.
 
-Sesongjustert modell — placebo-koeffisienten er -1.2632 (p = 0.001). **Advarsel:** placebo-estimatet er signifikant, noe som kan indikere pre-eksisterende trender.
+Sesongjustert modell — placebo-koeffisienten er -5.1933 (p = 0.265). Dette er ikke signifikant, noe som styrker identifikasjonsstrategien.
 
 ![](figures/placebo_jobb3.svg){fig-align='center' width=80%}
 
@@ -206,7 +207,7 @@ Sesongjustert modell — placebo-koeffisienten er -1.2632 (p = 0.001). **Advarse
 
 Begge modeller re-estimeres tolv ganger, én for hver region som droppes. Det skyggelagte feltet viser 95 %-konfidensintervallet for full-utvalgsmodellen.
 
-Sesongjustert modell: koeffisienten varierer mellom -1.1774 til 0.1574 når én region utelates.
+Sesongjustert modell: koeffisienten varierer mellom -0.1374 til 0.8628 når én region utelates.
 
 ![](figures/loo_jobb3.svg){fig-align='center' width=95%}
 

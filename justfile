@@ -28,7 +28,7 @@ render:
 
 # Publiser Quarto-boken til Datamarkedsplassen (krever TEAM_TOKEN_PROD, kjør `just render` først)
 publish:
-    uv run src/utils/publish.py 
+    uv run src/utils/publish.py
 
 # Kjør standard DiD-analyse for en gitt konfigurasjon (f.eks. `just did alle/alle-kontinuerlig`)
 did config='alle/alle-kontinuerlig':
@@ -57,10 +57,6 @@ merge-veiledning-enhet:
 # Slå sammen veiledning-grupper på fylkesnivå
 merge-veiledning-fylke:
     uv run python src/fetch_data/merge_veiledning.py
-
-[arg('image', pattern='chainguard_python.Dockerfile|Dockerfile')]
-build image='Dockerfile':
-    docker build -f {{image}} .
 
 # Sjekk etter sårbarheter i Python-avhengigheter
 audit:

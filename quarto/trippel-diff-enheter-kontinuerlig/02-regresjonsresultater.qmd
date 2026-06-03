@@ -23,8 +23,8 @@ To modellspesifikasjoner estimeres:
 | jobb3 | Sesongjustert | 4.6107*** | 1.2939 | 3.563 | 0.0044 | 0.0012 | [1.7629, 7.4585] | 24926 | 12 |
 
 ::: {.callout-note}
-Signifikansnivå basert på bootstrap p-verdi: \*\*\* p < 0,01; \*\* p < 0,05; \* p < 0,10.  
-Standardfeil er clustret på regionnivå (CR1 småutvalgskorrigering).  
+Signifikansnivå basert på bootstrap p-verdi: \*\*\* p < 0,01; \*\* p < 0,05; \* p < 0,10.
+Standardfeil er clustret på regionnivå (CR1 småutvalgskorrigering).
 Med et lavt antall clustere er bootstrap-p-verdien det primære inferensgrunnlaget.
 :::
 
@@ -39,7 +39,7 @@ Relativt til det gjennomsnittlige pre-periode-nivået (0.4592) tilsvarer dette e
 Basis-modellen gir koeffisient 1.2849 (bootstrap p = 0.006***).
 At de to modellene avviker noe fra hverandre gir et inntrykk av om sesongmønsteret spiller en rolle for resultatet.
 
-**Minimum detekterbar effekt (80 % styrke, α = 0,05):** ±1.1635 pp.  
+**Minimum detekterbar effekt (80 % styrke, α = 0,05):** ±1.1635 pp.
 **Gjennomsnittlig pre-periode-nivå:** 0.4592
 
 ## Detaljert: jobb3
@@ -53,6 +53,5 @@ Relativt til det gjennomsnittlige pre-periode-nivået (1.5201) tilsvarer dette e
 Basis-modellen gir koeffisient 3.5630 (bootstrap p = 0.004***).
 At de to modellene avviker noe fra hverandre gir et inntrykk av om sesongmønsteret spiller en rolle for resultatet.
 
-**Minimum detekterbar effekt (80 % styrke, α = 0,05):** ±3.9806 pp.  
+**Minimum detekterbar effekt (80 % styrke, α = 0,05):** ±3.9806 pp.
 **Gjennomsnittlig pre-periode-nivå:** 1.5201
-

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import logging
 from pathlib import Path
 from typing import Any
@@ -10,6 +9,13 @@ from typing import Any
 import numpy as np
 import pandas as pd
 import yaml
+from data_io import (
+    _convert_aarmnd_format,
+    _load_enhet_mapping,
+    _load_indicator_long,
+    _load_indicator_wide_to_long,
+    _load_tiltak_wide_to_long,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -22,20 +28,6 @@ def load_config(path: Path = CONFIG_PATH) -> dict[str, Any]:
     """Load the analysis config from *path*."""
     with open(path, encoding="utf-8") as f:
         return yaml.safe_load(f)  # type: ignore[no-any-return]
-
-
-def _convert_aarmnd_format(df: pd.DataFrame, date_col: str) -> pd.DataFrame:
-    """Convert *date_col* in *df* to YYYYMM format if it's in a recognised date format."""
-    if date_col in df.columns:
-        for fmt in ("%d-%m-%Y", "%Y-%m-%d"):
-            try:
-                df[date_col] = pd.to_datetime(df[date_col], format=fmt).dt.strftime(
-                    "%Y%m"
-                )
-                break
-            except ValueError, TypeError:
-                continue
-    return df
 
 
 def _add_time_features(df: pd.DataFrame, treatment_start: str) -> pd.DataFrame:
@@ -141,8 +133,11 @@ def build_treatment_variable(
 def _flatten_indicator_seasonally(df: pd.DataFrame) -> pd.DataFrame:
     """Seasonally flatten ``indikator`` using pre-treatment months only.
 
-    For each region and month_of_year:
-      indikator_flat = indikator - mean_pre(region, month) + mean_pre(region)
+    For each entity and month_of_year:
+      indikator_flat = indikator - mean_pre(entity, month) + mean_pre(entity)
+
+    Uses the ``entity`` column, which equals ``region`` for region-level panels
+    and ``enhet`` for enhet-level panels.
     """
     pre = df[df["relative_month"] < 0]
     if pre.empty:
@@ -150,32 +145,35 @@ def _flatten_indicator_seasonally(df: pd.DataFrame) -> pd.DataFrame:
             "Cannot flatten indikator: no pre-treatment observations available."
         )
 
-    region_mean = pre.groupby("region")["indikator"].mean().rename("pre_region_mean")
-    region_month_mean = (
-        pre.groupby(["region", "month_of_year"])["indikator"]
+    entity_mean = pre.groupby("entity")["indikator"].mean().rename("pre_entity_mean")
+    entity_month_mean = (
+        pre.groupby(["entity", "month_of_year"])["indikator"]
         .mean()
-        .rename("pre_region_month_mean")
+        .rename("pre_entity_month_mean")
     )
 
-    out = df.merge(region_mean, on="region", how="left")
-    out = out.merge(region_month_mean, on=["region", "month_of_year"], how="left")
+    out = df.merge(entity_mean, on="entity", how="left")
+    out = out.merge(entity_month_mean, on=["entity", "month_of_year"], how="left")
 
-    missing_means = out["pre_region_mean"].isna() | out["pre_region_month_mean"].isna()
+    missing_means = out["pre_entity_mean"].isna() | out["pre_entity_month_mean"].isna()
     if missing_means.any():
-        bad_regions = sorted(
-            out.loc[missing_means, "region"].dropna().unique().tolist()
+        bad_entities = sorted(
+            out.loc[missing_means, "entity"].dropna().unique().tolist()
         )
-        sample = ", ".join(bad_regions[:5])
-        raise ValueError(
-            "Cannot flatten indikator: missing pre-period seasonal means for "
-            f"{int(missing_means.sum())} observations across {len(bad_regions)} "
-            f"regions (examples: {sample})."
+        sample = ", ".join(bad_entities[:5])
+        logger.warning(
+            "Dropping %d observations across %d entities with missing pre-period "
+            "seasonal means (examples: %s).",
+            int(missing_means.sum()),
+            len(bad_entities),
+            sample,
         )
+        out = out[~missing_means]
 
     out["indikator"] = (
-        out["indikator"] - out["pre_region_month_mean"] + out["pre_region_mean"]
+        out["indikator"] - out["pre_entity_month_mean"] + out["pre_entity_mean"]
     )
-    return out.drop(columns=["pre_region_mean", "pre_region_month_mean"])
+    return out.drop(columns=["pre_entity_mean", "pre_entity_month_mean"])
 
 
 def prepare_panel(
@@ -187,6 +185,8 @@ def prepare_panel(
     denominator: str = "peak",
     flatten: bool = False,
     control_regions: list[str] | None = None,
+    analysis_level: str = "region",
+    enhet_mapping_path: Path | None = None,
     processed_path: Path | None = None,
 ) -> pd.DataFrame:
     """Prepare a panel DataFrame based on the specified indicator and tiltak data.
@@ -206,50 +206,63 @@ def prepare_panel(
         Only used when ``treatment_type="continuous"``.
     flatten:
         If ``True``, seasonally flatten ``indikator`` by subtracting each
-        region-month pre-treatment mean and adding the region pre-treatment mean.
+        entity-month pre-treatment mean and adding the entity pre-treatment mean.
     control_regions:
         List of region names that serve as the control group.
         Required when ``treatment_type="discrete"``.
+    analysis_level:
+        ``"region"`` (default) or ``"enhet"``.  For ``"enhet"``, the indicator
+        CSV is expected in long format (``aarmnd``, ``enhet``, ``indikator``)
+        and treatment is assigned at the region level via *enhet_mapping_path*.
+    enhet_mapping_path:
+        Path to ``enhetsmapping.json`` (required when ``analysis_level="enhet"``).
     processed_path:
         If given, save the prepared panel as CSV at this path.
+
+    Column contract for all downstream modules
+    ------------------------------------------
+    ``region``, ``aarmnd`` (datetime), ``indikator`` (float), ``tiltak`` (float),
+    ``tiltaksnedgang`` (float 0–1), ``relative_month`` (int),
+    ``post_treatment`` (bool), ``month_of_year`` (int), ``year`` (int),
+    ``entity`` (str — equals ``region`` at region level, ``enhet`` at enhet level).
     """
-    # Load data
-    indicator_df = pd.read_csv(indicator_path)
-    tiltak_df = pd.read_csv(tiltak_path)
+    tiltak_long = _load_tiltak_wide_to_long(tiltak_path)
 
-    # Strip surrounding quotes from tiltak column names and drop TOTAL
-    tiltak_df.columns = [c.strip("'") for c in tiltak_df.columns]
-    tiltak_df = tiltak_df.drop(columns=["TOTAL"], errors="ignore")
-    # Drop any duplicate header rows embedded in the CSV data, then re-cast numerics
-    tiltak_df = tiltak_df[tiltak_df["aarmnd"] != "aarmnd"].reset_index(drop=True)
-    for col in tiltak_df.columns:
-        if col != "aarmnd":
-            tiltak_df[col] = pd.to_numeric(tiltak_df[col], errors="coerce")
+    if analysis_level == "enhet":
+        if enhet_mapping_path is None:
+            raise ValueError(
+                "enhet_mapping_path is required when analysis_level='enhet'."
+            )
+        indicator_df = _load_indicator_long(indicator_path)
+        indicator_df = _convert_aarmnd_format(indicator_df, "aarmnd")
+        indicator_df["aarmnd"] = indicator_df["aarmnd"].astype(str)
 
-    # Standardize aarmnd to YYYYMM string format in both dataframes
-    indicator_df = _convert_aarmnd_format(indicator_df, "aarmnd")
-    tiltak_df = _convert_aarmnd_format(tiltak_df, "aarmnd")
-    indicator_df["aarmnd"] = indicator_df["aarmnd"].astype(str)
-    tiltak_df["aarmnd"] = tiltak_df["aarmnd"].astype(str)
+        mapping = _load_enhet_mapping(enhet_mapping_path)
+        indicator_df = indicator_df.merge(mapping, on="enhet", how="left")
+        unmapped = indicator_df["region"].isna().sum()
+        if unmapped > 0:
+            logger.warning("%d rows have no region mapping; dropping them.", unmapped)
+            indicator_df = indicator_df.dropna(subset=["region"])
 
-    # Convert from wide to long format so region becomes a column
-    indicator_df = indicator_df.melt(
-        id_vars=["aarmnd"], var_name="region", value_name="indikator"
-    )
-    tiltak_df = tiltak_df.melt(
-        id_vars=["aarmnd"], var_name="region", value_name="tiltak"
-    )
+        df = pd.merge(indicator_df, tiltak_long, on=["region", "aarmnd"], how="left")
+        df["entity"] = df["enhet"]
+    else:
+        indicator_df = pd.read_csv(indicator_path)
+        indicator_df = _convert_aarmnd_format(indicator_df, "aarmnd")
+        indicator_df["aarmnd"] = indicator_df["aarmnd"].astype(str)
+        indicator_df = indicator_df.melt(
+            id_vars=["aarmnd"], var_name="region", value_name="indikator"
+        )
 
-    # Merge datasets on common keys (e.g., region, month)
-    df = pd.merge(indicator_df, tiltak_df, on=["region", "aarmnd"], how="left")
-    # Feature engineering: Add time features, lags, etc.
+        df = pd.merge(indicator_df, tiltak_long, on=["region", "aarmnd"], how="left")
+        df["entity"] = df["region"]
+
     df = _add_time_features(df, treatment_start)
     if flatten:
         df = _flatten_indicator_seasonally(df)
     df = build_treatment_variable(
         df, treatment_type, denominator=denominator, control_regions=control_regions
     )
-    # Add more feature engineering steps here as needed.
 
     if processed_path is not None:
         processed_path.parent.mkdir(parents=True, exist_ok=True)
@@ -258,50 +271,6 @@ def prepare_panel(
 
 
 # ── Triple-diff data preparation ──────────────────────────────────────────────
-
-
-def _load_enhet_mapping(mapping_path: Path) -> pd.DataFrame:
-    """Load the enhet→region mapping from a JSON file.
-
-    Expected format: ``{"results": [{"items": [{"nav_enhet_navn": ..., "nav_region_navn": ...}]}]}``.
-
-    Returns a DataFrame with columns ``enhet`` and ``region``.
-    """
-    with open(mapping_path, encoding="utf-8") as f:
-        payload = json.load(f)
-    items = payload["results"][0]["items"]
-    df = pd.DataFrame(items).rename(
-        columns={"nav_enhet_navn": "enhet", "nav_region_navn": "region"}
-    )
-    df = df.dropna(subset=["enhet", "region"]).drop_duplicates(subset=["enhet"])
-    return df[["enhet", "region"]].copy()
-
-
-def _load_indicator_long(path: Path) -> pd.DataFrame:
-    """Load an indicator CSV that is already in long format.
-
-    Expected columns: ``aarmnd``, ``enhet`` (or entity column), ``indikator``.
-    """
-    df = pd.read_csv(path)
-    expected = {"aarmnd", "enhet", "indikator"}
-    if not expected.issubset(set(df.columns)):
-        raise ValueError(
-            f"Long-format indicator file {path} must have columns {expected}, "
-            f"found {set(df.columns)}"
-        )
-    return df
-
-
-def _load_indicator_wide_to_long(path: Path) -> pd.DataFrame:
-    """Load a wide-format indicator CSV and melt to long format.
-
-    Wide format: rows are months (aarmnd), columns are entity names.
-    Returns DataFrame with columns ``aarmnd``, ``region``, ``indikator``.
-    """
-    df = pd.read_csv(path)
-    df = _convert_aarmnd_format(df, "aarmnd")
-    df["aarmnd"] = df["aarmnd"].astype(str)
-    return df.melt(id_vars=["aarmnd"], var_name="region", value_name="indikator")
 
 
 def prepare_triple_diff_panel(
@@ -386,19 +355,7 @@ def prepare_triple_diff_panel(
         indicator_df = pd.concat([treated_df, control_df], ignore_index=True)
         indicator_df["entity"] = indicator_df["region"]
 
-    # Load tiltak (region-level)
-    tiltak_df = pd.read_csv(tiltak_path)
-    tiltak_df.columns = [c.strip("'") for c in tiltak_df.columns]
-    tiltak_df = tiltak_df.drop(columns=["TOTAL"], errors="ignore")
-    tiltak_df = tiltak_df[tiltak_df["aarmnd"] != "aarmnd"].reset_index(drop=True)
-    for col in tiltak_df.columns:
-        if col != "aarmnd":
-            tiltak_df[col] = pd.to_numeric(tiltak_df[col], errors="coerce")
-    tiltak_df = _convert_aarmnd_format(tiltak_df, "aarmnd")
-    tiltak_df["aarmnd"] = tiltak_df["aarmnd"].astype(str)
-    tiltak_long = tiltak_df.melt(
-        id_vars=["aarmnd"], var_name="region", value_name="tiltak"
-    )
+    tiltak_long = _load_tiltak_wide_to_long(tiltak_path)
 
     # Merge indicator with tiltak on region + aarmnd
     df = indicator_df.merge(tiltak_long, on=["region", "aarmnd"], how="left")
@@ -465,32 +422,3 @@ def _flatten_indicator_triple_diff(df: pd.DataFrame) -> pd.DataFrame:
 
     out["indikator"] = out["indikator"] - out["pre_egm_mean"] + out["pre_eg_mean"]
     return out.drop(columns=["pre_eg_mean", "pre_egm_mean"])
-
-
-if __name__ == "__main__":
-    cfg = load_config()
-    treatment_start = cfg["analysis"]["treatment_start"]
-    treatment_type = cfg["analysis"]["treatment_type"]
-    tiltak_path = Path(cfg["data"]["tiltak_file"])
-    prep_setups = cfg["analysis"].get(
-        "prep_setups", [{"id": "regular", "flatten": False}]
-    )
-
-    for ind in cfg["data"]["indikatorer"]:
-        for setup in prep_setups:
-            setup_id = setup.get("id", "regular")
-            flatten = bool(setup.get("flatten", False))
-            suffix = "" if setup_id == "regular" else f"__{setup_id}"
-            prepare_panel(
-                indicator_path=Path(ind["file"]),
-                tiltak_path=tiltak_path,
-                indicator_name=ind["name"],
-                treatment_start=treatment_start,
-                treatment_type=treatment_type,
-                denominator="peak",
-                flatten=flatten,
-                processed_path=Path(
-                    "data/processed/"
-                    f"panel_regioner_lønnstilskudd_{ind['name']}{suffix}.csv"
-                ),
-            )

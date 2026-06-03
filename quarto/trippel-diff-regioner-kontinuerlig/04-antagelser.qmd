@@ -98,4 +98,3 @@ Fullmodell-koeffisienten er **3.8037**.
 Koeffisienten varierer mellom **3.2435** og **4.3242** når én region utelates. Fortegnet er stabilt på tvers av alle utelatelser.
 
 ![Leave-one-out jobb3 (basis)](figures/loo_jobb3_basis.svg)
-

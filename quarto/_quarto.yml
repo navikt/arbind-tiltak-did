@@ -29,6 +29,7 @@ book:
     - regioner/nedsatt-arbeidsevne-kontinuerlig/report_nedsatt-arbeidsevne-kontinuerlig.qmd
     - regioner/trenger-veiledning-discrete/report_trenger-veiledning-discrete.qmd
     - regioner/trenger-veiledning-kontinuerlig/report_trenger-veiledning-kontinuerlig.qmd
+    - regioner/veiledning-kontinuerlig/report_veiledning-kontinuerlig.qmd
   - part: trippel-diff-regioner-kontinuerlig/intro.qmd
     chapters:
     - trippel-diff-regioner-kontinuerlig/01-deskriptiv.qmd

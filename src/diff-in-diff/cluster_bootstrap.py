@@ -80,15 +80,15 @@ def _build_fe_matrix(panel: pd.DataFrame) -> np.ndarray:
     -------
     2-D float array of shape (N, K_fe) including an intercept column.
     """
-    region_fe = pd.get_dummies(
-        panel["region"], prefix="r", drop_first=True, dtype=float
+    entity_fe = pd.get_dummies(
+        panel["entity"], prefix="e", drop_first=True, dtype=float
     )
     yearmonth_fe = pd.get_dummies(
         panel["aarmnd"].astype(str), prefix="t", drop_first=True, dtype=float
     )
     parts: list[np.ndarray] = [
         np.ones((len(panel), 1)),
-        region_fe.values,
+        entity_fe.values,
         yearmonth_fe.values,
     ]
 
@@ -187,6 +187,17 @@ def wild_cluster_bootstrap(
     bootstrap t-distribution, and the two-sided bootstrap p-value.
     """
     rng = np.random.default_rng(seed)
+
+    # Drop rows with NaN in y or treatment to match _estimate behaviour.
+    valid = pd.notnull(panel["indikator"]) & pd.notnull(panel["tiltaksnedgang"])
+    if not valid.all():
+        n_drop = int((~valid).sum())
+        logger.warning(
+            "wild_cluster_bootstrap: dropping %d/%d rows with NaN before bootstrap.",
+            n_drop,
+            len(panel),
+        )
+        panel = panel.loc[valid].reset_index(drop=True)
 
     y = panel["indikator"].astype(float).values
     x_raw = panel["tiltaksnedgang"].astype(float).values

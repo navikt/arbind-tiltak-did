@@ -140,16 +140,16 @@ def _build_event_study_regressors(
 
     X_es = pd.DataFrame(es_cols, index=panel.index)
 
-    # Region FE (drop first to avoid perfect collinearity)
-    region_fe = pd.get_dummies(
-        panel["region"], prefix="r", drop_first=True, dtype=float
+    # Entity FE (region or enhet — drop first to avoid perfect collinearity)
+    entity_fe = pd.get_dummies(
+        panel["entity"], prefix="e", drop_first=True, dtype=float
     )
     # Year-month FE (drop first)
     yearmonth_fe = pd.get_dummies(
         panel["aarmnd"].astype(str), prefix="t", drop_first=True, dtype=float
     )
 
-    X = pd.concat([X_es, region_fe, yearmonth_fe], axis=1)
+    X = pd.concat([X_es, entity_fe, yearmonth_fe], axis=1)
     # Drop structurally zero columns to reduce avoidable rank deficiency.
     nonzero_cols = X.columns[(X != 0.0).any(axis=0)]
     X = X.loc[:, nonzero_cols]
@@ -185,6 +185,19 @@ def run_event_study(panel: pd.DataFrame) -> EventStudyResult:
     X, es_col_names = _build_event_study_regressors(panel, intensity)
     y = panel["indikator"].astype(float)
     clusters = panel["region"]
+
+    # Drop rows with NaN to avoid degenerate covariance matrices.
+    valid = y.notna() & X.notna().all(axis=1)
+    if not valid.all():
+        n_drop = int((~valid).sum())
+        logger.warning(
+            "run_event_study: dropping %d/%d rows with NaN before fitting.",
+            n_drop,
+            len(y),
+        )
+        y = y.loc[valid].reset_index(drop=True)
+        X = X.loc[valid].reset_index(drop=True)
+        clusters = clusters.loc[valid].reset_index(drop=True)
 
     logger.info(
         "Fitting event study: %d obs, %d regressors (%d ES interactions), %d clusters",
