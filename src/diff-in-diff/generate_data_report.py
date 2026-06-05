@@ -22,6 +22,7 @@ from pathlib import Path
 import matplotlib as mpl
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 from statsmodels.tsa.seasonal import STL
 from report.utils import RED as _RED
@@ -128,14 +129,21 @@ def _plot_tiltak_sa_trend(
 ) -> None:
     """Plot raw vs. STL-seasonally-adjusted national total.
 
-    Uses ``statsmodels.tsa.seasonal.STL`` with ``period=12`` and ``robust=True``
-    on the sum over all regions.  The seasonally adjusted series is
-    raw − seasonal component.
+    The seasonal amplitude in alle-tiltak grows proportionally with the level
+    (multiplicative seasonality), so STL is applied to ``log(total)`` and the
+    SA series is back-transformed: ``exp(log_total − seasonal_log)``.  This
+    approach keeps the seasonal correction proportional to the level rather than
+    assuming a constant additive seasonal swing.
+
+    STL settings: ``period=12``, ``seasonal=13`` (one extra for stability),
+    ``robust=True``.
     """
     total = df.set_index("aarmnd")[regions].sum(axis=1).sort_index()
-    stl = STL(total, period=12, robust=True)
-    res = stl.fit()
-    sa = total - res.seasonal
+    total.index = pd.DatetimeIndex(total.index, freq="MS")
+
+    log_total = np.log(total)
+    res = STL(log_total, period=12, seasonal=13, robust=True).fit()
+    sa = np.exp(log_total - res.seasonal)
 
     fig, ax = plt.subplots(figsize=(10, 4))
     ax.plot(total.index, total.values, label="Rå total", color=_LIGHT_BLUE, linewidth=1.2, alpha=0.7)
@@ -356,10 +364,11 @@ def _section_tiltak_chapter(
     lines += [
         "## Sesongkorrigert tiltaksbruk",
         "",
-        "Nasjonal total (sum over alle regioner). Sesongkorrigering med STL "
-        "(`period=12`, `robust=True`): serien viser rådata minus den estimerte "
-        "sesongkomponenten. Den sesongkorrigerte kurven tydeliggjør den strukturelle "
-        "trenden uten månedlige svingninger.",
+        "Nasjonal total (sum over alle regioner). Sesongkorrigering med STL på "
+        "log-transformerte verdier (`period=12`, `seasonal=13`, `robust=True`). "
+        "Fordi den sesongmessige svingningen vokser proporsjonalt med nivået "
+        "(multiplikativ sesong), passer log-transformasjon bedre enn additiv STL. "
+        "Den sesongkorrigerte kurven tydeliggjør den strukturelle trenden.",
         "",
         f"![]({_rel(fig_sa, report_dir)}){{fig-align='center' width=95%}}",
         "",
