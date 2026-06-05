@@ -1,0 +1,35 @@
+analysis:
+  title: TrippelDiD | Midl. lønnstilskudd | Enheter | Kontinuerlig
+  treatment_start: '202506'
+  data_start: '202010'
+  data_end: '202509'
+  treatment_type: continuous
+  variation: triple-diff/midl-lonnstilskudd/enheter
+  design: triple_diff
+  analysis_level: enhet
+  treated_group: Veiledning kombinert
+  control_group: Standard
+  denominator_definitions:
+  - id: last_pre
+    label: Siste pre-måned (t-1)
+data:
+  tiltak_file: data/raw/tiltak/midl.-lønnstilskudd.csv
+  tiltak_label: Midlertidig lønnstilskudd
+  enhet_mapping_file: data/pre/enhetsmapping.json
+  indikatorer:
+  - name: atid3
+    group: treated
+    file: data/raw/indikatorer/enhet/nedbrytning/veiledning_kombinert/atid3.csv
+    description: Arbeidstid neste tre måneder (Veiledning kombinert, enheter)
+  - name: atid3
+    group: control
+    file: data/raw/indikatorer/enhet/nedbrytning/standard/atid3.csv
+    description: Arbeidstid neste tre måneder (Standard, enheter)
+  - name: jobb3
+    group: treated
+    file: data/raw/indikatorer/enhet/nedbrytning/veiledning_kombinert/jobb3.csv
+    description: I jobb etter 3 måneder (Veiledning kombinert, enheter)
+  - name: jobb3
+    group: control
+    file: data/raw/indikatorer/enhet/nedbrytning/standard/jobb3.csv
+    description: I jobb etter 3 måneder (Standard, enheter)

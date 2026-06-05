@@ -19,13 +19,15 @@ import numpy as np
 import pandas as pd
 import yaml
 from quarto_utils import _update_quarto_chapters, _update_quarto_triple_diff_chapters
-from table_output import _save_coefficients_table, _save_regression_table
+from report.table_output import _save_coefficients_table, _save_regression_table
 
 # ── Project paths ──────────────────────────────────────────────────────────────
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 CONFIGS_DIR = Path(__file__).parent / "configs"
-DEFAULT_CONFIG = CONFIGS_DIR / "alle" / "alle-kontinuerlig.yml"
+DEFAULT_CONFIG = (
+    CONFIGS_DIR / "did" / "midl-lonnstilskudd" / "alle" / "kontinuerlig.yml"
+)
 DATA_PROCESSED_BASE = PROJECT_ROOT / "data" / "processed"
 OUTPUTS_DID_BASE = PROJECT_ROOT / "outputs" / "did"
 QUARTO_DIR = PROJECT_ROOT / "quarto"
@@ -49,7 +51,10 @@ def _load_config(path: Path = DEFAULT_CONFIG) -> dict[str, Any]:
         raise FileNotFoundError(
             f"Config file not found: {path}\n"
             f"Available configs in configs/:\n"
-            + "\n".join(f"  {p.name}" for p in sorted(CONFIGS_DIR.glob("*.yml")))
+            + "\n".join(
+                f"  {p.relative_to(CONFIGS_DIR)}"
+                for p in sorted(CONFIGS_DIR.rglob("*.yml"))
+            )
         )
     with open(path, encoding="utf-8") as f:
         return yaml.safe_load(f)  # type: ignore[no-any-return]
@@ -79,8 +84,22 @@ def _parse_args() -> argparse.Namespace:
 
 
 def _config_slug(cfg_path: Path) -> str:
-    """Return a filesystem-safe slug based on config filename."""
-    return re.sub(r"[^a-z0-9._-]+", "_", cfg_path.stem.lower()).strip("_")
+    """Return a filesystem-safe slug derived from the config path relative to CONFIGS_DIR.
+
+    Uses the path components relative to ``CONFIGS_DIR``, joined with ``--``, so that
+    short filenames like ``kontinuerlig.yml`` remain unique across different subdirectories.
+
+    Example: ``did/midl-lonnstilskudd/alle/kontinuerlig.yml``
+             → ``did--midl-lonnstilskudd--alle--kontinuerlig``
+
+    Falls back to the bare stem if the path is not under ``CONFIGS_DIR``.
+    """
+    try:
+        rel = cfg_path.with_suffix("").relative_to(CONFIGS_DIR)
+        raw = "--".join(rel.parts)
+    except ValueError:
+        raw = cfg_path.stem
+    return re.sub(r"[^a-z0-9._-]+", "_", raw.lower()).strip("_")
 
 
 def _variation_from_cfg(cfg: dict[str, Any]) -> str:
@@ -588,7 +607,7 @@ def _run_single_config(cfg_path: Path) -> int:
 
         if design == "triple_diff":
             logger.info("Generating triple-diff report")
-            from report_triple_diff import generate_triple_diff_report
+            from report.triple_diff import generate_triple_diff_report
 
             generate_triple_diff_report(
                 all_results=all_results,
@@ -600,7 +619,7 @@ def _run_single_config(cfg_path: Path) -> int:
             logger.info("Triple-diff report chapters written to %s", report_dir)
         else:
             logger.info("Generating report")
-            from report import generate_report
+            from report.did import generate_report
 
             report_path = report_dir / f"report_{config_slug}.qmd"
             generate_report(
@@ -631,9 +650,9 @@ def _run_single_config(cfg_path: Path) -> int:
         shutil.copytree(tables_dir, final_tables)
 
         # Report + figures → quarto/<variation>/<slug>/ (standard DiD)
-        # or quarto/<slug>/ (triple-diff, own top-level folder)
+        # or quarto/<variation>/ (triple-diff, variation encodes the full section path)
         if design == "triple_diff":
-            quarto_output_dir = QUARTO_DIR / config_slug
+            quarto_output_dir = QUARTO_DIR / variation
         else:
             quarto_output_dir = QUARTO_DIR / variation / config_slug
         if quarto_output_dir.exists():
@@ -646,7 +665,7 @@ def _run_single_config(cfg_path: Path) -> int:
         logger.info("Report promoted to %s", quarto_output_dir)
 
         if design == "triple_diff":
-            _update_quarto_triple_diff_chapters(QUARTO_DIR, config_slug)
+            _update_quarto_triple_diff_chapters(QUARTO_DIR, variation)
         else:
             _update_quarto_chapters(QUARTO_DIR, variation)
         exit_code = 0
@@ -675,7 +694,7 @@ def main() -> int:
     resolved = _resolve_path(args.config_flag or args.config)
 
     if resolved.is_dir():
-        cfg_paths = sorted(resolved.glob("*.yml"))
+        cfg_paths = sorted(resolved.rglob("*.yml"))
         if not cfg_paths:
             logger.error("No .yml config files found in %s", resolved)
             return 1

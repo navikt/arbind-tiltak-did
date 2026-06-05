@@ -62,6 +62,10 @@ merge-veiledning-fylke:
 audit:
     uv run --all-groups --with pip-audit pip-audit --local
 
+# Generer data-seksjonen i Quarto-boken
+data-report:
+    cd src/diff-in-diff && uv run python generate_data_report.py
+
 # Kjør tester
 test:
     uv run --dev pytest tests/ -v

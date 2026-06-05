@@ -1,3 +1,0 @@
-# Trippel-diff
-
-Denne kombinerer de to forrige tilnærmingene. Ikke gjennomført ennå.

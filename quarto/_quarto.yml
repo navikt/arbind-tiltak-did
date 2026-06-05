@@ -11,37 +11,44 @@ book:
   author: Jacob Sjødin
   chapters:
   - index.qmd
-  - part: regioner/intro.qmd
+  - part: data/intro.qmd
     chapters:
-    - regioner/alle-discrete/report_alle-discrete.qmd
-    - regioner/alle-kontinuerlig/report_alle-kontinuerlig.qmd
-    - regioner/faktisk-alle-kontinuerlig/report_faktisk-alle-kontinuerlig.qmd
-    - regioner/faktisk-gode-muligheter-kontinuerlig/report_faktisk-gode-muligheter-kontinuerlig.qmd
-    - regioner/faktisk-nedsatt-arbeidsevne-kontinuerlig/report_faktisk-nedsatt-arbeidsevne-kontinuerlig.qmd
-    - regioner/faktisk-trenger-veiledning-kontinuerlig/report_faktisk-trenger-veiledning-kontinuerlig.qmd
-    - regioner/forventet-alle-kontinuerlig/report_forventet-alle-kontinuerlig.qmd
-    - regioner/forventet-gode-muligheter-kontinuerlig/report_forventet-gode-muligheter-kontinuerlig.qmd
-    - regioner/forventet-nedsatt-arbeidsevne-kontinuerlig/report_forventet-nedsatt-arbeidsevne-kontinuerlig.qmd
-    - regioner/forventet-trenger-veiledning-kontinuerlig/report_forventet-trenger-veiledning-kontinuerlig.qmd
-    - regioner/gode-muligheter-discrete/report_gode-muligheter-discrete.qmd
-    - regioner/gode-muligheter-kontinuerlig/report_gode-muligheter-kontinuerlig.qmd
-    - regioner/nedsatt-arbeidsevne-discrete/report_nedsatt-arbeidsevne-discrete.qmd
-    - regioner/nedsatt-arbeidsevne-kontinuerlig/report_nedsatt-arbeidsevne-kontinuerlig.qmd
-    - regioner/trenger-veiledning-discrete/report_trenger-veiledning-discrete.qmd
-    - regioner/trenger-veiledning-kontinuerlig/report_trenger-veiledning-kontinuerlig.qmd
-    - regioner/veiledning-kontinuerlig/report_veiledning-kontinuerlig.qmd
-  - part: trippel-diff-regioner-kontinuerlig/intro.qmd
+    - data/tiltak-midl-lonnstilskudd.qmd
+    - data/tiltak-alle-tiltak.qmd
+    - data/indikatorer.qmd
+  - part: did/midl-lonnstilskudd/intro.qmd
     chapters:
-    - trippel-diff-regioner-kontinuerlig/01-deskriptiv.qmd
-    - trippel-diff-regioner-kontinuerlig/02-regresjonsresultater.qmd
-    - trippel-diff-regioner-kontinuerlig/03-bootstrap.qmd
-    - trippel-diff-regioner-kontinuerlig/04-antagelser.qmd
-  - part: trippel-diff-enheter-kontinuerlig/intro.qmd
+    - did/midl-lonnstilskudd/alle--diskret/report_alle--diskret.qmd
+    - did/midl-lonnstilskudd/alle--faktisk-kontinuerlig/report_alle--faktisk-kontinuerlig.qmd
+    - did/midl-lonnstilskudd/alle--forventet-kontinuerlig/report_alle--forventet-kontinuerlig.qmd
+    - did/midl-lonnstilskudd/standard--kontinuerlig/report_standard--kontinuerlig.qmd
+    - did/midl-lonnstilskudd/standard--diskret/report_standard--diskret.qmd
+    - did/midl-lonnstilskudd/standard--faktisk-kontinuerlig/report_standard--faktisk-kontinuerlig.qmd
+    - did/midl-lonnstilskudd/standard--forventet-kontinuerlig/report_standard--forventet-kontinuerlig.qmd
+    - did/midl-lonnstilskudd/situasjonsbestemt--kontinuerlig/report_situasjonsbestemt--kontinuerlig.qmd
+    - did/midl-lonnstilskudd/situasjonsbestemt--diskret/report_situasjonsbestemt--diskret.qmd
+    - did/midl-lonnstilskudd/situasjonsbestemt--faktisk-kontinuerlig/report_situasjonsbestemt--faktisk-kontinuerlig.qmd
+    - did/midl-lonnstilskudd/situasjonsbestemt--forventet-kontinuerlig/report_situasjonsbestemt--forventet-kontinuerlig.qmd
+    - did/midl-lonnstilskudd/spesielt-tilpasset--diskret/report_spesielt-tilpasset--diskret.qmd
+    - did/midl-lonnstilskudd/spesielt-tilpasset--faktisk-kontinuerlig/report_spesielt-tilpasset--faktisk-kontinuerlig.qmd
+    - did/midl-lonnstilskudd/spesielt-tilpasset--forventet-kontinuerlig/report_spesielt-tilpasset--forventet-kontinuerlig.qmd
+  - part: did/alle-tiltak/intro.qmd
     chapters:
-    - trippel-diff-enheter-kontinuerlig/01-deskriptiv.qmd
-    - trippel-diff-enheter-kontinuerlig/02-regresjonsresultater.qmd
-    - trippel-diff-enheter-kontinuerlig/03-bootstrap.qmd
-    - trippel-diff-enheter-kontinuerlig/04-antagelser.qmd
+    - did/alle-tiltak/alle--kontinuerlig/report_alle--kontinuerlig.qmd
+    - did/alle-tiltak/spesielt-tilpasset--kontinuerlig/report_spesielt-tilpasset--kontinuerlig.qmd
+    - did/alle-tiltak/veiledning-kombinert--kontinuerlig/report_veiledning-kombinert--kontinuerlig.qmd
+  - part: triple-diff/midl-lonnstilskudd/regioner/intro.qmd
+    chapters:
+    - triple-diff/midl-lonnstilskudd/regioner/01-deskriptiv.qmd
+    - triple-diff/midl-lonnstilskudd/regioner/02-regresjonsresultater.qmd
+    - triple-diff/midl-lonnstilskudd/regioner/03-bootstrap.qmd
+    - triple-diff/midl-lonnstilskudd/regioner/04-antagelser.qmd
+  - part: triple-diff/midl-lonnstilskudd/enheter/intro.qmd
+    chapters:
+    - triple-diff/midl-lonnstilskudd/enheter/01-deskriptiv.qmd
+    - triple-diff/midl-lonnstilskudd/enheter/02-regresjonsresultater.qmd
+    - triple-diff/midl-lonnstilskudd/enheter/03-bootstrap.qmd
+    - triple-diff/midl-lonnstilskudd/enheter/04-antagelser.qmd
   page-navigation: true
   page-footer: Nav - {{< meta date >}}
   repo-url: https://github.com/navikt/arbind-tiltak-did

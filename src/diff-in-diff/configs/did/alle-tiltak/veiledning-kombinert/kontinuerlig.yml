@@ -1,0 +1,22 @@
+analysis:
+  title: DiD | Alle tiltak | Veiledning kombinert | Kontinuerlig
+  treatment_start: '202506'
+  data_start: '202306'
+  data_end: '202509'
+  treatment_type: continuous
+  variation: did/alle-tiltak
+  analysis_level: enhet
+  denominator_definitions:
+  - id: last_pre
+    label: Siste pre-måned (t-1)
+data:
+  tiltak_file: data/raw/tiltak/alle-tiltak.csv
+  tiltak_label: Alle tiltak
+  enhet_mapping_file: data/pre/enhetsmapping.json
+  indikatorer:
+  - name: atid3
+    file: data/raw/indikatorer/enhet/nedbrytning/veiledning_kombinert/atid3.csv
+    description: Arbeidstid neste tre måneder
+  - name: jobb3
+    file: data/raw/indikatorer/enhet/nedbrytning/veiledning_kombinert/jobb3.csv
+    description: I jobb etter 3 måneder

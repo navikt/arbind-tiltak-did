@@ -1,0 +1,20 @@
+analysis:
+  title: DiD | Midl. lønnstilskudd | Situasjonsbestemt | Faktisk | Kontinuerlig
+  treatment_start: '202506'
+  data_start: '202010'
+  data_end: '202509'
+  treatment_type: continuous
+  variation: did/midl-lonnstilskudd
+  denominator_definitions:
+  - id: last_pre
+    label: Siste pre-måned (t-1)
+data:
+  tiltak_file: data/raw/tiltak/midl.-lønnstilskudd.csv
+  tiltak_label: Midlertidig lønnstilskudd
+  indikatorer:
+  - name: atid3
+    file: data/raw/indikatorer/nedbrytning/situasjonsbestemt/faktisk_atid3.csv
+    description: Arbeidstid neste tre måneder
+  - name: jobb3
+    file: data/raw/indikatorer/nedbrytning/situasjonsbestemt/faktisk_jobb3.csv
+    description: I jobb etter 3 måneder
