@@ -6,7 +6,7 @@ title: "Tiltaksdata: Alle tiltak"
 
 **Alle tiltak** er summen av samtlige arbeidsmarkedstiltak Nav tilbyr, inkludert lønnstilskudd, arbeidspraksis, opplæringstiltak og oppfølgingstiltak. Disse dataene gir et bredere bilde av tiltaksaktiviteten enn midlertidig lønnstilskudd alene.
 
-Disse dataene brukes som **behandlingsvariabel** i analysene under *DiD – Alle tiltak*-seksjonen.
+Disse dataene brukes som **behandlingsvariabel** i analysene under *DiD – Alle tiltak*-seksjonen. Behandlingsvariabelen er beregnet fra sesongkorrigerte tiltakstall (multiplikativ STL) for å unngå skjevhet fra sommer-dip-effekter som varierer med regioners nivå.
 
 | Egenskap | Verdi |
 |---|---|
@@ -24,9 +24,26 @@ Deltakere i *alle tiltak* per region. Stiplet linje = behandlingsstart (2025-06)
 
 ## Sesongkorrigert tiltaksbruk
 
-Nasjonal total (sum over alle regioner). Sesongkorrigering med STL på log-transformerte verdier (`period=12`, `seasonal=13`, `robust=True`). Fordi den sesongmessige svingningen vokser proporsjonalt med nivået (multiplikativ sesong), passer log-transformasjon bedre enn additiv STL. Den sesongkorrigerte kurven tydeliggjør den strukturelle trenden.
+Sesongkorrigering med STL på log-transformerte verdier (`period=12`, `seasonal=13`, `robust=True`). Fordi sesongsvingningen vokser proporsjonalt med nivået (multiplikativ sesong), passer log-transformasjon bedre enn additiv STL.
+
+**STL tilpasses den nasjonale totalen** (sum over alle regioner). Den estimerte multiplikative sesongfaktoren for hver måned brukes deretter likt på alle regioner — det vil si at hver regions råverdi divideres med den samme nasjonale faktoren. Dette innebærer en forutsetning om at sesongmønsteret er proporsjonalt likt på tvers av regioner, noe regionplottene under kan brukes til å vurdere.
+
+To varianter vises:
+
+| Serie | Metode |
+|---|---|
+| **SK – full serie** (brukes i analysen) | STL tilpasset hele serien; `robust=True` demper outlier-innflytelse fra post-perioden |
+| **SK – kun pre-periode** | STL tilpasset kun pre-perioden; sesongfaktorer per kalendermåned ekstrapoleres til post-perioden |
+
+Likheten mellom de to viser i hvilken grad den estimerte sesongen er stabil over tid.
 
 ![](figures/alle_sa.svg){fig-align='center' width=95%}
+
+### Sesongkorrigering per region
+
+Samme tre serier som over, men vist separat per region. Fordi alle regioner deles med den *samme* nasjonale sesongfaktoren, reflekterer regionplottene kun regionenes egne nivåer — ikke regionale avvik i sesongmønster. Plottene er nyttige for å vurdere om forutsetningen om felles sesongmønster virker rimelig.
+
+![](figures/alle_sa_regioner.svg){fig-align='center' width=100%}
 
 ## Regional fordeling (pre-periode)
 

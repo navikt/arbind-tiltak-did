@@ -22,12 +22,6 @@ Deltakere i *midlertidig lønnstilskudd* per region. Stiplet linje = behandlings
 
 ![](figures/midl_trend_regioner.svg){fig-align='center' width=95%}
 
-## Sesongkorrigert tiltaksbruk
-
-Nasjonal total (sum over alle regioner). Sesongkorrigering med STL på log-transformerte verdier (`period=12`, `seasonal=13`, `robust=True`). Fordi den sesongmessige svingningen vokser proporsjonalt med nivået (multiplikativ sesong), passer log-transformasjon bedre enn additiv STL. Den sesongkorrigerte kurven tydeliggjør den strukturelle trenden.
-
-![](figures/midl_sa.svg){fig-align='center' width=95%}
-
 ## Regional fordeling (pre-periode)
 
 Gjennomsnittlig månedlig deltakerantall per region i perioden før behandlingsstart.

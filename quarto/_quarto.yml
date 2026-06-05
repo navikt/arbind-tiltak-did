@@ -35,6 +35,7 @@ book:
   - part: did/alle-tiltak/intro.qmd
     chapters:
     - did/alle-tiltak/alle--kontinuerlig/report_alle--kontinuerlig.qmd
+    - did/alle-tiltak/did--alle-tiltak--veiledning-kombinert--kontinuerlig/report_did--alle-tiltak--veiledning-kombinert--kontinuerlig.qmd
     - did/alle-tiltak/spesielt-tilpasset--kontinuerlig/report_spesielt-tilpasset--kontinuerlig.qmd
     - did/alle-tiltak/veiledning-kombinert--kontinuerlig/report_veiledning-kombinert--kontinuerlig.qmd
   - part: triple-diff/midl-lonnstilskudd/regioner/intro.qmd

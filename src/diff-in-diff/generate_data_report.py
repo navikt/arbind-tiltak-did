@@ -22,9 +22,8 @@ from pathlib import Path
 import matplotlib as mpl
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
-from statsmodels.tsa.seasonal import STL
+from data_io import _load_tiltak_wide_to_long as _load_tiltak_sa
 from report.utils import RED as _RED
 from report.utils import BLUE as _BLUE
 from report.utils import LIGHT_BLUE as _LIGHT_BLUE
@@ -125,30 +124,47 @@ def _plot_tiltak_trends(df: pd.DataFrame, regions: list[str], title: str, fig_pa
 
 
 def _plot_tiltak_sa_trend(
-    df: pd.DataFrame, regions: list[str], title: str, fig_path: Path
+    tiltak_path: Path, title: str, fig_path: Path
 ) -> None:
-    """Plot raw vs. STL-seasonally-adjusted national total.
+    """Plot raw vs. two STL-seasonally-adjusted national totals.
 
-    The seasonal amplitude in alle-tiltak grows proportionally with the level
-    (multiplicative seasonality), so STL is applied to ``log(total)`` and the
-    SA series is back-transformed: ``exp(log_total − seasonal_log)``.  This
-    approach keeps the seasonal correction proportional to the level rather than
-    assuming a constant additive seasonal swing.
+    Shows three series so the reader can compare:
+    - Raw total (unajusted)
+    - SA full series: STL fit on all observations (current analysis default)
+    - SA pre-period only: STL fit on pre-treatment months, seasonal factors
+      extrapolated by calendar month to post-treatment months
 
-    STL settings: ``period=12``, ``seasonal=13`` (one extra for stability),
-    ``robust=True``.
+    All three use the same underlying data loaded via
+    :func:`data_io._load_tiltak_wide_to_long` — the same function used by the
+    analysis pipeline.
     """
-    total = df.set_index("aarmnd")[regions].sum(axis=1).sort_index()
-    total.index = pd.DatetimeIndex(total.index, freq="MS")
+    raw_long = _load_tiltak_sa(tiltak_path, seasonal_adjust=False)
+    sa_full_long = _load_tiltak_sa(tiltak_path, seasonal_adjust=True,
+                                   seasonal_adjust_pre_only=False)
+    sa_pre_long = _load_tiltak_sa(tiltak_path, seasonal_adjust=True,
+                                  seasonal_adjust_pre_only=True)
 
-    log_total = np.log(total)
-    res = STL(log_total, period=12, seasonal=13, robust=True).fit()
-    sa = np.exp(log_total - res.seasonal)
+    def _total(long: pd.DataFrame) -> pd.DataFrame:
+        return (
+            long.groupby("aarmnd")["tiltak"]
+            .sum()
+            .reset_index()
+            .assign(dato=lambda d: pd.to_datetime(d["aarmnd"], format="%Y%m"))
+            .sort_values("dato")
+        )
+
+    raw_total = _total(raw_long)
+    sa_full_total = _total(sa_full_long)
+    sa_pre_total = _total(sa_pre_long)
 
     fig, ax = plt.subplots(figsize=(10, 4))
-    ax.plot(total.index, total.values, label="Rå total", color=_LIGHT_BLUE, linewidth=1.2, alpha=0.7)
-    ax.plot(sa.index, sa.values, label="Sesongkorrigert", color=_BLUE, linewidth=1.5)
-    ax.axvline(TREATMENT_START_DATE, color="black", linestyle="--", linewidth=1.2)
+    ax.plot(raw_total["dato"], raw_total["tiltak"],
+            label="Rå total", color=_LIGHT_BLUE, linewidth=1.2, alpha=0.7)
+    ax.plot(sa_full_total["dato"], sa_full_total["tiltak"],
+            label="SK – full serie (analyse)", color=_BLUE, linewidth=1.5)
+    ax.plot(sa_pre_total["dato"], sa_pre_total["tiltak"],
+            label="SK – kun pre-periode", color=_RED, linewidth=1.5, linestyle="--")
+    ax.axvline(TREATMENT_START_DATE, color="black", linestyle=":", linewidth=1.2)
     ax.set_title(title, fontsize=12)
     ax.set_ylabel("Antall deltakere (sum alle regioner)")
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m"))
@@ -157,9 +173,77 @@ def _plot_tiltak_sa_trend(
     from matplotlib.lines import Line2D
     handles = ax.get_legend_handles_labels()[0]
     labels = ax.get_legend_handles_labels()[1]
-    handles.append(Line2D([0], [0], color="black", linestyle="--", linewidth=1.2))
+    handles.append(Line2D([0], [0], color="black", linestyle=":", linewidth=1.2))
     labels.append("Behandlingsstart (2025-06)")
     ax.legend(handles, labels, fontsize=9)
+    plt.tight_layout()
+    _save_fig(fig, fig_path)
+
+
+def _plot_sa_regions(
+    tiltak_path: Path, title: str, fig_path: Path
+) -> None:
+    """Small-multiples plot: raw vs. both SA variants for every region.
+
+    Each subplot covers one Nav region.  Shows the same three series as
+    :func:`_plot_tiltak_sa_trend` (raw, full-series SA, pre-only SA) so the
+    reader can judge whether the seasonal correction is consistent across
+    regions.
+    """
+    import numpy as np
+
+    raw_long = _load_tiltak_sa(tiltak_path, seasonal_adjust=False)
+    sa_full_long = _load_tiltak_sa(tiltak_path, seasonal_adjust=True,
+                                   seasonal_adjust_pre_only=False)
+    sa_pre_long = _load_tiltak_sa(tiltak_path, seasonal_adjust=True,
+                                  seasonal_adjust_pre_only=True)
+
+    def _pivot(long: pd.DataFrame) -> pd.DataFrame:
+        return (
+            long.assign(dato=lambda d: pd.to_datetime(d["aarmnd"], format="%Y%m"))
+            .pivot(index="dato", columns="region", values="tiltak")
+            .sort_index()
+        )
+
+    raw_p = _pivot(raw_long)
+    sf_p = _pivot(sa_full_long)
+    sp_p = _pivot(sa_pre_long)
+    regions = sorted(raw_p.columns)
+
+    n = len(regions)
+    ncols = 3
+    nrows = int(np.ceil(n / ncols))
+    fig, axes = plt.subplots(nrows, ncols, figsize=(14, nrows * 3), sharex=True)
+    axes_flat = axes.flatten()
+
+    for i, region in enumerate(regions):
+        ax = axes_flat[i]
+        ax.plot(raw_p.index, raw_p[region],
+                color=_LIGHT_BLUE, linewidth=1.0, alpha=0.7, label="Rå")
+        ax.plot(sf_p.index, sf_p[region],
+                color=_BLUE, linewidth=1.3, label="SK – full serie")
+        ax.plot(sp_p.index, sp_p[region],
+                color=_RED, linewidth=1.3, linestyle="--", label="SK – pre-periode")
+        ax.axvline(TREATMENT_START_DATE, color="black", linestyle=":", linewidth=0.9)
+        short = region.replace("Nav ", "")
+        ax.set_title(short, fontsize=9)
+        ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
+        ax.xaxis.set_major_locator(mdates.YearLocator())
+        ax.tick_params(labelsize=7)
+
+    # Hide unused subplots
+    for j in range(i + 1, len(axes_flat)):
+        axes_flat[j].set_visible(False)
+
+    # Shared legend
+    handles, labels = axes_flat[0].get_legend_handles_labels()
+    from matplotlib.lines import Line2D
+    handles.append(Line2D([0], [0], color="black", linestyle=":", linewidth=0.9))
+    labels.append("Behandlingsstart")
+    fig.legend(handles, labels, loc="lower right", fontsize=9,
+               bbox_to_anchor=(0.98, 0.01))
+
+    fig.suptitle(title, fontsize=11, y=1.01)
     plt.tight_layout()
     _save_fig(fig, fig_path)
 
@@ -314,6 +398,8 @@ def _section_tiltak_chapter(
     description: str,
     regions: list[str],
     df: pd.DataFrame,
+    tiltak_path: Path,
+    sa_plot: bool,
     figures_dir: Path,
     report_dir: Path,
     fig_prefix: str,
@@ -354,25 +440,61 @@ def _section_tiltak_chapter(
         "",
     ]
 
-    # Seasonally adjusted figure
-    fig_sa = figures_dir / f"{fig_prefix}_sa.svg"
-    _plot_tiltak_sa_trend(
-        df, regions,
-        f"Sesongkorrigert tiltaksbruk (STL, nasjonal total) – {tiltak_label}",
-        fig_sa,
-    )
-    lines += [
-        "## Sesongkorrigert tiltaksbruk",
-        "",
-        "Nasjonal total (sum over alle regioner). Sesongkorrigering med STL på "
-        "log-transformerte verdier (`period=12`, `seasonal=13`, `robust=True`). "
-        "Fordi den sesongmessige svingningen vokser proporsjonalt med nivået "
-        "(multiplikativ sesong), passer log-transformasjon bedre enn additiv STL. "
-        "Den sesongkorrigerte kurven tydeliggjør den strukturelle trenden.",
-        "",
-        f"![]({_rel(fig_sa, report_dir)}){{fig-align='center' width=95%}}",
-        "",
-    ]
+    # Seasonally adjusted figure (only for sources with multiplicative seasonality)
+    if sa_plot:
+        fig_sa = figures_dir / f"{fig_prefix}_sa.svg"
+        fig_sa_regions = figures_dir / f"{fig_prefix}_sa_regioner.svg"
+        _plot_tiltak_sa_trend(
+            tiltak_path,
+            f"Sesongkorrigert tiltaksbruk (STL, nasjonal total) – {tiltak_label}",
+            fig_sa,
+        )
+        _plot_sa_regions(
+            tiltak_path,
+            f"Sesongkorrigering per region – {tiltak_label}",
+            fig_sa_regions,
+        )
+        lines += [
+            "## Sesongkorrigert tiltaksbruk",
+            "",
+            "Sesongkorrigering med STL på log-transformerte verdier "
+            "(`period=12`, `seasonal=13`, `robust=True`). "
+            "Fordi sesongsvingningen vokser proporsjonalt med nivået "
+            "(multiplikativ sesong), passer log-transformasjon bedre enn additiv STL.",
+            "",
+            "**STL tilpasses den nasjonale totalen** (sum over alle regioner). "
+            "Den estimerte multiplikative sesongfaktoren for hver måned "
+            "brukes deretter likt på alle regioner — det vil si at hver regions "
+            "råverdi divideres med den samme nasjonale faktoren. "
+            "Dette innebærer en forutsetning om at sesongmønsteret er proporsjonalt "
+            "likt på tvers av regioner, noe regionplottene under kan brukes til å vurdere.",
+            "",
+            "To varianter vises:",
+            "",
+            "| Serie | Metode |",
+            "|---|---|",
+            "| **SK – full serie** (brukes i analysen) | STL tilpasset hele serien; "
+            "`robust=True` demper outlier-innflytelse fra post-perioden |",
+            "| **SK – kun pre-periode** | STL tilpasset kun pre-perioden; "
+            "sesongfaktorer per kalendermåned ekstrapoleres til post-perioden |",
+            "",
+            "Likheten mellom de to viser i hvilken grad den estimerte sesongen er "
+            "stabil over tid.",
+            "",
+            f"![]({_rel(fig_sa, report_dir)}){{fig-align='center' width=95%}}",
+            "",
+            "### Sesongkorrigering per region",
+            "",
+            "Samme tre serier som over, men vist separat per region. "
+            "Fordi alle regioner deles med den *samme* nasjonale sesongfaktoren, "
+            "reflekterer regionplottene kun regionenes egne nivåer — ikke "
+            "regionale avvik i sesongmønster. "
+            "Plottene er nyttige for å vurdere om forutsetningen om felles "
+            "sesongmønster virker rimelig.",
+            "",
+            f"![]({_rel(fig_sa_regions, report_dir)}){{fig-align='center' width=100%}}",
+            "",
+        ]
 
     # Regional means figure
     fig_reg = figures_dir / f"{fig_prefix}_regional_gjennomsnitt.svg"
@@ -505,8 +627,10 @@ def generate_data_report() -> None:
     FIGURES_DIR.mkdir(parents=True, exist_ok=True)
 
     logger.info("Loading tiltak data")
-    midl_df, midl_regions = _load_tiltak(DATA_RAW / "tiltak" / "midl.-lønnstilskudd.csv")
-    alle_df, alle_regions = _load_tiltak(DATA_RAW / "tiltak" / "alle-tiltak.csv")
+    midl_path = DATA_RAW / "tiltak" / "midl.-lønnstilskudd.csv"
+    alle_path = DATA_RAW / "tiltak" / "alle-tiltak.csv"
+    midl_df, midl_regions = _load_tiltak(midl_path)
+    alle_df, alle_regions = _load_tiltak(alle_path)
 
     # ── Midlertidig lønnstilskudd ────────────────────────────────────────────
     logger.info("Generating midl.-lønnstilskudd chapter")
@@ -525,6 +649,8 @@ def generate_data_report() -> None:
         ),
         regions=midl_regions,
         df=midl_df,
+        tiltak_path=midl_path,
+        sa_plot=False,
         figures_dir=FIGURES_DIR,
         report_dir=QUARTO_DATA,
         fig_prefix="midl",
@@ -543,10 +669,14 @@ def generate_data_report() -> None:
             "oppfølgingstiltak. Disse dataene gir et bredere bilde av tiltaksaktiviteten "
             "enn midlertidig lønnstilskudd alene.\n\n"
             "Disse dataene brukes som **behandlingsvariabel** i analysene under "
-            "*DiD – Alle tiltak*-seksjonen."
+            "*DiD – Alle tiltak*-seksjonen. Behandlingsvariabelen er beregnet fra "
+            "sesongkorrigerte tiltakstall (multiplikativ STL) for å unngå skjevhet "
+            "fra sommer-dip-effekter som varierer med regioners nivå."
         ),
         regions=alle_regions,
         df=alle_df,
+        tiltak_path=alle_path,
+        sa_plot=True,
         figures_dir=FIGURES_DIR,
         report_dir=QUARTO_DATA,
         fig_prefix="alle",

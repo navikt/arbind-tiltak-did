@@ -148,6 +148,7 @@ def _run_indicator(
     control_regions: list[str] | None = None,
     analysis_level: str = "region",
     enhet_mapping_path: Path | None = None,
+    seasonal_adjust: bool = False,
 ) -> dict[str, Any] | None:
     """Prepare regular and flattened panels, run regression and supporting analyses.
 
@@ -182,6 +183,7 @@ def _run_indicator(
         analysis_level=analysis_level,
         enhet_mapping_path=enhet_mapping_path,
         flatten=False,
+        seasonal_adjust=seasonal_adjust,
         processed_path=processed_dir / f"panel_{result_name}_regular.csv",
     )
 
@@ -197,6 +199,7 @@ def _run_indicator(
         analysis_level=analysis_level,
         enhet_mapping_path=enhet_mapping_path,
         flatten=True,
+        seasonal_adjust=seasonal_adjust,
         processed_path=processed_dir / f"panel_{result_name}_flattened.csv",
     )
 
@@ -304,6 +307,7 @@ def _run_triple_diff_indicator(
     processed_dir: Path,
     control_regions: list[str] | None = None,
     enhet_mapping_path: Path | None = None,
+    seasonal_adjust: bool = False,
 ) -> dict[str, Any] | None:
     """Run the full triple-diff analysis for a single indicator.
 
@@ -335,6 +339,7 @@ def _run_triple_diff_indicator(
         flatten=False,
         control_regions=control_regions,
         enhet_mapping_path=enhet_mapping_path,
+        seasonal_adjust=seasonal_adjust,
         processed_path=processed_dir / f"panel_{result_name}_regular.csv",
     )
 
@@ -351,6 +356,7 @@ def _run_triple_diff_indicator(
         flatten=True,
         control_regions=control_regions,
         enhet_mapping_path=enhet_mapping_path,
+        seasonal_adjust=seasonal_adjust,
         processed_path=processed_dir / f"panel_{result_name}_flattened.csv",
     )
 
@@ -483,6 +489,7 @@ def _run_single_config(cfg_path: Path) -> int:
         return 1
 
     tiltak_path = PROJECT_ROOT / cfg["data"]["tiltak_file"]
+    seasonal_adjust: bool = cfg["data"].get("tiltak_seasonal_adjust", False)
     design = analysis.get("design", "did")
 
     all_results: dict[str, dict[str, Any] | None] = {}
@@ -536,6 +543,7 @@ def _run_single_config(cfg_path: Path) -> int:
                     processed_dir=processed_dir,
                     control_regions=control_regions,
                     enhet_mapping_path=enhet_mapping_path,
+                    seasonal_adjust=seasonal_adjust,
                 )
                 all_results[name] = result
                 if result is None:
@@ -580,6 +588,7 @@ def _run_single_config(cfg_path: Path) -> int:
                     control_regions=control_regions,
                     analysis_level=analysis_level,
                     enhet_mapping_path=enhet_mapping_path_did,
+                    seasonal_adjust=seasonal_adjust,
                 )
                 all_results[name] = result
                 if result is None:

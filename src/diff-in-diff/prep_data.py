@@ -188,6 +188,7 @@ def prepare_panel(
     analysis_level: str = "region",
     enhet_mapping_path: Path | None = None,
     processed_path: Path | None = None,
+    seasonal_adjust: bool = False,
 ) -> pd.DataFrame:
     """Prepare a panel DataFrame based on the specified indicator and tiltak data.
 
@@ -218,6 +219,10 @@ def prepare_panel(
         Path to ``enhetsmapping.json`` (required when ``analysis_level="enhet"``).
     processed_path:
         If given, save the prepared panel as CSV at this path.
+    seasonal_adjust:
+        If ``True``, apply multiplicative STL seasonal adjustment to the tiltak
+        data before computing treatment intensity.  Use for alle-tiltak; leave
+        ``False`` (default) for midlertidig lønnstilskudd.
 
     Column contract for all downstream modules
     ------------------------------------------
@@ -226,7 +231,7 @@ def prepare_panel(
     ``post_treatment`` (bool), ``month_of_year`` (int), ``year`` (int),
     ``entity`` (str — equals ``region`` at region level, ``enhet`` at enhet level).
     """
-    tiltak_long = _load_tiltak_wide_to_long(tiltak_path)
+    tiltak_long = _load_tiltak_wide_to_long(tiltak_path, seasonal_adjust=seasonal_adjust)
 
     if analysis_level == "enhet":
         if enhet_mapping_path is None:
@@ -286,6 +291,7 @@ def prepare_triple_diff_panel(
     control_regions: list[str] | None = None,
     enhet_mapping_path: Path | None = None,
     processed_path: Path | None = None,
+    seasonal_adjust: bool = False,
 ) -> pd.DataFrame:
     """Prepare a triple-diff panel with treated and control groups stacked.
 
@@ -315,6 +321,9 @@ def prepare_triple_diff_panel(
         Path to enhetsmapping.json (required when ``analysis_level="enhet"``).
     processed_path:
         If given, save the prepared panel as CSV at this path.
+    seasonal_adjust:
+        If ``True``, apply multiplicative STL seasonal adjustment to the tiltak
+        data before computing treatment intensity.
 
     Returns:
     -------
@@ -355,7 +364,7 @@ def prepare_triple_diff_panel(
         indicator_df = pd.concat([treated_df, control_df], ignore_index=True)
         indicator_df["entity"] = indicator_df["region"]
 
-    tiltak_long = _load_tiltak_wide_to_long(tiltak_path)
+    tiltak_long = _load_tiltak_wide_to_long(tiltak_path, seasonal_adjust=seasonal_adjust)
 
     # Merge indicator with tiltak on region + aarmnd
     df = indicator_df.merge(tiltak_long, on=["region", "aarmnd"], how="left")
