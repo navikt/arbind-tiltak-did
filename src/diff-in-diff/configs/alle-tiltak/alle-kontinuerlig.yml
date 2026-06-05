@@ -20,7 +20,7 @@ analysis:
 data:
   tiltak_file: data/raw/tiltak/alle-tiltak.csv
   tiltak_label: "Alle tiltak"
-  
+
   enhet_mapping_file: data/pre/enhetsmapping.json
 
   indikatorer:

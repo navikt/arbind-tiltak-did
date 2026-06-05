@@ -4,13 +4,13 @@ title: "Deskriptiv statistikk — Trippel-diff, regioner, kontinuerlig"
 
 ## Oversikt
 
-Behandlet gruppe: **trenger-veiledning**
-Kontrollgruppe: **gode-muligheter**
+Behandlet gruppe: **Veiledning kombinert**
+Kontrollgruppe: **Standard**
 Analysenivå: **region**
 
 Dette kapittelet gir en oversikt over datamaterialet og viser trender for de
 to gruppene over tid. Et viktig visuelt kriterium for trippel-diff-strategien
-er at **trenger-veiledning** og **gode-muligheter** fulgte parallelle trender i
+er at **Veiledning kombinert** og **Standard** fulgte parallelle trender i
 pre-perioden — avvik her vil svekke identifikasjonen.
 
 ## atid3
@@ -21,19 +21,19 @@ pre-perioden — avvik her vil svekke identifikasjonen.
 - Antall regioner: **12**
 - Antall enheter: **12**
 - Antall måneder: **60**
-- Behandlet gruppe (trenger-veiledning, n): **720**
-- Kontrollgruppe (gode-muligheter, n): **720**
+- Behandlet gruppe (Veiledning kombinert, n): **720**
+- Kontrollgruppe (Standard, n): **720**
 
 **Gjennomsnittlig indikatorverdi i pre-perioden:**
 
 | Gruppe | Gjennomsnitt |
 |:--|--:|
-| trenger-veiledning (behandlet) | -0.0834 |
-| gode-muligheter (kontroll) | 0.9725 |
+| Veiledning kombinert (behandlet) | -0.0834 |
+| Standard (kontroll) | 0.9725 |
 | Differanse | -1.0559 |
 
-I pre-perioden lå trenger-veiledning i gjennomsnitt **1.0559** poeng
-lavere enn gode-muligheter på indikatoren `atid3`.
+I pre-perioden lå Veiledning kombinert i gjennomsnitt **1.0559** poeng
+lavere enn Standard på indikatoren `atid3`.
 Denne nivåforskjellen absorberes av gruppe-faste effekter i regresjonen.
 
 ### Trender over tid — atid3
@@ -60,19 +60,19 @@ kontinuerlige trippel-diff-modellen.
 - Antall regioner: **12**
 - Antall enheter: **12**
 - Antall måneder: **60**
-- Behandlet gruppe (trenger-veiledning, n): **720**
-- Kontrollgruppe (gode-muligheter, n): **720**
+- Behandlet gruppe (Veiledning kombinert, n): **720**
+- Kontrollgruppe (Standard, n): **720**
 
 **Gjennomsnittlig indikatorverdi i pre-perioden:**
 
 | Gruppe | Gjennomsnitt |
 |:--|--:|
-| trenger-veiledning (behandlet) | 0.0409 |
-| gode-muligheter (kontroll) | 2.8985 |
+| Veiledning kombinert (behandlet) | 0.0409 |
+| Standard (kontroll) | 2.8985 |
 | Differanse | -2.8576 |
 
-I pre-perioden lå trenger-veiledning i gjennomsnitt **2.8576** poeng
-lavere enn gode-muligheter på indikatoren `jobb3`.
+I pre-perioden lå Veiledning kombinert i gjennomsnitt **2.8576** poeng
+lavere enn Standard på indikatoren `jobb3`.
 Denne nivåforskjellen absorberes av gruppe-faste effekter i regresjonen.
 
 ### Trender over tid — jobb3

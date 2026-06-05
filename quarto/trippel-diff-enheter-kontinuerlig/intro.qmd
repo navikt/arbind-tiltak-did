@@ -5,8 +5,8 @@ title: "Trippel-diff, enheter, kontinuerlig"
 ## Bakgrunn og metode
 
 Denne analysen estimerer om nedgangen i arbeidsmarkedstiltak har hatt en
-*differensiell* effekt på innsatsgruppen **trenger-veiledning** sammenlignet med
-**gode-muligheter**. Logikken er at dersom tiltaksnedgangen rammer de to gruppene
+*differensiell* effekt på innsatsgruppen **Veiledning kombinert** sammenlignet med
+**Standard**. Logikken er at dersom tiltaksnedgangen rammer de to gruppene
 likt, vil en standard diff-in-diff fange opp felles sjokk — trippel-diff
 isolerer i stedet den *ekstra* effekten for den behandlede gruppen.
 
@@ -15,7 +15,7 @@ Analysen opererer på **enhet**-nivå. Behandlingsvariabelen
 regionens pre-periode-topp i *Midlertidig lønnstilskudd* som er avviklet.
 
 Modellen inkluderer region-faste effekter, tidspunkt-faste effekter og en
-gruppe × tid-interaksjon for å skille trenger-veiledning-trenden fra den nasjonale
+gruppe × tid-interaksjon for å skille Veiledning kombinert-trenden fra den nasjonale
 trenden. Den foretrukne spesifikasjonen legger i tillegg til region ×
 kalendermåned-faste effekter for å absorbere regionspesifikke sesongmønstre.
 

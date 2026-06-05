@@ -1,5 +1,5 @@
 ---
-title: "Innsatsgruppen 'nedsatt arbeidsevne', kontinuerlig"
+title: "Innsatsgruppen 'Spesielt tilpasset', kontinuerlig"
 execute:
   echo: false
   warning: false
@@ -12,7 +12,7 @@ execute:
 | Behandlingsstart | 2025-06 |
 | Tiltaksdata | Alle tiltak |
 | Variasjon i behandling | Nav-regioner |
-| Undergruppe (populasjon) | Innsatsgruppe_-_trenger_veiledning_nedsatt_arbeidsevne |
+| Undergruppe (populasjon) | Spesielt tilpasset |
 | Utfallsmål (indikatortype) | — |
 | Indikatorer | atid3 — Arbeidstid neste tre måneder, jobb3 — I jobb etter 3 måneder |
 

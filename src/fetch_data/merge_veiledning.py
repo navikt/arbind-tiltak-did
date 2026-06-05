@@ -11,10 +11,10 @@ import pandas as pd
 _ROOT = Path(__file__).resolve().parents[2]
 _IND_BASE = _ROOT / "data" / "raw" / "indikatorer" / "nedbrytning"
 _PERS_BASE = _ROOT / "data" / "raw" / "personer" / "nedbrytning"
-_OUT_DIR = _IND_BASE / "veiledning"
+_OUT_DIR = _IND_BASE / "veiledning_kombinert"
 
-_GROUP_A = "Innsatsgruppe - Trenger veiledning"
-_GROUP_B = "Innsatsgruppe - Trenger veiledning, nedsatt arbeidsevne"
+_GROUP_A = "Situasjonsbestemt"
+_GROUP_B = "Spesielt tilpasset"
 _OUTCOMES = ("atid3", "jobb3")
 
 
@@ -91,7 +91,7 @@ def merge_veiledning(
     group_b: str = _GROUP_B,
     outcomes: tuple[str, ...] = _OUTCOMES,
 ) -> list[Path]:
-    """Merge two veiledning groups and save one CSV per outcome."""
+    """Merge Situasjonsbestemt and Spesielt tilpasset groups and save one CSV per outcome."""
     _OUT_DIR.mkdir(parents=True, exist_ok=True)
     saved: list[Path] = []
     for outcome in outcomes:

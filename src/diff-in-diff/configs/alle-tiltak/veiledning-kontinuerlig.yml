@@ -1,6 +1,6 @@
 # ── Analysis parameters ────────────────────────────────────────────────────────
 analysis:
-  title: "Veiledning, kontinuerlig"
+  title: "Veiledning kombinert, kontinuerlig"
   treatment_start: "202506"   # First month of treatment (YYYYMM)
   data_start:      "202306"   # First month of the full panel
   data_end:        "202509"   # Last month of the full panel
@@ -25,9 +25,9 @@ data:
 
   indikatorer:
     - name:        atid3
-      file:        data/raw/indikatorer/enhet/nedbrytning/veiledning/atid3.csv
+      file:        data/raw/indikatorer/enhet/nedbrytning/veiledning_kombinert/atid3.csv
       description: "Arbeidstid neste tre måneder"
 
     - name:        jobb3
-      file:        data/raw/indikatorer/enhet/nedbrytning/veiledning/jobb3.csv
+      file:        data/raw/indikatorer/enhet/nedbrytning/veiledning_kombinert/jobb3.csv
       description: "I jobb etter 3 måneder"

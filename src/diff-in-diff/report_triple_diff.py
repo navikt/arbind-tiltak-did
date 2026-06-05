@@ -70,7 +70,7 @@ def _plot_group_trends(
             monthly.values,
             color=color,
             linewidth=1.5,
-            label="Veiledning" if group_label == "treated" else "Gode muligheter",
+            label="Veiledning kombinert" if group_label == "treated" else "Standard",
         )
 
     treatment_start = panel.loc[panel["relative_month"] == 0, "aarmnd"]
@@ -248,8 +248,8 @@ def _generate_intro(
     """Generate the part intro QMD."""
     title = cfg["analysis"].get("title", "Trippel-diff-analyse")
     analysis_level = cfg["analysis"].get("analysis_level", "region")
-    treated = cfg["analysis"].get("treated_group", "veiledning")
-    control = cfg["analysis"].get("control_group", "gode muligheter")
+    treated = cfg["analysis"].get("treated_group", "Veiledning kombinert")
+    control = cfg["analysis"].get("control_group", "Standard")
 
     lines = [
         "---",
@@ -295,8 +295,8 @@ def _generate_descriptive(
 ) -> None:
     """Generate chapter 1: descriptive statistics."""
     title = cfg["analysis"].get("title", "Trippel-diff")
-    treated = cfg["analysis"].get("treated_group", "veiledning")
-    control = cfg["analysis"].get("control_group", "gode muligheter")
+    treated = cfg["analysis"].get("treated_group", "Veiledning kombinert")
+    control = cfg["analysis"].get("control_group", "Standard")
     analysis_level = cfg["analysis"].get("analysis_level", "region")
 
     lines = [
@@ -403,8 +403,8 @@ def _generate_regression(
 ) -> None:
     """Generate chapter 2: regression results."""
     title = cfg["analysis"].get("title", "Trippel-diff")
-    treated = cfg["analysis"].get("treated_group", "veiledning")
-    control = cfg["analysis"].get("control_group", "gode muligheter")
+    treated = cfg["analysis"].get("treated_group", "Veiledning kombinert")
+    control = cfg["analysis"].get("control_group", "Standard")
     tiltak_label = _get_tiltak_label(cfg)
 
     lines = [
@@ -606,8 +606,8 @@ def _generate_assumptions(
 ) -> None:
     """Generate chapter 4: assumption tests."""
     title = cfg["analysis"].get("title", "Trippel-diff")
-    treated = cfg["analysis"].get("treated_group", "veiledning")
-    control = cfg["analysis"].get("control_group", "gode muligheter")
+    treated = cfg["analysis"].get("treated_group", "Veiledning kombinert")
+    control = cfg["analysis"].get("control_group", "Standard")
 
     lines = [
         "---",

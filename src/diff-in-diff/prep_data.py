@@ -292,9 +292,9 @@ def prepare_triple_diff_panel(
     Parameters
     ----------
     treated_indicator_path:
-        Path to the indicator CSV for the treated group (e.g., veiledning).
+        Path to the indicator CSV for the treated group (e.g., veiledning-kombinert).
     control_indicator_path:
-        Path to the indicator CSV for the control group (e.g., gode muligheter).
+        Path to the indicator CSV for the control group (e.g., standard).
     tiltak_path:
         Path to the tiltak CSV (region-level, wide format).
     indicator_name:

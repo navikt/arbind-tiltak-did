@@ -1,16 +1,16 @@
 """Exploratory analysis of missing values in enhet-level indicator data.
 
 Covers the two key folders under data/raw/indikatorer/enhet/nedbrytning:
-  - veiledning              (jobb3, atid3)
-  - innsatsgruppe_-_gode_muligheter  (jobb3, atid3, faktisk_jobb3, faktisk_atid3,
-                                      forventet_jobb3, forventet_atid3)
+  - veiledning_kombinert       (jobb3, atid3)
+  - standard                   (jobb3, atid3, faktisk_jobb3, faktisk_atid3,
+                                forventet_jobb3, forventet_atid3)
 
 Outputs (written to outputs/exploratory/):
-    figures/missing_over_time.png        — line chart: # missing enheter per month
-    figures/missing_heatmap_veiledning.png      — heatmap enhet × month (veiledning)
-    figures/missing_heatmap_gode_muligheter.png — heatmap enhet × month (gode muligheter)
-    figures/missing_per_enhet.png        — bar chart: total missing periods per enhet
-    manglende_verdier_enhet.qmd          — narrative QMD report
+    figures/missing_over_time.png              — line chart: # missing enheter per month
+    figures/missing_heatmap_veiledning_kombinert.png  — heatmap enhet × month (Veiledning kombinert)
+    figures/missing_heatmap_standard.png       — heatmap enhet × month (Standard)
+    figures/missing_per_enhet.png              — bar chart: total missing periods per enhet
+    manglende_verdier_enhet.qmd                — narrative QMD report
 
 Run with:
     uv run src/exploratory/manglende_verdier_enhet.py
@@ -120,7 +120,7 @@ def plot_missing_over_time(
         time_g.values,
         color=NAV_RED,
         linewidth=2,
-        label=f"Gode muligheter (n={n_enhet_g})",
+        label=f"Standard (n={n_enhet_g})",
     )
 
     ax.set_ylabel("Antall enheter med manglende verdi", fontsize=10)
@@ -195,7 +195,7 @@ def plot_missing_per_enhet(
 ) -> Path:
     """Horizontal bar chart: total missing periods per enhet for both datasets."""
     enhet_v = mat_v.sum(axis=1).rename("Veiledning")
-    enhet_g = mat_g.sum(axis=1).rename("Gode muligheter")
+    enhet_g = mat_g.sum(axis=1).rename("Standard")
 
     # Union of all enheter
     combined = pd.concat([enhet_v, enhet_g], axis=1).fillna(0).astype(int)
@@ -218,10 +218,10 @@ def plot_missing_per_enhet(
     )
     ax.barh(
         y - bar_h / 2,
-        combined["Gode muligheter"],
+        combined["Standard"],
         height=bar_h,
         color=NAV_RED,
-        label="Gode muligheter",
+        label="Standard",
     )
 
     ax.set_yticks(y)
@@ -270,7 +270,7 @@ def build_summary_table(
     rows = []
     for label, mat, n_enhet in [
         ("Veiledning", mat_v, mat_v.shape[0]),
-        ("Gode muligheter", mat_g, mat_g.shape[0]),
+        ("Standard", mat_g, mat_g.shape[0]),
     ]:
         n_time = mat.shape[1]
         total_cells = n_enhet * n_time
@@ -299,14 +299,14 @@ def build_worst_enhet_table(
 ) -> str:
     """Markdown table: enheter with most missing values."""
     enhet_v = mat_v.sum(axis=1).rename("Veiledning")
-    enhet_g = mat_g.sum(axis=1).rename("Gode muligheter")
+    enhet_g = mat_g.sum(axis=1).rename("Standard")
     combined = pd.concat([enhet_v, enhet_g], axis=1).fillna(0).astype(int)
     combined["Totalt"] = combined.sum(axis=1)
     top = combined.sort_values("Totalt", ascending=False).head(top_n).reset_index()
     top.columns = [
         "Enhet",
         "Veiledning (måneder)",
-        "Gode muligheter (måneder)",
+        "Standard (måneder)",
         "Totalt",
     ]
     return _md_table(top)
@@ -325,7 +325,7 @@ def build_enhet_diff_table(
     df = pd.DataFrame(
         {
             "Kun i Veiledning": v_only_padded,
-            "Kun i Gode muligheter": g_only_padded,
+            "Kun i Standard": g_only_padded,
         }
     )
     return _md_table(df)
@@ -339,7 +339,7 @@ def write_qmd(
     worst_enhet_table: str,
     enhet_diff_table: str,
     n_veiledning_files: int,
-    n_gode_muligheter_files: int,
+    n_standard_files: int,
 ) -> None:
     """Write the narrative QMD report, embedding the generated figures and tables."""
     content = f"""\
@@ -350,10 +350,10 @@ def write_qmd(
 Denne analysen gir en oversikt over manglende verdier i de to viktigste datakildene
 for enhet-nivå nedbrytning:
 
-- **Veiledning** (`data/raw/indikatorer/enhet/nedbrytning/veiledning/`):
+- **Veiledning kombinert** (`data/raw/indikatorer/enhet/nedbrytning/veiledning_kombinert/`):
   {n_veiledning_files} filer (`jobb3`, `atid3`). Alle filene har identisk manglende-mønster.
-- **Gode muligheter** (`data/raw/indikatorer/enhet/nedbrytning/innsatsgruppe_-_gode_muligheter/`):
-  {n_gode_muligheter_files} filer (`jobb3`, `atid3`, `faktisk_jobb3`, `faktisk_atid3`,
+- **Standard** (`data/raw/indikatorer/enhet/nedbrytning/standard/`):
+  {n_standard_files} filer (`jobb3`, `atid3`, `faktisk_jobb3`, `faktisk_atid3`,
   `forventet_jobb3`, `forventet_atid3`). Alle filene har identisk manglende-mønster.
 
 Innen hvert datasett er manglende celler fullstendig konsistente på tvers av filer —
@@ -367,7 +367,7 @@ aktuelle datasettet.
 ## Manglende verdier over tid
 
 Figuren viser antall enheter med manglende verdi per måned for begge datasett.
-Manglene i Veiledning er relativt stabile over tid, mens Gode muligheter viser
+Manglene i Veiledning kombinert er relativt stabile over tid, mens Standard viser
 en tydelig økning fra 2022 og utover.
 
 ![Manglende verdier per måned](figures/missing_over_time.png)
@@ -377,13 +377,13 @@ en tydelig økning fra 2022 og utover.
 Røde celler betyr manglende verdi, grønne betyr observert verdi.
 Enhetene er sortert etter totalt antall manglende måneder (flest øverst).
 
-### Veiledning
+### Veiledning kombinert
 
-![Heatmap — Veiledning](figures/missing_heatmap_veiledning.png)
+![Heatmap — Veiledning kombinert](figures/missing_heatmap_veiledning_kombinert.png)
 
-### Gode muligheter
+### Standard
 
-![Heatmap — Gode muligheter](figures/missing_heatmap_gode_muligheter.png)
+![Heatmap — Standard](figures/missing_heatmap_standard.png)
 
 ## Manglende verdier per enhet (søylediagram)
 
@@ -413,12 +413,12 @@ def main() -> None:
     FIGURES_DIR.mkdir(parents=True, exist_ok=True)
 
     # Load data
-    veiledning = load_folder("veiledning")
-    gode_muligheter = load_folder("innsatsgruppe_-_gode_muligheter")
+    veiledning_kombinert = load_folder("veiledning_kombinert")
+    standard = load_folder("standard")
 
     # Use jobb3 as representative file for each dataset (all files have same missing pattern)
-    mat_v = missing_matrix(veiledning["jobb3"])
-    mat_g = missing_matrix(gode_muligheter["jobb3"])
+    mat_v = missing_matrix(veiledning_kombinert["jobb3"])
+    mat_g = missing_matrix(standard["jobb3"])
 
     n_time = mat_v.shape[1]
 
@@ -426,13 +426,13 @@ def main() -> None:
     plot_missing_over_time(mat_v, mat_g, mat_v.shape[0], mat_g.shape[0])
     plot_heatmap(
         mat_v,
-        "Manglende verdier — Veiledning (enhet × måned)",
-        "missing_heatmap_veiledning.png",
+        "Manglende verdier — Veiledning kombinert (enhet × måned)",
+        "missing_heatmap_veiledning_kombinert.png",
     )
     plot_heatmap(
         mat_g,
-        "Manglende verdier — Gode muligheter (enhet × måned)",
-        "missing_heatmap_gode_muligheter.png",
+        "Manglende verdier — Standard (enhet × måned)",
+        "missing_heatmap_standard.png",
     )
     plot_missing_per_enhet(mat_v, mat_g, n_time)
 
@@ -441,7 +441,7 @@ def main() -> None:
     worst = build_worst_enhet_table(mat_v, mat_g)
     diff = build_enhet_diff_table(mat_v, mat_g)
 
-    write_qmd(summary, worst, diff, len(veiledning), len(gode_muligheter))
+    write_qmd(summary, worst, diff, len(veiledning_kombinert), len(standard))
     logger.info("Done.")
 
 

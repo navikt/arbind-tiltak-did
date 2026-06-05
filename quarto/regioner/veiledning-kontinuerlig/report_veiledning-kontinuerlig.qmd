@@ -1,5 +1,5 @@
 ---
-title: "Veiledning, kontinuerlig"
+title: "Veiledning kombinert, kontinuerlig"
 execute:
   echo: false
   warning: false
@@ -12,7 +12,7 @@ execute:
 | Behandlingsstart | 2025-06 |
 | Tiltaksdata | Alle tiltak |
 | Variasjon i behandling | Nav-regioner |
-| Undergruppe (populasjon) | Veiledning |
+| Undergruppe (populasjon) | Veiledning kombinert |
 | Utfallsmål (indikatortype) | — |
 | Indikatorer | atid3 — Arbeidstid neste tre måneder, jobb3 — I jobb etter 3 måneder |
 
@@ -27,8 +27,8 @@ To modellspesifikasjoner estimeres:
 - **Basis:** Ujustert indikator, region FE + år-måned FE
 - **Sesongjustert:** Sesongjustert indikator, region FE + år-måned FE
 
-> **Signifikansnivå:** \* p < 0,10 &nbsp; \*\* p < 0,05 &nbsp; \*\*\* p < 0,01  
-> Standardfeil er clustret på regionnivå (CR1 småutvalgskorrigering).  
+> **Signifikansnivå:** \* p < 0,10 &nbsp; \*\* p < 0,05 &nbsp; \*\*\* p < 0,01
+> Standardfeil er clustret på regionnivå (CR1 småutvalgskorrigering).
 > Med kun G = 12 regioner er asymptotisk clusterinferens upålitelig; primær p-verdi er basert på wild cluster bootstrap med Webb-vekter (B = 4 999).
 
 ## Tiltaksbruk over tid
@@ -81,7 +81,7 @@ Koeffisienten for behandlingsvariabelen angir estimert effekt av å gå fra null
 
 > **Signifikansnivå (bootstrap):** \* p < 0,10 &nbsp; \*\* p < 0,05 &nbsp; \*\*\* p < 0,01
 
-**Gjennomsnittlig pre-periode-nivå:** -0.0 % — koeffisienten tilsvarer en relativ endring på 1384.9 %.  
+**Gjennomsnittlig pre-periode-nivå:** -0.0 % — koeffisienten tilsvarer en relativ endring på 1384.9 %.
 **Minimum detekterbar effekt (80 % styrke, α = 0,05):** ±1.29 pp.
 
 ### Bootstrap-fordeling
@@ -168,7 +168,7 @@ Koeffisienten for behandlingsvariabelen angir estimert effekt av å gå fra null
 
 > **Signifikansnivå (bootstrap):** \* p < 0,10 &nbsp; \*\* p < 0,05 &nbsp; \*\*\* p < 0,01
 
-**Gjennomsnittlig pre-periode-nivå:** 0.2 % — koeffisienten tilsvarer en relativ endring på -1098.7 %.  
+**Gjennomsnittlig pre-periode-nivå:** 0.2 % — koeffisienten tilsvarer en relativ endring på -1098.7 %.
 **Minimum detekterbar effekt (80 % styrke, α = 0,05):** ±7.99 pp.
 
 ### Bootstrap-fordeling

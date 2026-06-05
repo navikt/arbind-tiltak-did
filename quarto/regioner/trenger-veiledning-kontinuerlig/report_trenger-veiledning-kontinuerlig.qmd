@@ -1,5 +1,5 @@
 ---
-title: "Innsatsgruppen 'trenger veiledning', kontinuerlig"
+title: "Innsatsgruppen 'Situasjonsbestemt', kontinuerlig"
 execute:
   echo: false
   warning: false
@@ -11,7 +11,7 @@ execute:
 | Behandlingstype | Kontinuerlig |
 | Behandlingsstart | 2025-06 |
 | Variasjon i behandling | Nav-regioner |
-| Undergruppe (populasjon) | Innsatsgruppe_-_trenger_veiledning |
+| Undergruppe (populasjon) | Situasjonsbestemt |
 | Utfallsmål (indikatortype) | — |
 | Indikatorer | atid3 — Arbeidstid neste tre måneder, jobb3 — I jobb etter 3 måneder |
 

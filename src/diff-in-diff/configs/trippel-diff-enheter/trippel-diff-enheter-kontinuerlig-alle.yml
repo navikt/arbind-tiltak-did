@@ -12,8 +12,8 @@ analysis:
 
   # Groups for triple-diff: treated_group is affected by tiltaksnedgang,
   # control_group is not.
-  treated_group:   "trenger-veiledning"
-  control_group:   "gode-muligheter"
+  treated_group:   "Veiledning kombinert"
+  control_group:   "Standard"
 
   denominator_definitions:
     - id: last_pre
@@ -32,20 +32,20 @@ data:
   indikatorer:
     - name:        atid3
       group:       treated
-      file:        data/raw/indikatorer/enhet/nedbrytning/veiledning/atid3.csv
-      description: "Arbeidstid neste tre måneder (veiledning, enheter)"
+      file:        data/raw/indikatorer/enhet/nedbrytning/veiledning_kombinert/atid3.csv
+      description: "Arbeidstid neste tre måneder (Veiledning kombinert, enheter)"
 
     - name:        atid3
       group:       control
-      file:        data/raw/indikatorer/enhet/nedbrytning/innsatsgruppe_-_gode_muligheter/atid3.csv
-      description: "Arbeidstid neste tre måneder (gode muligheter, enheter)"
+      file:        data/raw/indikatorer/enhet/nedbrytning/standard/atid3.csv
+      description: "Arbeidstid neste tre måneder (Standard, enheter)"
 
     - name:        jobb3
       group:       treated
-      file:        data/raw/indikatorer/enhet/nedbrytning/veiledning/jobb3.csv
-      description: "I jobb etter 3 måneder (veiledning, enheter)"
+      file:        data/raw/indikatorer/enhet/nedbrytning/veiledning_kombinert/jobb3.csv
+      description: "I jobb etter 3 måneder (Veiledning kombinert, enheter)"
 
     - name:        jobb3
       group:       control
-      file:        data/raw/indikatorer/enhet/nedbrytning/innsatsgruppe_-_gode_muligheter/jobb3.csv
-      description: "I jobb etter 3 måneder (gode muligheter, enheter)"
+      file:        data/raw/indikatorer/enhet/nedbrytning/standard/jobb3.csv
+      description: "I jobb etter 3 måneder (Standard, enheter)"

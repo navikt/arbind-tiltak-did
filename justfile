@@ -62,6 +62,10 @@ merge-veiledning-fylke:
 audit:
     uv run --all-groups --with pip-audit pip-audit --local
 
+# Kjør tester
+test:
+    uv run --dev pytest tests/ -v
+
 # Oppdater Python og pre-commit avhengigheter
 update:
     uv lock --upgrade

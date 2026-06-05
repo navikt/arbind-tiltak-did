@@ -1,6 +1,6 @@
 # ── Analysis parameters ────────────────────────────────────────────────────────
 analysis:
-  title: "Innsatsgruppen 'nedsatt arbeidsevne', kontinuerlig"
+  title: "Innsatsgruppen 'Spesielt tilpasset', kontinuerlig"
   treatment_start: "202506"   # First month of treatment (YYYYMM)
   data_start:      "202306"   # First month of the full panel
   data_end:        "202509"   # Last month of the full panel
@@ -21,9 +21,9 @@ data:
 
   indikatorer:
     - name:        atid3
-      file:        data/raw/indikatorer/enhet/nedbrytning/innsatsgruppe_-_trenger_veiledning_nedsatt_arbeidsevne/atid3.csv
+      file:        data/raw/indikatorer/enhet/nedbrytning/spesielt_tilpasset/atid3.csv
       description: "Arbeidstid neste tre måneder"
 
     - name:        jobb3
-      file:        data/raw/indikatorer/enhet/nedbrytning/innsatsgruppe_-_trenger_veiledning_nedsatt_arbeidsevne/jobb3.csv
+      file:        data/raw/indikatorer/enhet/nedbrytning/spesielt_tilpasset/jobb3.csv
       description: "I jobb etter 3 måneder"

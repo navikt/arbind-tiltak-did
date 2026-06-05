@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
-from bq_client import _TABLE_URI, _TARGET_UTFALL, _slugify, run_query
+from bq_client import _ALIAS_MAP, _TABLE_URI, _TARGET_UTFALL, _slugify, run_query
 from google.cloud import bigquery
 
 _INDIKATOR_DIR = Path(__file__).resolve().parents[2] / "data" / "raw" / "indikatorer"
@@ -67,8 +67,14 @@ def _pivot_wide(df: pd.DataFrame, value_col: str) -> pd.DataFrame:
 
 
 def fetch_and_save(nedbrytning: str) -> list[Path]:
-    """Fetch all data for *nedbrytning* and save to the appropriate CSV files."""
-    records = _query_nedbrytning(nedbrytning)
+    """Fetch all data for *nedbrytning* and save to the appropriate CSV files.
+
+    *nedbrytning* may be a display alias (e.g. "Situasjonsbestemt") — the alias
+    is resolved to the API name for the query, but the display name is used for
+    the local folder slug.
+    """
+    api_nedbrytning = _ALIAS_MAP.get(nedbrytning, nedbrytning)
+    records = _query_nedbrytning(api_nedbrytning)
     if not records:
         raise ValueError(f"No rows returned for nedbrytning='{nedbrytning}'.")
 
@@ -127,7 +133,7 @@ def main() -> None:
 
     Usage:
       uv run python src/fetch_data/get_fylke_data.py 'Alle'
-      uv run python src/fetch_data/get_fylke_data.py 'Alle' 'Trenger veiledning'
+      uv run python src/fetch_data/get_fylke_data.py 'Alle' 'Situasjonsbestemt'
     """
     if len(sys.argv) < 2:
         raise SystemExit(

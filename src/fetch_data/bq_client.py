@@ -14,6 +14,13 @@ from google.cloud import bigquery
 _TABLE_URI = "arbeidsindikator-prod-51bc.arbeidsindikator.agg_indikator_siste_pub"
 _TARGET_UTFALL = ("atid3", "jobb3")
 
+# Maps new display names (old NAV innsatsgruppe scheme) to the API query strings.
+_ALIAS_MAP: dict[str, str] = {
+    "Situasjonsbestemt": "Innsatsgruppe - Trenger veiledning",
+    "Spesielt tilpasset": "Innsatsgruppe - Trenger veiledning, nedsatt arbeidsevne",
+    "Standard": "Innsatsgruppe - Gode muligheter",
+}
+
 
 def _slugify(value: str) -> str:
     """Return a filesystem-safe lower-case slug."""

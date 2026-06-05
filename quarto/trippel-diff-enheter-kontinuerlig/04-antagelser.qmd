@@ -5,10 +5,10 @@ title: "Test av antagelser — Trippel-diff, enheter, kontinuerlig"
 ## Hendelsesstudie
 
 Trippel-diff-hendelsesstudien interagerer regionens behandlingsintensitet
-med gruppeindikator (trenger-veiledning vs. gode-muligheter) og tidsperiode.
+med gruppeindikator (Veiledning kombinert vs. Standard) og tidsperiode.
 Koeffisientene for τ < 0 (pre-perioden) bør ligge nær null dersom
 parallell-trendantagelsen holder — det vil si at tiltaksnedgangen ikke
-predikerer divergerende trender mellom trenger-veiledning og gode-muligheter *før*
+predikerer divergerende trender mellom Veiledning kombinert og Standard *før*
 behandlingsstart.
 
 ### atid3 — sesongjustert
@@ -41,7 +41,7 @@ Placebo-analysen re-estimerer trippel-diff-modellen med en *falsk*
 behandlingsdato 12 måneder før den virkelige, utelukkende i pre-perioden.
 Et estimat nær null og et ikke-signifikant resultat tyder på at parallell-
 trendantagelsen holder og at det ikke er pre-eksisterende divergerende
-trender mellom trenger-veiledning og gode-muligheter.
+trender mellom Veiledning kombinert og Standard.
 
 ### atid3 — sesongjustert
 

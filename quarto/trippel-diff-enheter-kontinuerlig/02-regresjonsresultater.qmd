@@ -5,10 +5,10 @@ title: "Regresjonsresultater — Trippel-diff, enheter, kontinuerlig"
 ## Hovedresultater
 
 Trippel-diff-koeffisienten ($\beta_{DDD}$) måler den *differensielle* effekten
-av nedgangen i *Midlertidig lønnstilskudd* på **trenger-veiledning** sammenlignet med **gode-muligheter**.
+av nedgangen i *Midlertidig lønnstilskudd* på **Veiledning kombinert** sammenlignet med **Standard**.
 Koeffisienten angir estimert effekt av å gå fra null til full tiltaksnedgang
 (behandlingsintensitet = 1) på indikatoren, i prosentpoeng, *utover* den effekten
-som også observeres for gode-muligheter.
+som også observeres for Standard.
 
 To modellspesifikasjoner estimeres:
 
