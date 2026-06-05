@@ -156,7 +156,7 @@ def _plot_tiltak_sa_trend(
     _save_fig(fig, fig_path)
 
 
-
+def _plot_tiltak_regional_means(
     df: pd.DataFrame, regions: list[str], title: str, fig_path: Path
 ) -> None:
     """Horizontal bar chart: pre-period regional mean tiltaksbruk."""
