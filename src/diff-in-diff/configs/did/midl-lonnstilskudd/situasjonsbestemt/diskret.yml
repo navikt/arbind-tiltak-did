@@ -9,12 +9,12 @@ analysis:
   - Nav Innlandet
   - Nav Nordland
 data:
-  tiltak_file: data/raw/tiltak/midl.-lønnstilskudd.csv
+  tiltak_file: data/input/tiltak/midl.-lønnstilskudd.csv
   tiltak_label: Midlertidig lønnstilskudd
   indikatorer:
   - name: atid3
-    file: data/raw/indikatorer/nedbrytning/situasjonsbestemt/atid3.csv
+    file: data/input/indikatorer/nedbrytning/situasjonsbestemt/atid3.csv
     description: Arbeidstid neste tre måneder
   - name: jobb3
-    file: data/raw/indikatorer/nedbrytning/situasjonsbestemt/jobb3.csv
+    file: data/input/indikatorer/nedbrytning/situasjonsbestemt/jobb3.csv
     description: I jobb etter 3 måneder

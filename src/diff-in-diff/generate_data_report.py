@@ -36,7 +36,8 @@ mpl.rcParams["path.simplify_threshold"] = 1.0
 # ── Paths ──────────────────────────────────────────────────────────────────────
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent
-DATA_RAW = PROJECT_ROOT / "data" / "raw"
+DATA_INPUT = PROJECT_ROOT / "data" / "input"
+DATA_PROCESSED = PROJECT_ROOT / "data" / "processed"
 QUARTO_DATA = PROJECT_ROOT / "quarto" / "data"
 FIGURES_DIR = QUARTO_DATA / "figures"
 
@@ -290,7 +291,7 @@ def _plot_indicator_trends_by_group(ind_key: str, fig_path: Path) -> None:
     """Average indicator value per month, one line per innsatsgruppe."""
     fig, ax = plt.subplots(figsize=(11, 5))
     for grp, col in _GRUPPE_COLORS.items():
-        fp = DATA_RAW / "indikatorer" / "nedbrytning" / grp / f"{ind_key}.csv"
+        fp = DATA_INPUT / "indikatorer" / "nedbrytning" / grp / f"{ind_key}.csv"
         if not fp.exists():
             continue
         long = _load_indicator(fp)
@@ -323,7 +324,7 @@ def _plot_indicator_outcome_types(ind_key: str, fig_path: Path) -> None:
     ]
     fig, ax = plt.subplots(figsize=(10, 4))
     for prefix, ls, col, lbl in variants:
-        fp = DATA_RAW / "indikatorer" / "nedbrytning" / "alle" / f"{prefix}{ind_key}.csv"
+        fp = DATA_INPUT / "indikatorer" / "nedbrytning" / "alle" / f"{prefix}{ind_key}.csv"
         if not fp.exists():
             continue
         long = _load_indicator(fp)
@@ -373,7 +374,7 @@ def _indicator_stats_table() -> str:
     rows = []
     for grp in _GRUPPE_LABELS:
         for ind_key, ind_label in [("atid3", "atid3"), ("jobb3", "jobb3")]:
-            fp = DATA_RAW / "indikatorer" / "nedbrytning" / grp / f"{ind_key}.csv"
+            fp = DATA_INPUT / "indikatorer" / "nedbrytning" / grp / f"{ind_key}.csv"
             if not fp.exists():
                 continue
             long = _load_indicator(fp)
@@ -619,7 +620,23 @@ def _write_qmd(path: Path, lines: list[str]) -> None:
     logger.info("Written %s", path)
 
 
-# ── Main entry point ───────────────────────────────────────────────────────────
+def _save_tiltak_sa(alle_path: Path) -> None:
+    """Compute and persist the seasonally-adjusted alle-tiltak series.
+
+    Saves the full-series STL-adjusted long-format CSV to
+    ``data/processed/tiltak-sa/alle-tiltak-sa.csv``.  This makes the data
+    used in the data-chapter figures and the alle-tiltak analysis directly
+    inspectable without rerunning the full pipeline.
+    """
+    sa_dir = DATA_PROCESSED / "tiltak-sa"
+    sa_dir.mkdir(parents=True, exist_ok=True)
+    out_path = sa_dir / "alle-tiltak-sa.csv"
+    sa_long = _load_tiltak_sa(alle_path, seasonal_adjust=True, seasonal_adjust_pre_only=False)
+    sa_long.to_csv(out_path, index=False)
+    logger.info("Saved seasonally-adjusted alle-tiltak data to %s", out_path)
+
+
+
 
 
 def generate_data_report() -> None:
@@ -627,10 +644,13 @@ def generate_data_report() -> None:
     FIGURES_DIR.mkdir(parents=True, exist_ok=True)
 
     logger.info("Loading tiltak data")
-    midl_path = DATA_RAW / "tiltak" / "midl.-lønnstilskudd.csv"
-    alle_path = DATA_RAW / "tiltak" / "alle-tiltak.csv"
+    midl_path = DATA_INPUT / "tiltak" / "midl.-lønnstilskudd.csv"
+    alle_path = DATA_INPUT / "tiltak" / "alle-tiltak.csv"
     midl_df, midl_regions = _load_tiltak(midl_path)
     alle_df, alle_regions = _load_tiltak(alle_path)
+
+    logger.info("Saving seasonally-adjusted alle-tiltak data")
+    _save_tiltak_sa(alle_path)
 
     # ── Midlertidig lønnstilskudd ────────────────────────────────────────────
     logger.info("Generating midl.-lønnstilskudd chapter")

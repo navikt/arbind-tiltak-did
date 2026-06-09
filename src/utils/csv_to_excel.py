@@ -10,7 +10,7 @@ Usage
 
     # Defaults (backwards-compatible):
     uv run python csv_to_excel.py
-    #  reads  data/raw/indikatorer/landet/*.csv
+    #  reads  data/input/indikatorer/landet/*.csv
     #  writes outputs/indikatorer_landet.xlsx
 """
 
@@ -21,7 +21,7 @@ from pathlib import Path
 
 import pandas as pd
 
-_DEFAULT_INPUT = Path("data/raw/indikatorer/landet")
+_DEFAULT_INPUT = Path("data/input/indikatorer/landet")
 _DEFAULT_OUTPUT = Path("outputs/indikatorer_landet.xlsx")
 
 

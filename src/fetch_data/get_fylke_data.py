@@ -2,10 +2,10 @@
 
 For each nedbrytning, one BigQuery query is issued and the results are saved as:
 
-  data/raw/indikatorer/nedbrytning/<group>/<utfall>.csv          (indikator)
-  data/raw/indikatorer/nedbrytning/<group>/forventet_<utfall>.csv
-  data/raw/indikatorer/nedbrytning/<group>/faktisk_<utfall>.csv
-  data/raw/personer/nedbrytning/<group>/antall_personer.csv
+  data/input/indikatorer/nedbrytning/<group>/<utfall>.csv          (indikator)
+  data/input/indikatorer/nedbrytning/<group>/forventet_<utfall>.csv
+  data/input/indikatorer/nedbrytning/<group>/faktisk_<utfall>.csv
+  data/input/personer/nedbrytning/<group>/antall_personer.csv
 """
 
 from __future__ import annotations
@@ -18,8 +18,8 @@ import pandas as pd
 from bq_client import _ALIAS_MAP, _TABLE_URI, _TARGET_UTFALL, _slugify, run_query
 from google.cloud import bigquery
 
-_INDIKATOR_DIR = Path(__file__).resolve().parents[2] / "data" / "raw" / "indikatorer"
-_PERSONER_DIR = Path(__file__).resolve().parents[2] / "data" / "raw" / "personer"
+_INDIKATOR_DIR = Path(__file__).resolve().parents[2] / "data" / "input" / "indikatorer"
+_PERSONER_DIR = Path(__file__).resolve().parents[2] / "data" / "input" / "personer"
 
 
 def _query_nedbrytning(nedbrytning: str) -> list[dict[str, Any]]:

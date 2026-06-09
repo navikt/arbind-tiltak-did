@@ -1,6 +1,6 @@
 """Exploratory analysis of missing values in enhet-level indicator data.
 
-Covers the two key folders under data/raw/indikatorer/enhet/nedbrytning:
+Covers the two key folders under data/input/indikatorer/enhet/nedbrytning:
   - veiledning_kombinert       (jobb3, atid3)
   - standard                   (jobb3, atid3, faktisk_jobb3, faktisk_atid3,
                                 forventet_jobb3, forventet_atid3)
@@ -350,9 +350,9 @@ def write_qmd(
 Denne analysen gir en oversikt over manglende verdier i de to viktigste datakildene
 for enhet-nivå nedbrytning:
 
-- **Veiledning kombinert** (`data/raw/indikatorer/enhet/nedbrytning/veiledning_kombinert/`):
+- **Veiledning kombinert** (`data/input/indikatorer/enhet/nedbrytning/veiledning_kombinert/`):
   {n_veiledning_files} filer (`jobb3`, `atid3`). Alle filene har identisk manglende-mønster.
-- **Standard** (`data/raw/indikatorer/enhet/nedbrytning/standard/`):
+- **Standard** (`data/input/indikatorer/enhet/nedbrytning/standard/`):
   {n_standard_files} filer (`jobb3`, `atid3`, `faktisk_jobb3`, `faktisk_atid3`,
   `forventet_jobb3`, `forventet_atid3`). Alle filene har identisk manglende-mønster.
 

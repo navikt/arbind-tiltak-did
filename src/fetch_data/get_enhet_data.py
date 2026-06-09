@@ -5,10 +5,10 @@ results in **long format** (aarmnd, enhet, value) rather than wide, since
 there are many units and the triple-diff pipeline expects long format.
 
 Output structure:
-  data/raw/indikatorer/enhet/nedbrytning/<group>/<utfall>.csv
-  data/raw/indikatorer/enhet/nedbrytning/<group>/forventet_<utfall>.csv
-  data/raw/indikatorer/enhet/nedbrytning/<group>/faktisk_<utfall>.csv
-  data/raw/personer/enhet/nedbrytning/<group>/antall_personer.csv
+  data/input/indikatorer/enhet/nedbrytning/<group>/<utfall>.csv
+  data/input/indikatorer/enhet/nedbrytning/<group>/forventet_<utfall>.csv
+  data/input/indikatorer/enhet/nedbrytning/<group>/faktisk_<utfall>.csv
+  data/input/personer/enhet/nedbrytning/<group>/antall_personer.csv
 """
 
 from __future__ import annotations
@@ -21,8 +21,8 @@ import pandas as pd
 from bq_client import _ALIAS_MAP, _TABLE_URI, _TARGET_UTFALL, _slugify, run_query
 from google.cloud import bigquery
 
-_INDIKATOR_DIR = Path(__file__).resolve().parents[2] / "data" / "raw" / "indikatorer"
-_PERSONER_DIR = Path(__file__).resolve().parents[2] / "data" / "raw" / "personer"
+_INDIKATOR_DIR = Path(__file__).resolve().parents[2] / "data" / "input" / "indikatorer"
+_PERSONER_DIR = Path(__file__).resolve().parents[2] / "data" / "input" / "personer"
 
 
 def _query_nedbrytning_enhet(nedbrytning: str) -> list[dict[str, Any]]:

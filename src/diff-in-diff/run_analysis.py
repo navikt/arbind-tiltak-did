@@ -102,6 +102,25 @@ def _config_slug(cfg_path: Path) -> str:
     return re.sub(r"[^a-z0-9._-]+", "_", raw.lower()).strip("_")
 
 
+def _processed_dir_for_config(cfg_path: Path) -> Path:
+    """Return the processed-data directory for a given config file.
+
+    Derives a nested path from the config file's position relative to
+    ``CONFIGS_DIR``, so the on-disk layout mirrors the config hierarchy.
+
+    Example: ``configs/did/alle-tiltak/alle/kontinuerlig.yml``
+             → ``data/processed/did/alle-tiltak/alle/kontinuerlig/``
+
+    Falls back to a flat directory named after the file stem when the config
+    is not under ``CONFIGS_DIR``.
+    """
+    try:
+        rel = cfg_path.with_suffix("").relative_to(CONFIGS_DIR)
+    except ValueError:
+        rel = Path(cfg_path.stem)
+    return DATA_PROCESSED_BASE / rel
+
+
 def _variation_from_cfg(cfg: dict[str, Any]) -> str:
     """Return the treatment variation folder name (default: 'regioner')."""
     return str(cfg["analysis"].get("variation", "regioner"))
@@ -467,7 +486,7 @@ def _run_single_config(cfg_path: Path) -> int:
     report_dir = staging_root / "report"
     figures_dir = report_dir / "figures"
     tables_dir = staging_root / "tables"
-    processed_dir = DATA_PROCESSED_BASE / config_slug
+    processed_dir = _processed_dir_for_config(cfg_path)
 
     figures_dir.mkdir(parents=True, exist_ok=True)
     tables_dir.mkdir(parents=True, exist_ok=True)
