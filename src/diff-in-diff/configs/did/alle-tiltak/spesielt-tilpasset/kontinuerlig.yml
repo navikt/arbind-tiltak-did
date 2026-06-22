@@ -2,7 +2,7 @@ analysis:
   title: DiD | Alle tiltak | Spesielt tilpasset | Kontinuerlig
   treatment_start: '202506'
   data_start: '202306'
-  data_end: '202509'
+  data_end: '202512'
   treatment_type: continuous
   variation: did/alle-tiltak
   analysis_level: enhet

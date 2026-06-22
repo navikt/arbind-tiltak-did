@@ -1,5 +1,6 @@
 ---
 title: "Tiltaksdata: Midlertidig lønnstilskudd"
+label: sec-midl
 ---
 
 ## Om datakilden

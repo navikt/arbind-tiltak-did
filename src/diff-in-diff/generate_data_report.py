@@ -563,7 +563,7 @@ def _section_indikatorer(figures_dir: Path, report_dir: Path) -> list[str]:
         "Tilgjengelig for innsatsgruppene: **Alle**, **Standard**, **Situasjonsbestemt**,",
         "**Spesielt tilpasset** og **Veiledning kombinert**.",
         "",
-        "Data på regionnivå dekker perioden `202010`–`202509`. "
+        "Data på regionnivå dekker perioden `202306`–`202512`. "
         "Enhetsnivå-data er tilgjengelig fra `202306`.",
         "",
     ]

@@ -18,26 +18,28 @@ book:
     - data/indikatorer.qmd
   - part: did/midl-lonnstilskudd/intro.qmd
     chapters:
-    - did/midl-lonnstilskudd/alle--diskret/report_alle--diskret.qmd
-    - did/midl-lonnstilskudd/alle--faktisk-kontinuerlig/report_alle--faktisk-kontinuerlig.qmd
-    - did/midl-lonnstilskudd/alle--forventet-kontinuerlig/report_alle--forventet-kontinuerlig.qmd
-    - did/midl-lonnstilskudd/standard--kontinuerlig/report_standard--kontinuerlig.qmd
-    - did/midl-lonnstilskudd/standard--diskret/report_standard--diskret.qmd
-    - did/midl-lonnstilskudd/standard--faktisk-kontinuerlig/report_standard--faktisk-kontinuerlig.qmd
-    - did/midl-lonnstilskudd/standard--forventet-kontinuerlig/report_standard--forventet-kontinuerlig.qmd
-    - did/midl-lonnstilskudd/situasjonsbestemt--kontinuerlig/report_situasjonsbestemt--kontinuerlig.qmd
-    - did/midl-lonnstilskudd/situasjonsbestemt--diskret/report_situasjonsbestemt--diskret.qmd
-    - did/midl-lonnstilskudd/situasjonsbestemt--faktisk-kontinuerlig/report_situasjonsbestemt--faktisk-kontinuerlig.qmd
-    - did/midl-lonnstilskudd/situasjonsbestemt--forventet-kontinuerlig/report_situasjonsbestemt--forventet-kontinuerlig.qmd
-    - did/midl-lonnstilskudd/spesielt-tilpasset--diskret/report_spesielt-tilpasset--diskret.qmd
-    - did/midl-lonnstilskudd/spesielt-tilpasset--faktisk-kontinuerlig/report_spesielt-tilpasset--faktisk-kontinuerlig.qmd
-    - did/midl-lonnstilskudd/spesielt-tilpasset--forventet-kontinuerlig/report_spesielt-tilpasset--forventet-kontinuerlig.qmd
+    - did/midl-lonnstilskudd/did--midl-lonnstilskudd--alle--diskret/report_did--midl-lonnstilskudd--alle--diskret.qmd
+    - did/midl-lonnstilskudd/did--midl-lonnstilskudd--alle--faktisk-kontinuerlig/report_did--midl-lonnstilskudd--alle--faktisk-kontinuerlig.qmd
+    - did/midl-lonnstilskudd/did--midl-lonnstilskudd--alle--forventet-kontinuerlig/report_did--midl-lonnstilskudd--alle--forventet-kontinuerlig.qmd
+    - did/midl-lonnstilskudd/did--midl-lonnstilskudd--alle--kontinuerlig/report_did--midl-lonnstilskudd--alle--kontinuerlig.qmd
+    - did/midl-lonnstilskudd/did--midl-lonnstilskudd--situasjonsbestemt--diskret/report_did--midl-lonnstilskudd--situasjonsbestemt--diskret.qmd
+    - did/midl-lonnstilskudd/did--midl-lonnstilskudd--situasjonsbestemt--faktisk-kontinuerlig/report_did--midl-lonnstilskudd--situasjonsbestemt--faktisk-kontinuerlig.qmd
+    - did/midl-lonnstilskudd/did--midl-lonnstilskudd--situasjonsbestemt--forventet-kontinuerlig/report_did--midl-lonnstilskudd--situasjonsbestemt--forventet-kontinuerlig.qmd
+    - did/midl-lonnstilskudd/did--midl-lonnstilskudd--situasjonsbestemt--kontinuerlig/report_did--midl-lonnstilskudd--situasjonsbestemt--kontinuerlig.qmd
+    - did/midl-lonnstilskudd/did--midl-lonnstilskudd--spesielt-tilpasset--diskret/report_did--midl-lonnstilskudd--spesielt-tilpasset--diskret.qmd
+    - did/midl-lonnstilskudd/did--midl-lonnstilskudd--spesielt-tilpasset--faktisk-kontinuerlig/report_did--midl-lonnstilskudd--spesielt-tilpasset--faktisk-kontinuerlig.qmd
+    - did/midl-lonnstilskudd/did--midl-lonnstilskudd--spesielt-tilpasset--forventet-kontinuerlig/report_did--midl-lonnstilskudd--spesielt-tilpasset--forventet-kontinuerlig.qmd
+    - did/midl-lonnstilskudd/did--midl-lonnstilskudd--spesielt-tilpasset--kontinuerlig/report_did--midl-lonnstilskudd--spesielt-tilpasset--kontinuerlig.qmd
+    - did/midl-lonnstilskudd/did--midl-lonnstilskudd--standard--diskret/report_did--midl-lonnstilskudd--standard--diskret.qmd
+    - did/midl-lonnstilskudd/did--midl-lonnstilskudd--standard--faktisk-kontinuerlig/report_did--midl-lonnstilskudd--standard--faktisk-kontinuerlig.qmd
+    - did/midl-lonnstilskudd/did--midl-lonnstilskudd--standard--forventet-kontinuerlig/report_did--midl-lonnstilskudd--standard--forventet-kontinuerlig.qmd
+    - did/midl-lonnstilskudd/did--midl-lonnstilskudd--standard--kontinuerlig/report_did--midl-lonnstilskudd--standard--kontinuerlig.qmd
+    - did/midl-lonnstilskudd/did--midl-lonnstilskudd--veiledning-kombinert--kontinuerlig/report_did--midl-lonnstilskudd--veiledning-kombinert--kontinuerlig.qmd
   - part: did/alle-tiltak/intro.qmd
     chapters:
-    - did/alle-tiltak/alle--kontinuerlig/report_alle--kontinuerlig.qmd
+    - did/alle-tiltak/did--alle-tiltak--alle--kontinuerlig/report_did--alle-tiltak--alle--kontinuerlig.qmd
+    - did/alle-tiltak/did--alle-tiltak--spesielt-tilpasset--kontinuerlig/report_did--alle-tiltak--spesielt-tilpasset--kontinuerlig.qmd
     - did/alle-tiltak/did--alle-tiltak--veiledning-kombinert--kontinuerlig/report_did--alle-tiltak--veiledning-kombinert--kontinuerlig.qmd
-    - did/alle-tiltak/spesielt-tilpasset--kontinuerlig/report_spesielt-tilpasset--kontinuerlig.qmd
-    - did/alle-tiltak/veiledning-kombinert--kontinuerlig/report_veiledning-kombinert--kontinuerlig.qmd
   - part: triple-diff/midl-lonnstilskudd/regioner/intro.qmd
     chapters:
     - triple-diff/midl-lonnstilskudd/regioner/01-deskriptiv.qmd

@@ -1,5 +1,5 @@
 ---
-title: "Trippel-diff, regioner, kontinuerlig"
+title: "TrippelDiD | Midl. lønnstilskudd | Regioner | Kontinuerlig"
 ---
 
 ## Bakgrunn og metode
@@ -19,8 +19,8 @@ gruppe × tid-interaksjon for å skille Veiledning kombinert-trenden fra den nas
 trenden. Den foretrukne spesifikasjonen legger i tillegg til region ×
 kalendermåned-faste effekter for å absorbere regionspesifikke sesongmønstre.
 
-> **Signifikansnivå:** \* p < 0,10 &nbsp; \*\* p < 0,05 &nbsp; \*\*\* p < 0,01
-> Standardfeil er clustret på regionnivå (CR1 småutvalgskorrigering).
+> **Signifikansnivå:** \* p < 0,10 &nbsp; \*\* p < 0,05 &nbsp; \*\*\* p < 0,01  
+> Standardfeil er clustret på regionnivå (CR1 småutvalgskorrigering).  
 > Primær p-verdi basert på wild cluster bootstrap med Webb-vekter (B = 4 999).
 
 Analysen er delt inn i fire kapitler:

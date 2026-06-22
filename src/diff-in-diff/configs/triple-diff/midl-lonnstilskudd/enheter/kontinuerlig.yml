@@ -1,8 +1,8 @@
 analysis:
   title: TrippelDiD | Midl. lønnstilskudd | Enheter | Kontinuerlig
   treatment_start: '202506'
-  data_start: '202010'
-  data_end: '202509'
+  data_start: '202306'
+  data_end: '202512'
   treatment_type: continuous
   variation: triple-diff/midl-lonnstilskudd/enheter
   design: triple_diff

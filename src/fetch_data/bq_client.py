@@ -11,7 +11,7 @@ from typing import Any
 
 from google.cloud import bigquery
 
-_TABLE_URI = "arbeidsindikator-prod-51bc.arbeidsindikator.agg_indikator_siste_pub"
+_TABLE_URI = "arbeidsindikator-prod-51bc.arbeidsindikator.v_resultater_publisert_siste"
 _TARGET_UTFALL = ("atid3", "jobb3")
 
 # Maps new display names (old NAV innsatsgruppe scheme) to the API query strings.

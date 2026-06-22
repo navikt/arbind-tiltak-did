@@ -1,11 +1,11 @@
 ---
-title: "Deskriptiv statistikk — Trippel-diff, enheter, kontinuerlig"
+title: "Deskriptiv statistikk — TrippelDiD | Midl. lønnstilskudd | Enheter | Kontinuerlig"
 ---
 
 ## Oversikt
 
-Behandlet gruppe: **Veiledning kombinert**
-Kontrollgruppe: **Standard**
+Behandlet gruppe: **Veiledning kombinert**  
+Kontrollgruppe: **Standard**  
 Analysenivå: **enhet**
 
 Dette kapittelet gir en oversikt over datamaterialet og viser trender for de
@@ -17,22 +17,22 @@ pre-perioden — avvik her vil svekke identifikasjonen.
 
 ### Dataoversikt
 
-- Antall observasjoner: **27940**
+- Antall observasjoner: **27670**
 - Antall regioner: **12**
-- Antall enheter: **245**
+- Antall enheter: **242**
 - Antall måneder: **60**
-- Behandlet gruppe (Veiledning kombinert, n): **13915**
-- Kontrollgruppe (Standard, n): **14025**
+- Behandlet gruppe (Veiledning kombinert, n): **13820**
+- Kontrollgruppe (Standard, n): **13850**
 
 **Gjennomsnittlig indikatorverdi i pre-perioden:**
 
 | Gruppe | Gjennomsnitt |
 |:--|--:|
-| Veiledning kombinert (behandlet) | -0.0450 |
-| Standard (kontroll) | 0.9914 |
-| Differanse | -1.0364 |
+| Veiledning kombinert (behandlet) | -0.0717 |
+| Standard (kontroll) | 0.8697 |
+| Differanse | -0.9414 |
 
-I pre-perioden lå Veiledning kombinert i gjennomsnitt **1.0364** poeng
+I pre-perioden lå Veiledning kombinert i gjennomsnitt **0.9414** poeng
 lavere enn Standard på indikatoren `atid3`.
 Denne nivåforskjellen absorberes av gruppe-faste effekter i regresjonen.
 
@@ -56,22 +56,22 @@ kontinuerlige trippel-diff-modellen.
 
 ### Dataoversikt
 
-- Antall observasjoner: **27940**
+- Antall observasjoner: **27670**
 - Antall regioner: **12**
-- Antall enheter: **245**
+- Antall enheter: **242**
 - Antall måneder: **60**
-- Behandlet gruppe (Veiledning kombinert, n): **13915**
-- Kontrollgruppe (Standard, n): **14025**
+- Behandlet gruppe (Veiledning kombinert, n): **13820**
+- Kontrollgruppe (Standard, n): **13850**
 
 **Gjennomsnittlig indikatorverdi i pre-perioden:**
 
 | Gruppe | Gjennomsnitt |
 |:--|--:|
-| Veiledning kombinert (behandlet) | 0.1637 |
-| Standard (kontroll) | 2.9518 |
-| Differanse | -2.7880 |
+| Veiledning kombinert (behandlet) | 0.1061 |
+| Standard (kontroll) | 2.6029 |
+| Differanse | -2.4969 |
 
-I pre-perioden lå Veiledning kombinert i gjennomsnitt **2.7880** poeng
+I pre-perioden lå Veiledning kombinert i gjennomsnitt **2.4969** poeng
 lavere enn Standard på indikatoren `jobb3`.
 Denne nivåforskjellen absorberes av gruppe-faste effekter i regresjonen.
 
@@ -90,3 +90,4 @@ fra hverandre i intensitet, noe som er kilden til identifikasjonen i den
 kontinuerlige trippel-diff-modellen.
 
 ![Behandlingsintensitet jobb3](figures/treatment_intensity_jobb3.svg)
+

@@ -1,5 +1,5 @@
 ---
-title: "Bootstrap og inferens — Trippel-diff, regioner, kontinuerlig"
+title: "Bootstrap og inferens — TrippelDiD | Midl. lønnstilskudd | Regioner | Kontinuerlig"
 ---
 
 ## Wild cluster bootstrap
@@ -16,10 +16,10 @@ tilsvarer et ikke-signifikant funn.
 
 ### atid3 — basis
 
-Observert koeffisient: **1.3519**
-Observert SE: **0.3143**
-Observert t-statistikk: **4.301**
-Bootstrap p-verdi: **0.0014**
+Observert koeffisient: **0.9187**  
+Observert SE: **0.1887**  
+Observert t-statistikk: **4.869**  
+Bootstrap p-verdi: **0.0004**  
 Antall replikasjoner: **4999**
 
 Resultatet er **statistisk signifikant (***)** på bootstrap-grunnlag.
@@ -28,10 +28,10 @@ Resultatet er **statistisk signifikant (***)** på bootstrap-grunnlag.
 
 ### atid3 — sesongjustert
 
-Observert koeffisient: **1.8358**
-Observert SE: **0.3252**
-Observert t-statistikk: **5.645**
-Bootstrap p-verdi: **0.0000**
+Observert koeffisient: **1.0390**  
+Observert SE: **0.1931**  
+Observert t-statistikk: **5.380**  
+Bootstrap p-verdi: **0.0002**  
 Antall replikasjoner: **4999**
 
 Resultatet er **statistisk signifikant (***)** på bootstrap-grunnlag.
@@ -40,10 +40,10 @@ Resultatet er **statistisk signifikant (***)** på bootstrap-grunnlag.
 
 ### jobb3 — basis
 
-Observert koeffisient: **3.8037**
-Observert SE: **1.0431**
-Observert t-statistikk: **3.646**
-Bootstrap p-verdi: **0.0012**
+Observert koeffisient: **2.6766**  
+Observert SE: **0.6133**  
+Observert t-statistikk: **4.364**  
+Bootstrap p-verdi: **0.0008**  
 Antall replikasjoner: **4999**
 
 Resultatet er **statistisk signifikant (***)** på bootstrap-grunnlag.
@@ -52,12 +52,13 @@ Resultatet er **statistisk signifikant (***)** på bootstrap-grunnlag.
 
 ### jobb3 — sesongjustert
 
-Observert koeffisient: **5.2169**
-Observert SE: **1.0117**
-Observert t-statistikk: **5.156**
-Bootstrap p-verdi: **0.0004**
+Observert koeffisient: **3.1664**  
+Observert SE: **0.6303**  
+Observert t-statistikk: **5.024**  
+Bootstrap p-verdi: **0.0006**  
 Antall replikasjoner: **4999**
 
 Resultatet er **statistisk signifikant (***)** på bootstrap-grunnlag.
 
 ![Bootstrap-fordeling jobb3 (sesongjustert)](figures/bootstrap_jobb3_sesongjustert.svg)
+

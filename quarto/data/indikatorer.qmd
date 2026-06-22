@@ -1,5 +1,6 @@
 ---
 title: "Indikatordata"
+label: sec-ind
 ---
 
 ## Om indikatorene
@@ -22,7 +23,7 @@ Begge er tilgjengelige i tre varianter:
 Tilgjengelig for innsatsgruppene: **Alle**, **Standard**, **Situasjonsbestemt**,
 **Spesielt tilpasset** og **Veiledning kombinert**.
 
-Data på regionnivå dekker perioden `202010`–`202509`. Enhetsnivå-data er tilgjengelig fra `202306`.
+Data på regionnivå dekker perioden `202306`–`202512`. Enhetsnivå-data er tilgjengelig fra `202306`.
 
 ## Arbeidstid neste tre måneder (atid3)
 

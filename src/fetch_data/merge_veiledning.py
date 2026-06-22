@@ -9,8 +9,8 @@ from pathlib import Path
 import pandas as pd
 
 _ROOT = Path(__file__).resolve().parents[2]
-_IND_BASE = _ROOT / "data" / "raw" / "indikatorer" / "nedbrytning"
-_PERS_BASE = _ROOT / "data" / "raw" / "personer" / "nedbrytning"
+_IND_BASE = _ROOT / "data" / "input" / "indikatorer" / "nedbrytning"
+_PERS_BASE = _ROOT / "data" / "input" / "personer" / "nedbrytning"
 _OUT_DIR = _IND_BASE / "veiledning_kombinert"
 
 _GROUP_A = "Situasjonsbestemt"

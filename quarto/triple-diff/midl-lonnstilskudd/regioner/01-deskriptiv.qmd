@@ -1,11 +1,11 @@
 ---
-title: "Deskriptiv statistikk — Trippel-diff, regioner, kontinuerlig"
+title: "Deskriptiv statistikk — TrippelDiD | Midl. lønnstilskudd | Regioner | Kontinuerlig"
 ---
 
 ## Oversikt
 
-Behandlet gruppe: **Veiledning kombinert**
-Kontrollgruppe: **Standard**
+Behandlet gruppe: **Veiledning kombinert**  
+Kontrollgruppe: **Standard**  
 Analysenivå: **region**
 
 Dette kapittelet gir en oversikt over datamaterialet og viser trender for de
@@ -28,11 +28,11 @@ pre-perioden — avvik her vil svekke identifikasjonen.
 
 | Gruppe | Gjennomsnitt |
 |:--|--:|
-| Veiledning kombinert (behandlet) | -0.0834 |
-| Standard (kontroll) | 0.9725 |
-| Differanse | -1.0559 |
+| Veiledning kombinert (behandlet) | -0.1111 |
+| Standard (kontroll) | 0.8612 |
+| Differanse | -0.9723 |
 
-I pre-perioden lå Veiledning kombinert i gjennomsnitt **1.0559** poeng
+I pre-perioden lå Veiledning kombinert i gjennomsnitt **0.9723** poeng
 lavere enn Standard på indikatoren `atid3`.
 Denne nivåforskjellen absorberes av gruppe-faste effekter i regresjonen.
 
@@ -67,11 +67,11 @@ kontinuerlige trippel-diff-modellen.
 
 | Gruppe | Gjennomsnitt |
 |:--|--:|
-| Veiledning kombinert (behandlet) | 0.0409 |
-| Standard (kontroll) | 2.8985 |
-| Differanse | -2.8576 |
+| Veiledning kombinert (behandlet) | -0.0169 |
+| Standard (kontroll) | 2.5752 |
+| Differanse | -2.5921 |
 
-I pre-perioden lå Veiledning kombinert i gjennomsnitt **2.8576** poeng
+I pre-perioden lå Veiledning kombinert i gjennomsnitt **2.5921** poeng
 lavere enn Standard på indikatoren `jobb3`.
 Denne nivåforskjellen absorberes av gruppe-faste effekter i regresjonen.
 
@@ -90,3 +90,4 @@ fra hverandre i intensitet, noe som er kilden til identifikasjonen i den
 kontinuerlige trippel-diff-modellen.
 
 ![Behandlingsintensitet jobb3](figures/treatment_intensity_jobb3.svg)
+

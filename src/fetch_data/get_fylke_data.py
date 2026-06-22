@@ -26,11 +26,11 @@ def _query_nedbrytning(nedbrytning: str) -> list[dict[str, Any]]:
     """Fetch all indicator columns for one nedbrytning in a single query."""
     query = f"""
         SELECT
-            CAST(BEHOLDNINGSMAANED AS STRING) AS aarmnd,
+            aarmnd_dato AS aarmnd,
             org_sted AS org_sted,
             UTFALL AS utfall,
             INDIKATOR AS indikator,
-            forventet AS forventet,
+            estimert AS forventet,
             faktisk AS faktisk,
             ANTALL_PERSONER AS antall_personer,
             NEDBRYTNING AS nedbrytning
@@ -39,7 +39,7 @@ def _query_nedbrytning(nedbrytning: str) -> list[dict[str, Any]]:
           AND NEDBRYTNING = @nedbrytning
           AND org_sted != 'Nasjonal oppfølgingsenhet'
           AND UTFALL IN UNNEST(@utfall)
-        ORDER BY BEHOLDNINGSMAANED
+        ORDER BY aarmnd
     """
     return run_query(
         query,
@@ -93,7 +93,7 @@ def fetch_and_save(nedbrytning: str) -> list[Path]:
         raise ValueError(
             f"Query result is missing required columns: {', '.join(sorted(missing))}."
         )
-    df["aarmnd"] = pd.to_datetime(df["aarmnd"], errors="raise").dt.strftime("%Y%m")
+    df["aarmnd"] = pd.to_datetime(df["aarmnd"], utc=True).dt.strftime("%Y%m")
 
     slug = _slugify(nedbrytning)
     indikator_dir = _INDIKATOR_DIR / "nedbrytning" / slug

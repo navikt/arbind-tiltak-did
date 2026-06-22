@@ -30,6 +30,10 @@ render:
 publish:
     uv run src/utils/publish.py
 
+# Kjør DiD-analyse for alle konfigurasjonsfiler i configs-mappen
+run-all:
+    cd src/diff-in-diff && uv run python run_analysis.py --config configs
+
 # Kjør standard DiD-analyse for en gitt konfigurasjon (f.eks. `just did alle/alle-kontinuerlig`)
 did config='alle/alle-kontinuerlig':
     cd src/diff-in-diff && uv run python run_analysis.py --config {{config}}
@@ -54,9 +58,24 @@ fetch-fylke group:
 merge-veiledning-enhet:
     uv run python src/fetch_data/merge_veiledning_enhet.py
 
+# Konverter tiltak-JSON til CSV-filer i data/input/tiltak/
+tiltak-to-csv:
+    uv run python src/utils/tiltak_json_to_csv.py
+
+# Eksporter behandlingsvariabel per region til Excel
+export-treatment:
+    uv run python src/utils/export_treatment_excel.py
+
 # Slå sammen veiledning-grupper på fylkesnivå
 merge-veiledning-fylke:
     uv run python src/fetch_data/merge_veiledning.py
+
+# Hent all indikatordata fra BigQuery og slå sammen veiledning-grupper
+fetch-all:
+    uv run python src/fetch_data/get_fylke_data.py 'Alle' 'Standard' 'Spesielt tilpasset' 'Situasjonsbestemt'
+    uv run python src/fetch_data/get_enhet_data.py 'Alle' 'Standard' 'Spesielt tilpasset' 'Situasjonsbestemt'
+    just merge-veiledning-fylke
+    just merge-veiledning-enhet
 
 # Sjekk etter sårbarheter i Python-avhengigheter
 audit:
