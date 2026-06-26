@@ -1,13 +1,8 @@
 # DiD – Midlertidig lønnstilskudd
 
-Denne seksjonen samler difference-in-differences-analyser der **midlertidig lønnstilskudd** brukes som tiltaksvariabel og behandlingsvariasjon måles på tvers av Nav-regioner.
+Denne seksjonen samler difference-in-differences-analyser der **midlertidig lønnstilskudd** brukes som tiltaksvariabel.
 
-Analysene er organisert etter innsatsgruppe (populasjon) og behandlingstype:
+Analysene er delt i to nivåer:
 
-| Innsatsgruppe | Kontinuerlig | Diskret | Faktisk | Forventet |
-|---|---|---|---|---|
-| Alle | ✓ | ✓ | ✓ | ✓ |
-| Standard | ✓ | ✓ | ✓ | ✓ |
-| Situasjonsbestemt | ✓ | ✓ | ✓ | ✓ |
-| Spesielt tilpasset | ✓ | ✓ | ✓ | ✓ |
-| Veiledning kombinert | ✓ | | | |
+- **Regioner** — behandlingsvariasjon på tvers av Nav-regioner
+- **Enheter** — behandlingsvariasjon på tvers av Nav-enheter (kontor)

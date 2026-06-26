@@ -1,0 +1,20 @@
+analysis:
+  title: DiD | Midl. lønnstilskudd | Standard | Diskret
+  treatment_start: '202506'
+  data_start: '202306'
+  data_end: '202512'
+  treatment_type: discrete
+  variation: did/midl-lonnstilskudd/regioner
+  control_regions:
+  - Nav Innlandet
+  - Nav Nordland
+data:
+  tiltak_file: data/input/tiltak/midl.-lønnstilskudd.csv
+  tiltak_label: Midlertidig lønnstilskudd
+  indikatorer:
+  - name: atid3
+    file: data/input/indikatorer/nedbrytning/standard/atid3.csv
+    description: Arbeidstid neste tre måneder
+  - name: jobb3
+    file: data/input/indikatorer/nedbrytning/standard/jobb3.csv
+    description: I jobb etter 3 måneder

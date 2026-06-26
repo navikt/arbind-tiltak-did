@@ -1,0 +1,9 @@
+# Regioner
+
+Analyser der behandlingsvariasjon i **alle tiltak samlet** måles på tvers av Nav-regioner.
+
+| Innsatsgruppe | Kontinuerlig |
+|---|---|
+| Alle | ✓ |
+| Spesielt tilpasset | ✓ |
+| Veiledning kombinert | ✓ |

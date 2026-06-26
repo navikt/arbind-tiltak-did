@@ -26,7 +26,7 @@ from report.table_output import _save_coefficients_table, _save_regression_table
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 CONFIGS_DIR = Path(__file__).parent / "configs"
 DEFAULT_CONFIG = (
-    CONFIGS_DIR / "did" / "midl-lonnstilskudd" / "alle" / "kontinuerlig.yml"
+    CONFIGS_DIR / "did" / "midl-lonnstilskudd" / "alle" / "regioner" / "kontinuerlig.yml"
 )
 DATA_PROCESSED_BASE = PROJECT_ROOT / "data" / "processed"
 OUTPUTS_DID_BASE = PROJECT_ROOT / "outputs" / "did"
@@ -140,8 +140,7 @@ def _check_inputs(cfg: dict[str, Any]) -> bool:
         if not p.exists():
             missing.append(f"  {ind['name']}: {p}")
     analysis_level = cfg["analysis"].get("analysis_level", "region")
-    design = cfg["analysis"].get("design", "did")
-    if analysis_level == "enhet" and design != "triple_diff":
+    if analysis_level == "enhet":
         mapping_file = cfg["data"].get("enhet_mapping_file")
         if not mapping_file:
             missing.append("  enhet_mapping_file: not specified in data config")
