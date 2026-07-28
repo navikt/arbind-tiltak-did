@@ -1,4 +1,4 @@
-"""Merge veiledning groups into one weighted indikator series per enhet.
+"""Merge veiledning groups into weighted indicator series per enhet.
 
 Mirrors merge_veiledning.py but operates on long-format enhet-level data
 produced by get_enhet_data.py.
@@ -19,7 +19,14 @@ _OUT_DIR = _IND_BASE / "veiledning_kombinert"
 
 _GROUP_A = "Situasjonsbestemt"
 _GROUP_B = "Spesielt tilpasset"
-_OUTCOMES = ("atid3", "jobb3")
+_OUTCOMES = (
+    "atid3",
+    "jobb3",
+    "faktisk_atid3",
+    "faktisk_jobb3",
+    "forventet_atid3",
+    "forventet_jobb3",
+)
 
 
 def _slugify(value: str) -> str:
@@ -46,7 +53,7 @@ def _read_long(path: Path) -> pd.DataFrame:
 
 
 def _merge_one_outcome(outcome: str, group_a: str, group_b: str) -> pd.DataFrame:
-    """Return weighted merged indikator for one outcome in long format."""
+    """Return a weighted merged series for one outcome in long format."""
     g1 = _slugify(group_a)
     g2 = _slugify(group_b)
 
@@ -55,9 +62,27 @@ def _merge_one_outcome(outcome: str, group_a: str, group_b: str) -> pd.DataFrame
     n1 = _read_long(_PERS_BASE / g1 / "antall_personer.csv")
     n2 = _read_long(_PERS_BASE / g2 / "antall_personer.csv")
 
-    # Rename value columns to avoid collisions
-    ind1 = ind1.rename(columns={"indikator": "indikator_1"})
-    ind2 = ind2.rename(columns={"indikator": "indikator_2"})
+    value_column = (
+        "faktisk"
+        if outcome.startswith("faktisk_")
+        else "forventet"
+        if outcome.startswith("forventet_")
+        else "indikator"
+    )
+    expected = {"aarmnd", "enhet", value_column}
+    for path, df in (
+        (_IND_BASE / g1 / f"{outcome}.csv", ind1),
+        (_IND_BASE / g2 / f"{outcome}.csv", ind2),
+    ):
+        if not expected.issubset(df.columns):
+            raise ValueError(
+                f"Long-format indicator file {path} must have columns {expected}, "
+                f"found {set(df.columns)}"
+            )
+
+    # Standardize source value names so all series use the same weighted merge.
+    ind1 = ind1.rename(columns={value_column: "indikator_1"})
+    ind2 = ind2.rename(columns={value_column: "indikator_2"})
     n1 = n1.rename(columns={"antall_personer": "n_1"})
     n2 = n2.rename(columns={"antall_personer": "n_2"})
 
@@ -91,7 +116,7 @@ def merge_veiledning_enhet(
     group_b: str = _GROUP_B,
     outcomes: tuple[str, ...] = _OUTCOMES,
 ) -> list[Path]:
-    """Merge Situasjonsbestemt and Spesielt tilpasset at enhet level and save one CSV per outcome."""
+    """Merge veiledning groups and save indicator, faktisk, and forventet CSVs."""
     _OUT_DIR.mkdir(parents=True, exist_ok=True)
     saved: list[Path] = []
     for outcome in outcomes:

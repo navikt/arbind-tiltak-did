@@ -1,4 +1,4 @@
-"""Merge veiledning groups into one weighted indikator series per region."""
+"""Merge veiledning groups into weighted indicator series per region."""
 
 from __future__ import annotations
 
@@ -15,7 +15,14 @@ _OUT_DIR = _IND_BASE / "veiledning_kombinert"
 
 _GROUP_A = "Situasjonsbestemt"
 _GROUP_B = "Spesielt tilpasset"
-_OUTCOMES = ("atid3", "jobb3")
+_OUTCOMES = (
+    "atid3",
+    "jobb3",
+    "faktisk_atid3",
+    "faktisk_jobb3",
+    "forventet_atid3",
+    "forventet_jobb3",
+)
 
 
 def _slugify(value: str) -> str:
@@ -47,7 +54,7 @@ def _to_long(df: pd.DataFrame, value_name: str) -> pd.DataFrame:
 
 
 def _merge_one_outcome(outcome: str, group_a: str, group_b: str) -> pd.DataFrame:
-    """Return weighted merged indikator for one outcome in wide format."""
+    """Return a weighted merged series for one outcome in wide format."""
     g1 = _slugify(group_a)
     g2 = _slugify(group_b)
 
@@ -91,7 +98,7 @@ def merge_veiledning(
     group_b: str = _GROUP_B,
     outcomes: tuple[str, ...] = _OUTCOMES,
 ) -> list[Path]:
-    """Merge Situasjonsbestemt and Spesielt tilpasset groups and save one CSV per outcome."""
+    """Merge the veiledning groups and save indicator, faktisk, and forventet files."""
     _OUT_DIR.mkdir(parents=True, exist_ok=True)
     saved: list[Path] = []
     for outcome in outcomes:
