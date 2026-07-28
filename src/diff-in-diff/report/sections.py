@@ -114,7 +114,7 @@ def _plot_tiltak_trends(
     tbl = panel.groupby(["aarmnd", "region"])["tiltak"].mean().reset_index()
 
     regions = sorted(tbl["region"].unique().tolist())
-    cmap = plt.cm.get_cmap("tab20", len(regions))
+    cmap = plt.colormaps.get_cmap("tab20").resampled(len(regions))
 
     fig, ax = plt.subplots(figsize=(12, 5))
     for i, region in enumerate(regions):
