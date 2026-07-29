@@ -6,6 +6,7 @@ Writes summary and full-coefficient CSV tables from regression results.
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -14,8 +15,31 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 
+@dataclass(frozen=True)
+class AnalysisRunMetadata:
+    """Run-level fields written alongside every regression summary row."""
+
+    config_slug: str
+    config_path: str
+    analysis_design: str
+    treatment_type: str
+    analysis_level: str
+    treatment_start: str
+
+
+def _period_bounds(panel: pd.DataFrame) -> tuple[str, str]:
+    """Return the first and last observed months in ISO date format."""
+    months = pd.to_datetime(panel["aarmnd"], errors="raise")
+    return (
+        months.min().strftime("%Y-%m-%d"),
+        months.max().strftime("%Y-%m-%d"),
+    )
+
+
 def _save_regression_table(
-    all_results: dict[str, dict[str, Any] | None], tables_dir: Path
+    all_results: dict[str, dict[str, Any] | None],
+    tables_dir: Path,
+    metadata: AnalysisRunMetadata,
 ) -> None:
     """Save a summary regression table (one row per model) for all indicators.
 
@@ -29,16 +53,29 @@ def _save_regression_table(
         if res is None:
             continue
         indicator_base = str(res.get("indicator_name", ind))
-        for model_name, result, boot_key in [
-            ("baseline", res["baseline"], "bootstrap_baseline"),
-            ("preferred", res["preferred"], "bootstrap_preferred"),
+        for model_name, result, boot_key, panel_key in [
+            ("baseline", res["baseline"], "bootstrap_baseline", "panel_regular"),
+            ("preferred", res["preferred"], "bootstrap_preferred", "panel"),
         ]:
             boot = res.get(boot_key)
+            period_start, period_end = _period_bounds(res[panel_key])
             rows.append(
                 {
+                    "config_slug": metadata.config_slug,
+                    "config_path": metadata.config_path,
+                    "analysis_design": metadata.analysis_design,
+                    "treatment_type": metadata.treatment_type,
+                    "analysis_level": metadata.analysis_level,
+                    "treatment_start": metadata.treatment_start,
                     "indicator": ind,
                     "indicator_base": indicator_base,
                     "model": model_name,
+                    "seasonally_adjusted": model_name == "preferred",
+                    "entity_fixed_effects": any(
+                        effect in {"Enhet FE", "Region FE"}
+                        for effect in result.fixed_effects
+                    ),
+                    "time_fixed_effects": "År-måned FE" in result.fixed_effects,
                     "baseline_mean": res.get("baseline_mean"),
                     "coefficient": result.coefficient,
                     "std_error": result.std_error,
@@ -50,6 +87,9 @@ def _save_regression_table(
                     "n_obs": result.n_obs,
                     "n_clusters": result.n_clusters,
                     "n_boot": boot.n_boot if boot else None,
+                    "r_squared_adjusted": result.r_squared_adjusted,
+                    "period_start": period_start,
+                    "period_end": period_end,
                 }
             )
     df = pd.DataFrame(rows)
