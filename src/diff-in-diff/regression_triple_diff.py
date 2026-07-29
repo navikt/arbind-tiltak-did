@@ -122,6 +122,7 @@ def _estimate_triple_diff(
         n_clusters=int(clusters.nunique()),
         fixed_effects=fe_labels,
         r_squared_within=_compute_within_r2(y, X, panel),
+        r_squared_adjusted=float(cl_fit.rsquared_adj),
         result_obj=cl_fit,
     )
 

@@ -24,9 +24,9 @@ import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import pandas as pd
 from data_io import _load_tiltak_wide_to_long as _load_tiltak_sa
-from report.utils import RED as _RED
 from report.utils import BLUE as _BLUE
 from report.utils import LIGHT_BLUE as _LIGHT_BLUE
+from report.utils import RED as _RED
 from report.utils import rel as _rel
 from report.utils import save_fig as _save_fig
 
@@ -56,9 +56,18 @@ logger = logging.getLogger("generate_data_report")
 # ── Colour palette ─────────────────────────────────────────────────────────────
 
 _COLORS_REGIONS = [
-    "#003366", "#C8102E", "#66A3C8", "#f4a582", "#858E00",
-    "#254B6D", "#FF9100", "#C1A753", "#66CBEC", "#B90000",
-    "#4A90D9", "#8B4513",
+    "#003366",
+    "#C8102E",
+    "#66A3C8",
+    "#f4a582",
+    "#858E00",
+    "#254B6D",
+    "#FF9100",
+    "#C1A753",
+    "#66CBEC",
+    "#B90000",
+    "#4A90D9",
+    "#8B4513",
 ]
 
 _GRUPPE_LABELS: dict[str, str] = {
@@ -94,18 +103,27 @@ def _load_indicator(path: Path) -> pd.DataFrame:
     df = pd.read_csv(path)
     df["aarmnd"] = df["aarmnd"].astype(str)
     regions = [c for c in df.columns if c != "aarmnd"]
-    return df.melt(id_vars="aarmnd", value_vars=regions, var_name="region", value_name="verdi")
+    return df.melt(
+        id_vars="aarmnd", value_vars=regions, var_name="region", value_name="verdi"
+    )
 
 
 # ── Figure generators ──────────────────────────────────────────────────────────
 
 
-def _plot_tiltak_trends(df: pd.DataFrame, regions: list[str], title: str, fig_path: Path) -> None:
+def _plot_tiltak_trends(
+    df: pd.DataFrame, regions: list[str], title: str, fig_path: Path
+) -> None:
     """Line chart: tiltak count per region over time."""
     fig, ax = plt.subplots(figsize=(10, 5))
     for i, region in enumerate(regions):
-        ax.plot(df["aarmnd"], df[region],
-                linewidth=1.0, alpha=0.8, color=_COLORS_REGIONS[i % len(_COLORS_REGIONS)])
+        ax.plot(
+            df["aarmnd"],
+            df[region],
+            linewidth=1.0,
+            alpha=0.8,
+            color=_COLORS_REGIONS[i % len(_COLORS_REGIONS)],
+        )
     ax.axvline(TREATMENT_START_DATE, color="black", linestyle="--", linewidth=1.2)
     ax.set_title(title, fontsize=12)
     ax.set_ylabel("Antall deltakere")
@@ -114,6 +132,7 @@ def _plot_tiltak_trends(df: pd.DataFrame, regions: list[str], title: str, fig_pa
     plt.xticks(rotation=45, ha="right")
     # Small legend for treatment line
     from matplotlib.lines import Line2D
+
     ax.legend(
         handles=[Line2D([0], [0], color="black", linestyle="--", linewidth=1.2)],
         labels=["Behandlingsstart (2025-06)"],
@@ -124,9 +143,7 @@ def _plot_tiltak_trends(df: pd.DataFrame, regions: list[str], title: str, fig_pa
     _save_fig(fig, fig_path)
 
 
-def _plot_tiltak_sa_trend(
-    tiltak_path: Path, title: str, fig_path: Path
-) -> None:
+def _plot_tiltak_sa_trend(tiltak_path: Path, title: str, fig_path: Path) -> None:
     """Plot raw vs. two STL-seasonally-adjusted national totals.
 
     Shows three series so the reader can compare:
@@ -140,10 +157,12 @@ def _plot_tiltak_sa_trend(
     analysis pipeline.
     """
     raw_long = _load_tiltak_sa(tiltak_path, seasonal_adjust=False)
-    sa_full_long = _load_tiltak_sa(tiltak_path, seasonal_adjust=True,
-                                   seasonal_adjust_pre_only=False)
-    sa_pre_long = _load_tiltak_sa(tiltak_path, seasonal_adjust=True,
-                                  seasonal_adjust_pre_only=True)
+    sa_full_long = _load_tiltak_sa(
+        tiltak_path, seasonal_adjust=True, seasonal_adjust_pre_only=False
+    )
+    sa_pre_long = _load_tiltak_sa(
+        tiltak_path, seasonal_adjust=True, seasonal_adjust_pre_only=True
+    )
 
     def _total(long: pd.DataFrame) -> pd.DataFrame:
         return (
@@ -159,12 +178,29 @@ def _plot_tiltak_sa_trend(
     sa_pre_total = _total(sa_pre_long)
 
     fig, ax = plt.subplots(figsize=(10, 4))
-    ax.plot(raw_total["dato"], raw_total["tiltak"],
-            label="Rå total", color=_LIGHT_BLUE, linewidth=1.2, alpha=0.7)
-    ax.plot(sa_full_total["dato"], sa_full_total["tiltak"],
-            label="SK – full serie (analyse)", color=_BLUE, linewidth=1.5)
-    ax.plot(sa_pre_total["dato"], sa_pre_total["tiltak"],
-            label="SK – kun pre-periode", color=_RED, linewidth=1.5, linestyle="--")
+    ax.plot(
+        raw_total["dato"],
+        raw_total["tiltak"],
+        label="Rå total",
+        color=_LIGHT_BLUE,
+        linewidth=1.2,
+        alpha=0.7,
+    )
+    ax.plot(
+        sa_full_total["dato"],
+        sa_full_total["tiltak"],
+        label="SK – full serie (analyse)",
+        color=_BLUE,
+        linewidth=1.5,
+    )
+    ax.plot(
+        sa_pre_total["dato"],
+        sa_pre_total["tiltak"],
+        label="SK – kun pre-periode",
+        color=_RED,
+        linewidth=1.5,
+        linestyle="--",
+    )
     ax.axvline(TREATMENT_START_DATE, color="black", linestyle=":", linewidth=1.2)
     ax.set_title(title, fontsize=12)
     ax.set_ylabel("Antall deltakere (sum alle regioner)")
@@ -172,6 +208,7 @@ def _plot_tiltak_sa_trend(
     ax.xaxis.set_major_locator(mdates.MonthLocator(interval=6))
     plt.xticks(rotation=45, ha="right")
     from matplotlib.lines import Line2D
+
     handles = ax.get_legend_handles_labels()[0]
     labels = ax.get_legend_handles_labels()[1]
     handles.append(Line2D([0], [0], color="black", linestyle=":", linewidth=1.2))
@@ -181,9 +218,7 @@ def _plot_tiltak_sa_trend(
     _save_fig(fig, fig_path)
 
 
-def _plot_sa_regions(
-    tiltak_path: Path, title: str, fig_path: Path
-) -> None:
+def _plot_sa_regions(tiltak_path: Path, title: str, fig_path: Path) -> None:
     """Small-multiples plot: raw vs. both SA variants for every region.
 
     Each subplot covers one Nav region.  Shows the same three series as
@@ -194,10 +229,12 @@ def _plot_sa_regions(
     import numpy as np
 
     raw_long = _load_tiltak_sa(tiltak_path, seasonal_adjust=False)
-    sa_full_long = _load_tiltak_sa(tiltak_path, seasonal_adjust=True,
-                                   seasonal_adjust_pre_only=False)
-    sa_pre_long = _load_tiltak_sa(tiltak_path, seasonal_adjust=True,
-                                  seasonal_adjust_pre_only=True)
+    sa_full_long = _load_tiltak_sa(
+        tiltak_path, seasonal_adjust=True, seasonal_adjust_pre_only=False
+    )
+    sa_pre_long = _load_tiltak_sa(
+        tiltak_path, seasonal_adjust=True, seasonal_adjust_pre_only=True
+    )
 
     def _pivot(long: pd.DataFrame) -> pd.DataFrame:
         return (
@@ -219,12 +256,29 @@ def _plot_sa_regions(
 
     for i, region in enumerate(regions):
         ax = axes_flat[i]
-        ax.plot(raw_p.index, raw_p[region],
-                color=_LIGHT_BLUE, linewidth=1.0, alpha=0.7, label="Rå")
-        ax.plot(sf_p.index, sf_p[region],
-                color=_BLUE, linewidth=1.3, label="SK – full serie")
-        ax.plot(sp_p.index, sp_p[region],
-                color=_RED, linewidth=1.3, linestyle="--", label="SK – pre-periode")
+        ax.plot(
+            raw_p.index,
+            raw_p[region],
+            color=_LIGHT_BLUE,
+            linewidth=1.0,
+            alpha=0.7,
+            label="Rå",
+        )
+        ax.plot(
+            sf_p.index,
+            sf_p[region],
+            color=_BLUE,
+            linewidth=1.3,
+            label="SK – full serie",
+        )
+        ax.plot(
+            sp_p.index,
+            sp_p[region],
+            color=_RED,
+            linewidth=1.3,
+            linestyle="--",
+            label="SK – pre-periode",
+        )
         ax.axvline(TREATMENT_START_DATE, color="black", linestyle=":", linewidth=0.9)
         short = region.replace("Nav ", "")
         ax.set_title(short, fontsize=9)
@@ -239,10 +293,12 @@ def _plot_sa_regions(
     # Shared legend
     handles, labels = axes_flat[0].get_legend_handles_labels()
     from matplotlib.lines import Line2D
+
     handles.append(Line2D([0], [0], color="black", linestyle=":", linewidth=0.9))
     labels.append("Behandlingsstart")
-    fig.legend(handles, labels, loc="lower right", fontsize=9,
-               bbox_to_anchor=(0.98, 0.01))
+    fig.legend(
+        handles, labels, loc="lower right", fontsize=9, bbox_to_anchor=(0.98, 0.01)
+    )
 
     fig.suptitle(title, fontsize=11, y=1.01)
     plt.tight_layout()
@@ -264,8 +320,10 @@ def _plot_tiltak_regional_means(
 
 
 def _plot_tiltak_comparison(
-    midl_df: pd.DataFrame, midl_regions: list[str],
-    alle_df: pd.DataFrame, alle_regions: list[str],
+    midl_df: pd.DataFrame,
+    midl_regions: list[str],
+    alle_df: pd.DataFrame,
+    alle_regions: list[str],
     fig_path: Path,
 ) -> None:
     """Total count over time: alle tiltak vs midlertidig lønnstilskudd."""
@@ -273,9 +331,21 @@ def _plot_tiltak_comparison(
     total_midl = midl_df.set_index("aarmnd")[midl_regions].sum(axis=1)
 
     fig, ax = plt.subplots(figsize=(10, 4))
-    ax.plot(total_alle.index, total_alle.values, label="Alle tiltak", color=_BLUE, linewidth=1.5)
-    ax.plot(total_midl.index, total_midl.values,
-            label="Midl. lønnstilskudd", color=_RED, linestyle="--", linewidth=1.5)
+    ax.plot(
+        total_alle.index,
+        total_alle.values,
+        label="Alle tiltak",
+        color=_BLUE,
+        linewidth=1.5,
+    )
+    ax.plot(
+        total_midl.index,
+        total_midl.values,
+        label="Midl. lønnstilskudd",
+        color=_RED,
+        linestyle="--",
+        linewidth=1.5,
+    )
     ax.axvline(TREATMENT_START_DATE, color="black", linestyle=":", linewidth=1.2)
     ax.set_title("Totalt tiltaksnivå (alle regioner samlet)", fontsize=12)
     ax.set_ylabel("Antall deltakere")
@@ -302,8 +372,13 @@ def _plot_indicator_trends_by_group(ind_key: str, fig_path: Path) -> None:
             .assign(dato=lambda d: pd.to_datetime(d["aarmnd"], format="%Y%m"))
             .sort_values("dato")
         )
-        ax.plot(monthly["dato"], monthly["verdi"],
-                label=_GRUPPE_LABELS[grp], color=col, linewidth=1.3)
+        ax.plot(
+            monthly["dato"],
+            monthly["verdi"],
+            label=_GRUPPE_LABELS[grp],
+            color=col,
+            linewidth=1.3,
+        )
 
     ax.axvline(TREATMENT_START_DATE, color="black", linestyle="--", linewidth=1)
     ax.set_ylabel("Prosentpoeng (gjennomsnitt over regioner)")
@@ -324,7 +399,13 @@ def _plot_indicator_outcome_types(ind_key: str, fig_path: Path) -> None:
     ]
     fig, ax = plt.subplots(figsize=(10, 4))
     for prefix, ls, col, lbl in variants:
-        fp = DATA_INPUT / "indikatorer" / "nedbrytning" / "alle" / f"{prefix}{ind_key}.csv"
+        fp = (
+            DATA_INPUT
+            / "indikatorer"
+            / "nedbrytning"
+            / "alle"
+            / f"{prefix}{ind_key}.csv"
+        )
         if not fp.exists():
             continue
         long = _load_indicator(fp)
@@ -335,7 +416,14 @@ def _plot_indicator_outcome_types(ind_key: str, fig_path: Path) -> None:
             .assign(dato=lambda d: pd.to_datetime(d["aarmnd"], format="%Y%m"))
             .sort_values("dato")
         )
-        ax.plot(monthly["dato"], monthly["verdi"], label=lbl, color=col, linestyle=ls, linewidth=1.4)
+        ax.plot(
+            monthly["dato"],
+            monthly["verdi"],
+            label=lbl,
+            color=col,
+            linestyle=ls,
+            linewidth=1.4,
+        )
 
     ax.axvline(TREATMENT_START_DATE, color="black", linestyle="--", linewidth=1)
     ax.set_ylabel("Prosentpoeng (gjennomsnitt)")
@@ -352,7 +440,9 @@ def _plot_indicator_outcome_types(ind_key: str, fig_path: Path) -> None:
 
 def _tiltak_stats_table(df: pd.DataFrame, regions: list[str]) -> str:
     """Markdown table: pre/post mean and percentage change per region."""
-    long = df.melt(id_vars="aarmnd", value_vars=regions, var_name="region", value_name="tiltak")
+    long = df.melt(
+        id_vars="aarmnd", value_vars=regions, var_name="region", value_name="tiltak"
+    )
     long["periode"] = long["aarmnd"].apply(
         lambda d: "Post" if d >= TREATMENT_START_DATE else "Pre"
     )
@@ -365,7 +455,9 @@ def _tiltak_stats_table(df: pd.DataFrame, regions: list[str]) -> str:
     )
     tbl["Endring (pp)"] = (tbl["Gj.snitt post"] - tbl["Gj.snitt pre"]).round(0)
     tbl["Endring (%)"] = (tbl["Endring (pp)"] / tbl["Gj.snitt pre"] * 100).round(1)
-    tbl[["Gj.snitt pre", "Gj.snitt post"]] = tbl[["Gj.snitt pre", "Gj.snitt post"]].round(0)
+    tbl[["Gj.snitt pre", "Gj.snitt post"]] = tbl[
+        ["Gj.snitt pre", "Gj.snitt post"]
+    ].round(0)
     return tbl.to_markdown()
 
 
@@ -379,14 +471,16 @@ def _indicator_stats_table() -> str:
                 continue
             long = _load_indicator(fp)
             pre = long[long["aarmnd"] < TREATMENT_START_STR]["verdi"]
-            rows.append({
-                "Innsatsgruppe": _GRUPPE_LABELS[grp],
-                "Indikator": ind_key,
-                "Gj.snitt (pre)": round(float(pre.mean()), 3),
-                "Std.avvik": round(float(pre.std()), 3),
-                "Min": round(float(pre.min()), 3),
-                "Maks": round(float(pre.max()), 3),
-            })
+            rows.append(
+                {
+                    "Innsatsgruppe": _GRUPPE_LABELS[grp],
+                    "Indikator": ind_key,
+                    "Gj.snitt (pre)": round(float(pre.mean()), 3),
+                    "Std.avvik": round(float(pre.std()), 3),
+                    "Min": round(float(pre.min()), 3),
+                    "Maks": round(float(pre.max()), 3),
+                }
+            )
     return pd.DataFrame(rows).set_index(["Innsatsgruppe", "Indikator"]).to_markdown()
 
 
@@ -421,9 +515,9 @@ def _section_tiltak_chapter(
         "",
         "| Egenskap | Verdi |",
         "|---|---|",
-        f"| Kilde | Nav intern statistikk |",
-        f"| Nivå | Nav-regioner (12 regioner) |",
-        f"| Frekvens | Månedlig |",
+        "| Kilde | Nav intern statistikk |",
+        "| Nivå | Nav-regioner (12 regioner) |",
+        "| Frekvens | Månedlig |",
         f"| Tidsperiode | {date_from} – {date_to} |",
         f"| Antall måneder | {n_months} |",
         "",
@@ -500,8 +594,9 @@ def _section_tiltak_chapter(
     # Regional means figure
     fig_reg = figures_dir / f"{fig_prefix}_regional_gjennomsnitt.svg"
     _plot_tiltak_regional_means(
-        df, regions,
-        f"Gjennomsnittlig antall deltakere per region (pre-periode)",
+        df,
+        regions,
+        "Gjennomsnittlig antall deltakere per region (pre-periode)",
         fig_reg,
     )
     lines += [
@@ -631,12 +726,11 @@ def _save_tiltak_sa(alle_path: Path) -> None:
     sa_dir = DATA_PROCESSED / "tiltak-sa"
     sa_dir.mkdir(parents=True, exist_ok=True)
     out_path = sa_dir / "alle-tiltak-sa.csv"
-    sa_long = _load_tiltak_sa(alle_path, seasonal_adjust=True, seasonal_adjust_pre_only=False)
+    sa_long = _load_tiltak_sa(
+        alle_path, seasonal_adjust=True, seasonal_adjust_pre_only=False
+    )
     sa_long.to_csv(out_path, index=False)
     logger.info("Saved seasonally-adjusted alle-tiltak data to %s", out_path)
-
-
-
 
 
 def generate_data_report() -> None:

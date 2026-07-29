@@ -50,9 +50,18 @@ def _load_enhet_mapping(mapping_path: Path) -> pd.DataFrame:
 def _load_indicator_long(path: Path) -> pd.DataFrame:
     """Load an indicator CSV that is already in long format.
 
-    Expected columns: ``aarmnd``, ``enhet`` (or entity column), ``indikator``.
+    Expected columns are ``aarmnd``, ``enhet``, and ``indikator``. Raw faktisk
+    and forventet files use their respective value-column names; normalize
+    those to ``indikator`` for the analysis pipeline.
     """
     df = pd.read_csv(path)
+    if "indikator" not in df.columns:
+        source_column = next(
+            (column for column in ("faktisk", "forventet") if column in df.columns),
+            None,
+        )
+        if source_column:
+            df = df.rename(columns={source_column: "indikator"})
     expected = {"aarmnd", "enhet", "indikator"}
     if not expected.issubset(set(df.columns)):
         raise ValueError(
@@ -111,7 +120,7 @@ def _seasonal_adjust_tiltak(
     treatment_start:
         First treatment month in YYYYMM format.  Used only when ``pre_only=True``.
 
-    Returns
+    Returns:
     -------
     DataFrame with the same shape and column names as *tiltak_wide* but with
     seasonally adjusted region counts.

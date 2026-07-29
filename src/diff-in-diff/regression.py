@@ -35,6 +35,7 @@ class RegressionResult:
     n_clusters: int
     fixed_effects: list[str] = field(default_factory=list)
     r_squared_within: float = float("nan")
+    r_squared_adjusted: float = float("nan")
     #: The fitted statsmodels result (with clustered SE already applied).
     result_obj: Any = field(default=None, repr=False)
 

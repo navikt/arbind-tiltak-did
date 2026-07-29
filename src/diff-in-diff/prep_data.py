@@ -231,7 +231,9 @@ def prepare_panel(
     ``post_treatment`` (bool), ``month_of_year`` (int), ``year`` (int),
     ``entity`` (str — equals ``region`` at region level, ``enhet`` at enhet level).
     """
-    tiltak_long = _load_tiltak_wide_to_long(tiltak_path, seasonal_adjust=seasonal_adjust)
+    tiltak_long = _load_tiltak_wide_to_long(
+        tiltak_path, seasonal_adjust=seasonal_adjust
+    )
 
     if analysis_level == "enhet":
         if enhet_mapping_path is None:
@@ -364,7 +366,9 @@ def prepare_triple_diff_panel(
         indicator_df = pd.concat([treated_df, control_df], ignore_index=True)
         indicator_df["entity"] = indicator_df["region"]
 
-    tiltak_long = _load_tiltak_wide_to_long(tiltak_path, seasonal_adjust=seasonal_adjust)
+    tiltak_long = _load_tiltak_wide_to_long(
+        tiltak_path, seasonal_adjust=seasonal_adjust
+    )
 
     # Merge indicator with tiltak on region + aarmnd
     df = indicator_df.merge(tiltak_long, on=["region", "aarmnd"], how="left")

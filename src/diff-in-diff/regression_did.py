@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 # ── Design matrix ────────────────────────────────────────────────────────────
 
 
-def _build_regressors(panel: pd.DataFrame) -> pd.DataFrame:
+def build_regressors(panel: pd.DataFrame) -> pd.DataFrame:
     """Construct the full design matrix (treatment + FE dummies) for OLS.
 
     Parameters
@@ -60,7 +60,7 @@ def _estimate(
 ) -> RegressionResult:
     """Internal helper: build design matrix, fit OLS, apply clustered SE."""
     y = panel["indikator"].astype(float)
-    X = _build_regressors(panel)
+    X = build_regressors(panel)
     clusters = panel["region"]
 
     # Drop rows with NaN in y or X to avoid silent NaN propagation in OLS.
@@ -128,6 +128,7 @@ def _estimate(
         n_clusters=int(clusters.nunique()),
         fixed_effects=fe_labels,
         r_squared_within=_compute_within_r2(y, X, panel),
+        r_squared_adjusted=float(cl_fit.rsquared_adj),
         result_obj=cl_fit,
     )
 
