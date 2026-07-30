@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import argparse
 import logging
-import re
 import shutil
 import sys
 from pathlib import Path
@@ -17,17 +16,17 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-import yaml
+from config_matrix import CONFIGS, DEFAULT_CONFIG_ID, GeneratedConfig, get_config
 from quarto_utils import _update_quarto_chapters, _update_quarto_triple_diff_chapters
-from report.table_output import _save_coefficients_table, _save_regression_table
+from report.table_output import (
+    AnalysisRunMetadata,
+    _save_coefficients_table,
+    _save_regression_table,
+)
 
 # ── Project paths ──────────────────────────────────────────────────────────────
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent
-CONFIGS_DIR = Path(__file__).parent / "configs"
-DEFAULT_CONFIG = (
-    CONFIGS_DIR / "did" / "midl-lonnstilskudd" / "alle" / "regioner" / "kontinuerlig.yml"
-)
 DATA_PROCESSED_BASE = PROJECT_ROOT / "data" / "processed"
 OUTPUTS_DID_BASE = PROJECT_ROOT / "outputs" / "did"
 QUARTO_DIR = PROJECT_ROOT / "quarto"
@@ -45,85 +44,55 @@ logger = logging.getLogger("run_analysis")
 # ── Config ─────────────────────────────────────────────────────────────────────
 
 
-def _load_config(path: Path = DEFAULT_CONFIG) -> dict[str, Any]:
-    """Load and return the YAML analysis configuration."""
-    if not path.exists():
-        raise FileNotFoundError(
-            f"Config file not found: {path}\n"
-            f"Available configs in configs/:\n"
-            + "\n".join(
-                f"  {p.relative_to(CONFIGS_DIR)}"
-                for p in sorted(CONFIGS_DIR.rglob("*.yml"))
-            )
-        )
-    with open(path, encoding="utf-8") as f:
-        return yaml.safe_load(f)  # type: ignore[no-any-return]
-
-
 def _parse_args() -> argparse.Namespace:
     """Parse CLI arguments."""
     parser = argparse.ArgumentParser(description="Run full DID analysis pipeline.")
     parser.add_argument(
         "config",
         nargs="?",
-        default=str(DEFAULT_CONFIG),
-        help=(
-            "Path to a YAML config file, or a directory containing YAML config files. "
-            "A bare name is resolved first relative to the current directory, then "
-            "relative to the configs/ directory. "
-            f"Default: {DEFAULT_CONFIG.relative_to(CONFIGS_DIR)} (from configs/)"
-        ),
+        help=f"Generated configuration ID. Default: {DEFAULT_CONFIG_ID}",
     )
     parser.add_argument(
         "--config",
         dest="config_flag",
         default=None,
-        help="Path or name of the YAML config file or directory (overrides positional argument).",
+        help="Generated configuration ID (overrides the positional argument).",
     )
-    return parser.parse_args()
+    parser.add_argument(
+        "--all", action="store_true", help="Run every catalog configuration."
+    )
+    parser.add_argument(
+        "--new-only",
+        action="store_true",
+        help="With --all, skip configurations that already have Quarto report chapters.",
+    )
+    args = parser.parse_args()
+    if args.all and (args.config or args.config_flag):
+        parser.error("--all cannot be combined with a configuration selector.")
+    if args.new_only and not args.all:
+        parser.error("--new-only requires --all.")
+    return args
 
 
-def _config_slug(cfg_path: Path) -> str:
-    """Return a filesystem-safe slug derived from the config path relative to CONFIGS_DIR.
-
-    Uses the path components relative to ``CONFIGS_DIR``, joined with ``--``, so that
-    short filenames like ``kontinuerlig.yml`` remain unique across different subdirectories.
-
-    Example: ``did/midl-lonnstilskudd/alle/kontinuerlig.yml``
-             → ``did--midl-lonnstilskudd--alle--kontinuerlig``
-
-    Falls back to the bare stem if the path is not under ``CONFIGS_DIR``.
-    """
-    try:
-        rel = cfg_path.with_suffix("").relative_to(CONFIGS_DIR)
-        raw = "--".join(rel.parts)
-    except ValueError:
-        raw = cfg_path.stem
-    return re.sub(r"[^a-z0-9._-]+", "_", raw.lower()).strip("_")
-
-
-def _processed_dir_for_config(cfg_path: Path) -> Path:
-    """Return the processed-data directory for a given config file.
-
-    Derives a nested path from the config file's position relative to
-    ``CONFIGS_DIR``, so the on-disk layout mirrors the config hierarchy.
-
-    Example: ``configs/did/alle-tiltak/alle/kontinuerlig.yml``
-             → ``data/processed/did/alle-tiltak/alle/kontinuerlig/``
-
-    Falls back to a flat directory named after the file stem when the config
-    is not under ``CONFIGS_DIR``.
-    """
-    try:
-        rel = cfg_path.with_suffix("").relative_to(CONFIGS_DIR)
-    except ValueError:
-        rel = Path(cfg_path.stem)
-    return DATA_PROCESSED_BASE / rel
+def _processed_dir_for_config(generated: GeneratedConfig) -> Path:
+    """Return the stable processed-data directory for a generated configuration."""
+    return DATA_PROCESSED_BASE / generated.storage_path
 
 
 def _variation_from_cfg(cfg: dict[str, Any]) -> str:
     """Return the treatment variation folder name (default: 'regioner')."""
     return str(cfg["analysis"].get("variation", "regioner"))
+
+
+def _has_quarto_output(generated: GeneratedConfig) -> bool:
+    """Return whether a generated config already has report chapters in Quarto."""
+    analysis = generated.config["analysis"]
+    variation = _variation_from_cfg(generated.config)
+    if analysis.get("design") == "triple_diff":
+        output_dir = QUARTO_DIR / variation
+    else:
+        output_dir = QUARTO_DIR / variation / generated.id
+    return output_dir.is_dir() and any(output_dir.glob("*.qmd"))
 
 
 # ── Pipeline ───────────────────────────────────────────────────────────────────
@@ -467,16 +436,16 @@ def _run_triple_diff_indicator(
     ).to_dict()
 
 
-def _run_single_config(cfg_path: Path) -> int:
+def _run_single_config(generated: GeneratedConfig) -> int:
     """Run the full pipeline for a single config file.  Returns 0 on success."""
     logger.info("═══ Nav DID analysis ═══")
-    logger.info("Using config: %s", cfg_path)
+    logger.info("Using configuration: %s", generated.id)
 
-    cfg = _load_config(cfg_path)
+    cfg = generated.config
     if not _check_inputs(cfg):
         return 1
 
-    config_slug = _config_slug(cfg_path)
+    config_slug = generated.id
     variation = _variation_from_cfg(cfg)
     output_root = OUTPUTS_DID_BASE / config_slug
     staging_root = output_root / "_staging"
@@ -485,7 +454,7 @@ def _run_single_config(cfg_path: Path) -> int:
     report_dir = staging_root / "report"
     figures_dir = report_dir / "figures"
     tables_dir = staging_root / "tables"
-    processed_dir = _processed_dir_for_config(cfg_path)
+    processed_dir = _processed_dir_for_config(generated)
 
     figures_dir.mkdir(parents=True, exist_ok=True)
     tables_dir.mkdir(parents=True, exist_ok=True)
@@ -629,7 +598,18 @@ def _run_single_config(cfg_path: Path) -> int:
     )
 
     if any(v is not None for v in all_results.values()):
-        _save_regression_table(all_results, tables_dir=tables_dir)
+        _save_regression_table(
+            all_results,
+            tables_dir=tables_dir,
+            metadata=AnalysisRunMetadata(
+                config_slug=config_slug,
+                config_path=generated.id,
+                analysis_design=design,
+                treatment_type=str(treatment_type),
+                analysis_level=str(analysis_level),
+                treatment_start=treatment_start,
+            ),
+        )
         _save_coefficients_table(all_results, tables_dir=tables_dir)
 
         if design == "triple_diff":
@@ -701,42 +681,43 @@ def _run_single_config(cfg_path: Path) -> int:
     return exit_code
 
 
-def _resolve_path(raw: str) -> Path:
-    """Resolve a config path or folder, checking cwd then configs/ directory."""
-    p = Path(raw)
-    if p.is_absolute():
-        return p
-    cwd_candidate = (Path.cwd() / p).resolve()
-    configs_candidate = (CONFIGS_DIR / p).resolve()
-    if cwd_candidate.exists():
-        return cwd_candidate
-    if configs_candidate.exists():
-        return configs_candidate
-    return cwd_candidate  # will fail with a clear error downstream
-
-
 def main() -> int:
-    """Entry point: run pipeline for one config file or all configs in a folder."""
+    """Run one selected generated configuration or the full catalog."""
     args = _parse_args()
-    resolved = _resolve_path(args.config_flag or args.config)
-
-    if resolved.is_dir():
-        cfg_paths = sorted(resolved.rglob("*.yml"))
-        if not cfg_paths:
-            logger.error("No .yml config files found in %s", resolved)
-            return 1
-        logger.info("Running %d config(s) from folder: %s", len(cfg_paths), resolved)
-    elif resolved.is_file():
-        cfg_paths = [resolved]
+    if args.all:
+        configs = CONFIGS
+        if args.new_only:
+            configs = tuple(
+                config for config in configs if not _has_quarto_output(config)
+            )
+        logger.info("Running all %d catalog configurations", len(configs))
     else:
-        logger.error("Config path not found: %s", resolved)
-        return 1
+        try:
+            configs = (
+                get_config(args.config_flag or args.config or DEFAULT_CONFIG_ID),
+            )
+        except ValueError as exc:
+            logger.error("%s", exc)
+            return 1
 
     overall_exit = 0
-    for cfg_path in cfg_paths:
-        exit_code = _run_single_config(cfg_path)
+    failed_configs: list[str] = []
+    for generated in configs:
+        try:
+            exit_code = _run_single_config(generated)
+        except FileNotFoundError as exc:
+            logger.error("Missing data for configuration %s:\n%s", generated.id, exc)
+            exit_code = 1
         if exit_code != 0:
             overall_exit = exit_code
+            failed_configs.append(generated.id)
+    if failed_configs:
+        logger.error(
+            "%d/%d configuration(s) failed: %s",
+            len(failed_configs),
+            len(configs),
+            ", ".join(failed_configs),
+        )
 
     return overall_exit
 
