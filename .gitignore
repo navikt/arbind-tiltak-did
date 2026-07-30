@@ -179,5 +179,4 @@ analysedesign_files/
 report_files/
 outputs/
 data/
-!quarto/data/
-quarto/_book/
+quarto
