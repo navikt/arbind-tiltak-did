@@ -1,0 +1,64 @@
+---
+title: "Bootstrap og inferens — TrippelDiD | Alle tiltak | Enheter | Kontinuerlig"
+---
+
+## Wild cluster bootstrap
+
+Med et lavt antall regioner (clustere) er asymptotisk clusterinferens upålitelig.
+Primær p-verdi er derfor basert på **wild cluster bootstrap** med Webb 6-punkt-vekter
+(B = 4 999 replikasjoner). Fordelingen av bootstrap-t-statistikken vises nedenfor
+for å gi et intuitivt bilde av usikkerheten.
+
+Den røde vertikale linjen markerer den observerte t-statistikken. En smal fordeling
+konsentrert rundt null med den observerte t-verdien langt ute i halen indikerer et
+statistisk sjeldent resultat; en observert t-verdi tett på fordelingens sentrum
+tilsvarer et ikke-signifikant funn.
+
+### atid3 — basis
+
+Observert koeffisient: **2.2845**  
+Observert SE: **0.5141**  
+Observert t-statistikk: **4.443**  
+Bootstrap p-verdi: **0.0000**  
+Antall replikasjoner: **4999**
+
+Resultatet er **statistisk signifikant (***)** på bootstrap-grunnlag.
+
+![Bootstrap-fordeling atid3 (basis)](figures/bootstrap_atid3_basis.svg)
+
+### atid3 — sesongjustert
+
+Observert koeffisient: **2.5138**  
+Observert SE: **0.6144**  
+Observert t-statistikk: **4.091**  
+Bootstrap p-verdi: **0.0000**  
+Antall replikasjoner: **4999**
+
+Resultatet er **statistisk signifikant (***)** på bootstrap-grunnlag.
+
+![Bootstrap-fordeling atid3 (sesongjustert)](figures/bootstrap_atid3_sesongjustert.svg)
+
+### jobb3 — basis
+
+Observert koeffisient: **7.3849**  
+Observert SE: **1.8791**  
+Observert t-statistikk: **3.930**  
+Bootstrap p-verdi: **0.0008**  
+Antall replikasjoner: **4999**
+
+Resultatet er **statistisk signifikant (***)** på bootstrap-grunnlag.
+
+![Bootstrap-fordeling jobb3 (basis)](figures/bootstrap_jobb3_basis.svg)
+
+### jobb3 — sesongjustert
+
+Observert koeffisient: **7.2173**  
+Observert SE: **2.1758**  
+Observert t-statistikk: **3.317**  
+Bootstrap p-verdi: **0.0036**  
+Antall replikasjoner: **4999**
+
+Resultatet er **statistisk signifikant (***)** på bootstrap-grunnlag.
+
+![Bootstrap-fordeling jobb3 (sesongjustert)](figures/bootstrap_jobb3_sesongjustert.svg)
+

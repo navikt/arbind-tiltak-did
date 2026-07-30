@@ -1,0 +1,101 @@
+---
+title: "Test av antagelser — TrippelDiD | Alle tiltak | Enheter | Kontinuerlig"
+---
+
+## Hendelsesstudie
+
+Trippel-diff-hendelsesstudien interagerer regionens behandlingsintensitet
+med gruppeindikator (Veiledning kombinert vs. Standard) og tidsperiode.
+Koeffisientene for τ < 0 (pre-perioden) bør ligge nær null dersom
+parallell-trendantagelsen holder — det vil si at tiltaksnedgangen ikke
+predikerer divergerende trender mellom Veiledning kombinert og Standard *før*
+behandlingsstart.
+
+### atid3 — sesongjustert
+
+**Det er statistisk grunnlag for å forkaste parallelle trender** (F(11,11) = 201.355, p = 0.0000). Dette er et advarselssignal for identifikasjonsstrategien.
+
+![Hendelsesstudie atid3 (sesongjustert)](figures/event_study_atid3_sesongjustert.svg)
+
+### atid3 — basis
+
+**Det er statistisk grunnlag for å forkaste parallelle trender** (F(11,11) = 45.176, p = 0.0000). Dette er et advarselssignal for identifikasjonsstrategien.
+
+![Hendelsesstudie atid3 (basis)](figures/event_study_atid3_basis.svg)
+
+### jobb3 — sesongjustert
+
+**Det er statistisk grunnlag for å forkaste parallelle trender** (F(11,11) = 128.319, p = 0.0000). Dette er et advarselssignal for identifikasjonsstrategien.
+
+![Hendelsesstudie jobb3 (sesongjustert)](figures/event_study_jobb3_sesongjustert.svg)
+
+### jobb3 — basis
+
+**Det er statistisk grunnlag for å forkaste parallelle trender** (F(11,11) = 81.512, p = 0.0000). Dette er et advarselssignal for identifikasjonsstrategien.
+
+![Hendelsesstudie jobb3 (basis)](figures/event_study_jobb3_basis.svg)
+
+## Placebotest
+
+Placebo-analysen re-estimerer trippel-diff-modellen med en *falsk*
+behandlingsdato 12 måneder før den virkelige, utelukkende i pre-perioden.
+Et estimat nær null og et ikke-signifikant resultat tyder på at parallell-
+trendantagelsen holder og at det ikke er pre-eksisterende divergerende
+trender mellom Veiledning kombinert og Standard.
+
+### atid3 — sesongjustert
+
+Placebo-koeffisienten er **1.0975** (SE = 0.6761, p = 0.1328).
+Dette er **ikke signifikant, noe som styrker identifikasjonsstrategien**.
+
+### atid3 — basis
+
+Placebo-koeffisienten er **0.2830** (SE = 0.8070, p = 0.7325).
+Dette er **ikke signifikant, noe som styrker identifikasjonsstrategien**.
+
+### jobb3 — sesongjustert
+
+Placebo-koeffisienten er **2.2299** (SE = 2.2410, p = 0.3411).
+Dette er **ikke signifikant, noe som styrker identifikasjonsstrategien**.
+
+### jobb3 — basis
+
+Placebo-koeffisienten er **2.6794** (SE = 3.6248, p = 0.4753).
+Dette er **ikke signifikant, noe som styrker identifikasjonsstrategien**.
+
+## Leave-one-out robusthet
+
+Modellen re-estimeres med én region utelatt om gangen.
+Stabile koeffisienter på tvers av utelatelsene tilsier at ingen enkeltregion
+er avgjørende for resultatet. Dersom en utelatelse endrer koeffisienten
+vesentlig eller flytter den over signifikansterskelen, bør den regionen
+undersøkes nærmere.
+
+### atid3 — sesongjustert
+
+Fullmodell-koeffisienten er **2.5138**.
+Koeffisienten varierer mellom **2.2872** og **2.9336** når én region utelates. Fortegnet er stabilt på tvers av alle utelatelser.
+
+![Leave-one-out atid3 (sesongjustert)](figures/loo_atid3_sesongjustert.svg)
+
+### atid3 — basis
+
+Fullmodell-koeffisienten er **2.2845**.
+Koeffisienten varierer mellom **2.1264** og **2.6902** når én region utelates. Fortegnet er stabilt på tvers av alle utelatelser.
+
+![Leave-one-out atid3 (basis)](figures/loo_atid3_basis.svg)
+
+### jobb3 — sesongjustert
+
+Fullmodell-koeffisienten er **7.2173**.
+Koeffisienten varierer mellom **6.4848** og **8.8387** når én region utelates. Fortegnet er stabilt på tvers av alle utelatelser.
+
+![Leave-one-out jobb3 (sesongjustert)](figures/loo_jobb3_sesongjustert.svg)
+
+### jobb3 — basis
+
+Fullmodell-koeffisienten er **7.3849**.
+Koeffisienten varierer mellom **6.7072** og **8.8959** når én region utelates. Fortegnet er stabilt på tvers av alle utelatelser.
+
+![Leave-one-out jobb3 (basis)](figures/loo_jobb3_basis.svg)
+

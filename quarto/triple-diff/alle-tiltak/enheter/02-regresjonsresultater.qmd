@@ -1,0 +1,58 @@
+---
+title: "Regresjonsresultater — TrippelDiD | Alle tiltak | Enheter | Kontinuerlig"
+---
+
+## Hovedresultater
+
+Trippel-diff-koeffisienten ($\beta_{DDD}$) måler den *differensielle* effekten
+av nedgangen i *Alle tiltak* på **Veiledning kombinert** sammenlignet med **Standard**.
+Koeffisienten angir estimert effekt av å gå fra null til full tiltaksnedgang
+(behandlingsintensitet = 1) på indikatoren, i prosentpoeng, *utover* den effekten
+som også observeres for Standard.
+
+To modellspesifikasjoner estimeres:
+
+- **Basis:** Region FE + år-måned FE + gruppe × tid
+- **Sesongjustert (foretrukket):** Basis + region × kalendermåned FE
+
+| Indikator | Modell | Koeffisient | SE | t | p (asymp.) | p (bootstrap) | 95% KI | N | Clustere |
+|:--|:--|--:|--:|--:|--:|--:|:--|--:|--:|
+| atid3 | Basis | 2.2845*** | 0.5173 | 4.416 | 0.0010 | 0.0000 | [1.1460, 3.4230] | 25067 | 12 |
+| atid3 | Sesongjustert | 2.5138*** | 0.6182 | 4.067 | 0.0019 | 0.0000 | [1.1532, 3.8743] | 25021 | 12 |
+| jobb3 | Basis | 7.3849*** | 1.8906 | 3.906 | 0.0025 | 0.0008 | [3.2237, 11.5461] | 25067 | 12 |
+| jobb3 | Sesongjustert | 7.2173*** | 2.1891 | 3.297 | 0.0071 | 0.0036 | [2.3991, 12.0355] | 25021 | 12 |
+
+::: {.callout-note}
+Signifikansnivå basert på bootstrap p-verdi: \*\*\* p < 0,01; \*\* p < 0,05; \* p < 0,10.  
+Standardfeil er clustret på regionnivå (CR1 småutvalgskorrigering).  
+Med et lavt antall clustere er bootstrap-p-verdien det primære inferensgrunnlaget.
+:::
+
+## Detaljert: atid3
+
+Den foretrukne (sesongjusterte) modellen gir en koeffisient på
+**2.5138** (SE = 0.6182,
+t = 4.067, bootstrap p = 0.000***).
+Estimatet er **statistisk signifikant på 10%-nivå (***)** og har **positiv** fortegn.
+Relativt til det gjennomsnittlige pre-periode-nivået (0.3872) tilsvarer dette en relativ endring på **649.2 %**.
+
+Basis-modellen gir koeffisient 2.2845 (bootstrap p = 0.000***).
+At de to modellene avviker noe fra hverandre gir et inntrykk av om sesongmønsteret spiller en rolle for resultatet.
+
+**Minimum detekterbar effekt (80 % styrke, α = 0,05):** ±1.9018 pp.  
+**Gjennomsnittlig pre-periode-nivå:** 0.3872
+
+## Detaljert: jobb3
+
+Den foretrukne (sesongjusterte) modellen gir en koeffisient på
+**7.2173** (SE = 2.1891,
+t = 3.297, bootstrap p = 0.004***).
+Estimatet er **statistisk signifikant på 10%-nivå (***)** og har **positiv** fortegn.
+Relativt til det gjennomsnittlige pre-periode-nivået (1.3234) tilsvarer dette en relativ endring på **545.4 %**.
+
+Basis-modellen gir koeffisient 7.3849 (bootstrap p = 0.001***).
+At de to modellene avviker noe fra hverandre gir et inntrykk av om sesongmønsteret spiller en rolle for resultatet.
+
+**Minimum detekterbar effekt (80 % styrke, α = 0,05):** ±6.7348 pp.  
+**Gjennomsnittlig pre-periode-nivå:** 1.3234
+

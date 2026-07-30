@@ -1,0 +1,31 @@
+---
+title: "TrippelDiD | Alle tiltak | Regioner | Kontinuerlig"
+---
+
+## Bakgrunn og metode
+
+Denne analysen estimerer om nedgangen i arbeidsmarkedstiltak har hatt en
+*differensiell* effekt på innsatsgruppen **Veiledning kombinert** sammenlignet med
+**Standard**. Logikken er at dersom tiltaksnedgangen rammer de to gruppene
+likt, vil en standard diff-in-diff fange opp felles sjokk — trippel-diff
+isolerer i stedet den *ekstra* effekten for den behandlede gruppen.
+
+Analysen opererer på **region**-nivå. Behandlingsvariabelen
+`tiltaksnedgang` er den samme som i den ordinære DiD-analysen: andelen av
+regionens pre-periode-topp i *Alle tiltak* som er avviklet.
+
+Modellen inkluderer region-faste effekter, tidspunkt-faste effekter og en
+gruppe × tid-interaksjon for å skille Veiledning kombinert-trenden fra den nasjonale
+trenden. Den foretrukne spesifikasjonen legger i tillegg til region ×
+kalendermåned-faste effekter for å absorbere regionspesifikke sesongmønstre.
+
+> **Signifikansnivå:** \* p < 0,10 &nbsp; \*\* p < 0,05 &nbsp; \*\*\* p < 0,01  
+> Standardfeil er clustret på regionnivå (CR1 småutvalgskorrigering).  
+> Primær p-verdi basert på wild cluster bootstrap med Webb-vekter (B = 4 999).
+
+Analysen er delt inn i fire kapitler:
+
+1. **Deskriptiv statistikk og bakgrunn** — dataoversikt, trender og behandlingsintensitet
+2. **Regresjonsresultater og koeffisienter** — trippel-diff-estimatene
+3. **Bootstrap og inferens** — wild cluster bootstrap-fordelinger
+4. **Test av antagelser** — hendelsesstudie, placebo og leave-one-out
