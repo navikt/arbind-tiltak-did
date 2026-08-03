@@ -9,6 +9,12 @@ import pandas as pd
 _INDICATORS = ("atid3", "jobb3")
 _TREATMENT_TYPES = ("discrete", "continuous")
 _MODELS = ("baseline", "preferred")
+_TREATMENT_TYPE_LABELS = {"discrete": "Diskret", "continuous": "Kontinuerlig"}
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]
+_TABLE1_CONFIG_PATHS = (
+    "did--midl-lonnstilskudd--alle--regioner--diskret--indikator",
+    "did--midl-lonnstilskudd--alle--regioner--kontinuerlig--indikator",
+)
 _REQUIRED_COLUMNS = {
     "analysis_design",
     "indicator",
@@ -27,16 +33,23 @@ _REQUIRED_COLUMNS = {
     "period_end",
 }
 _ROW_LABELS = (
-    "Coefficient",
-    "Standard error",
-    "Seasonally adjusted",
-    "Entity fixed effects",
-    "Time fixed effects",
-    "Adjusted R-squared",
-    "Observations",
-    "Clusters",
-    "Period",
+    "Koeffisient",
+    "Standardfeil",
+    "Sesongjustert",
+    "Region faste effekter",
+    "Tidspunkt faste effekter",
+    "Justert R-kvadrat",
+    "Antall observasjoner",
+    "Antall klynger",
+    "Periode",
 )
+
+def _table1_data_paths(outputs_dir: Path) -> list[Path]:
+    """Return the persisted temporary wage-subsidy results used for Table 1."""
+    return [
+        outputs_dir / "did" / config_path / "tables" / "regression_results.csv"
+        for config_path in _TABLE1_CONFIG_PATHS
+    ]
 
 
 def _significance_stars(p_value: float) -> str:
@@ -52,7 +65,7 @@ def _significance_stars(p_value: float) -> str:
 
 def _yes_no(value: object) -> str:
     """Render a boolean-like summary field as Yes or No."""
-    return "Yes" if str(value).lower() in {"true", "1", "yes"} else "No"
+    return "Ja" if str(value).lower() in {"true", "1", "yes"} else "Nei"
 
 
 def _format_result(row: pd.Series) -> list[str]:
@@ -66,7 +79,7 @@ def _format_result(row: pd.Series) -> list[str]:
         f"{row['r_squared_adjusted']:.3f}",
         f"{int(row['n_obs']):,}",
         f"{int(row['n_clusters']):,}",
-        f"{row['period_start']} to {row['period_end']}",
+        f"{row['period_start']} til {row['period_end']}",
     ]
 
 
@@ -123,16 +136,16 @@ def table1(data: pd.DataFrame, output_dir: Path) -> Path:
 
     columns = pd.MultiIndex.from_tuples(
         [
-            ("Atid3", "Discrete", "No"),
-            ("Atid3", "Discrete", "Yes"),
-            ("Atid3", "Continuous", "No"),
-            ("Atid3", "Continuous", "Yes"),
-            ("Jobb3", "Discrete", "No"),
-            ("Jobb3", "Discrete", "Yes"),
-            ("Jobb3", "Continuous", "No"),
-            ("Jobb3", "Continuous", "Yes"),
+            ("Atid3", "Diskret", "Nei"),
+            ("Atid3", "Diskret", "Ja"),
+            ("Atid3", "Kontinuerlig", "Nei"),
+            ("Atid3", "Kontinuerlig", "Ja"),
+            ("Jobb3", "Diskret", "Nei"),
+            ("Jobb3", "Diskret", "Ja"),
+            ("Jobb3", "Kontinuerlig", "Nei"),
+            ("Jobb3", "Kontinuerlig", "Ja"),
         ],
-        names=["Arbeidsindikator", "Treatment type", "Seasonally adjusted"],
+        names=["Arbeidsindikator", "Behandlingstype", "Sesongjustert"],
     )
     table = pd.DataFrame(index=_ROW_LABELS, columns=columns)
     for indicator, treatment_type, model in expected_keys:
@@ -140,8 +153,8 @@ def table1(data: pd.DataFrame, output_dir: Path) -> Path:
             :,
             (
                 indicator.title(),
-                treatment_type.title(),
-                "Yes" if model == "preferred" else "No",
+                _TREATMENT_TYPE_LABELS[treatment_type],
+                "Ja" if model == "preferred" else "Nei",
             ),
         ] = _format_result(selected.loc[(indicator, treatment_type, model)])
 
@@ -149,3 +162,20 @@ def table1(data: pd.DataFrame, output_dir: Path) -> Path:
     output_path = output_dir / "table1.csv"
     table.to_csv(output_path)
     return output_path
+
+
+def generate_default_table1(outputs_dir: Path = _PROJECT_ROOT / "outputs") -> Path:
+    """Generate Table 1 from the standard midlertidig lønnstilskudd analyses."""
+    data_paths = _table1_data_paths(outputs_dir)
+    missing_paths = [path for path in data_paths if not path.is_file()]
+    if missing_paths:
+        raise FileNotFoundError(
+            "Missing Table 1 regression results:\n"
+            + "\n".join(str(path) for path in missing_paths)
+        )
+    data = pd.concat((pd.read_csv(path) for path in data_paths), ignore_index=True)
+    return table1(data, outputs_dir / "summary")
+
+
+if __name__ == "__main__":
+    generate_default_table1()
