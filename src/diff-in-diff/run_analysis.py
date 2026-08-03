@@ -136,6 +136,8 @@ def _run_indicator(
     analysis_level: str = "region",
     enhet_mapping_path: Path | None = None,
     seasonal_adjust: bool = False,
+    data_start: str | None = None,
+    data_end: str | None = None,
 ) -> dict[str, Any] | None:
     """Prepare regular and flattened panels, run regression and supporting analyses.
 
@@ -171,6 +173,8 @@ def _run_indicator(
         enhet_mapping_path=enhet_mapping_path,
         flatten=False,
         seasonal_adjust=seasonal_adjust,
+        data_start=data_start,
+        data_end=data_end,
         processed_path=processed_dir / f"panel_{result_name}_regular.csv",
     )
 
@@ -187,6 +191,8 @@ def _run_indicator(
         enhet_mapping_path=enhet_mapping_path,
         flatten=True,
         seasonal_adjust=seasonal_adjust,
+        data_start=data_start,
+        data_end=data_end,
         processed_path=processed_dir / f"panel_{result_name}_flattened.csv",
     )
 
@@ -295,6 +301,8 @@ def _run_triple_diff_indicator(
     control_regions: list[str] | None = None,
     enhet_mapping_path: Path | None = None,
     seasonal_adjust: bool = False,
+    data_start: str | None = None,
+    data_end: str | None = None,
 ) -> dict[str, Any] | None:
     """Run the full triple-diff analysis for a single indicator.
 
@@ -327,6 +335,8 @@ def _run_triple_diff_indicator(
         control_regions=control_regions,
         enhet_mapping_path=enhet_mapping_path,
         seasonal_adjust=seasonal_adjust,
+        data_start=data_start,
+        data_end=data_end,
         processed_path=processed_dir / f"panel_{result_name}_regular.csv",
     )
 
@@ -344,6 +354,8 @@ def _run_triple_diff_indicator(
         control_regions=control_regions,
         enhet_mapping_path=enhet_mapping_path,
         seasonal_adjust=seasonal_adjust,
+        data_start=data_start,
+        data_end=data_end,
         processed_path=processed_dir / f"panel_{result_name}_flattened.csv",
     )
 
@@ -463,6 +475,8 @@ def _run_single_config(generated: GeneratedConfig) -> int:
 
     analysis = cfg["analysis"]
     treatment_start = str(analysis["treatment_start"])
+    data_start = str(analysis["data_start"])
+    data_end = str(analysis["data_end"])
     treatment_type = analysis["treatment_type"]
     # Use the first denominator definition from config, falling back to "peak".
     denom_defs = analysis.get("denominator_definitions", [])
@@ -531,6 +545,8 @@ def _run_single_config(generated: GeneratedConfig) -> int:
                     control_regions=control_regions,
                     enhet_mapping_path=enhet_mapping_path,
                     seasonal_adjust=seasonal_adjust,
+                    data_start=data_start,
+                    data_end=data_end,
                 )
                 all_results[name] = result
                 if result is None:
@@ -576,6 +592,8 @@ def _run_single_config(generated: GeneratedConfig) -> int:
                     analysis_level=analysis_level,
                     enhet_mapping_path=enhet_mapping_path_did,
                     seasonal_adjust=seasonal_adjust,
+                    data_start=data_start,
+                    data_end=data_end,
                 )
                 all_results[name] = result
                 if result is None:
