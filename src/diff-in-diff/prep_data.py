@@ -30,6 +30,25 @@ def load_config(path: Path = CONFIG_PATH) -> dict[str, Any]:
         return yaml.safe_load(f)  # type: ignore[no-any-return]
 
 
+def _filter_analysis_period(
+    df: pd.DataFrame, data_start: str | None, data_end: str | None
+) -> pd.DataFrame:
+    """Restrict a YYYYMM-indexed panel to the configured inclusive date range."""
+    if data_start is None and data_end is None:
+        return df
+    if data_start is None or data_end is None:
+        raise ValueError("data_start and data_end must either both be specified or omitted.")
+
+    start = pd.to_datetime(data_start, format="%Y%m", errors="coerce")
+    end = pd.to_datetime(data_end, format="%Y%m", errors="coerce")
+    if pd.isna(start) or pd.isna(end) or start.strftime("%Y%m") != data_start or end.strftime("%Y%m") != data_end:
+        raise ValueError("data_start and data_end must use YYYYMM format.")
+    if start > end:
+        raise ValueError("data_start must not be later than data_end.")
+
+    return df[df["aarmnd"].between(data_start, data_end)].copy()
+
+
 def _add_time_features(df: pd.DataFrame, treatment_start: str) -> pd.DataFrame:
     """Add time-based features to *df*."""
     df["aarmnd"] = pd.to_datetime(df["aarmnd"], format="%Y%m")
@@ -189,6 +208,8 @@ def prepare_panel(
     enhet_mapping_path: Path | None = None,
     processed_path: Path | None = None,
     seasonal_adjust: bool = False,
+    data_start: str | None = None,
+    data_end: str | None = None,
 ) -> pd.DataFrame:
     """Prepare a panel DataFrame based on the specified indicator and tiltak data.
 
@@ -223,6 +244,9 @@ def prepare_panel(
         If ``True``, apply multiplicative STL seasonal adjustment to the tiltak
         data before computing treatment intensity.  Use for alle-tiltak; leave
         ``False`` (default) for midlertidig lønnstilskudd.
+    data_start, data_end:
+        Inclusive analysis-period bounds in YYYYMM format. When provided, rows
+        outside the bounds are excluded before constructing model features.
 
     Column contract for all downstream modules
     ------------------------------------------
@@ -264,6 +288,7 @@ def prepare_panel(
         df = pd.merge(indicator_df, tiltak_long, on=["region", "aarmnd"], how="left")
         df["entity"] = df["region"]
 
+    df = _filter_analysis_period(df, data_start, data_end)
     df = _add_time_features(df, treatment_start)
     if flatten:
         df = _flatten_indicator_seasonally(df)
@@ -294,6 +319,8 @@ def prepare_triple_diff_panel(
     enhet_mapping_path: Path | None = None,
     processed_path: Path | None = None,
     seasonal_adjust: bool = False,
+    data_start: str | None = None,
+    data_end: str | None = None,
 ) -> pd.DataFrame:
     """Prepare a triple-diff panel with treated and control groups stacked.
 
@@ -326,6 +353,9 @@ def prepare_triple_diff_panel(
     seasonal_adjust:
         If ``True``, apply multiplicative STL seasonal adjustment to the tiltak
         data before computing treatment intensity.
+    data_start, data_end:
+        Inclusive analysis-period bounds in YYYYMM format. When provided, rows
+        outside the bounds are excluded before constructing model features.
 
     Returns:
     -------
@@ -372,6 +402,7 @@ def prepare_triple_diff_panel(
 
     # Merge indicator with tiltak on region + aarmnd
     df = indicator_df.merge(tiltak_long, on=["region", "aarmnd"], how="left")
+    df = _filter_analysis_period(df, data_start, data_end)
 
     # Treated indicator (1 for treated group, 0 for control)
     df["treated"] = (df["group"] == "treated").astype(float)
