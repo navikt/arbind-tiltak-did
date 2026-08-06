@@ -17,4 +17,4 @@ outcomes: [indikator, faktisk, forventet]
 matrix:
   - {design: did, measures: [midl-lonnstilskudd], groups: [alle, situasjonsbestemt, spesielt-tilpasset, standard, veiledning-kombinert], levels: [region, enhet], treatments: [diskret, kontinuerlig], outcomes: [indikator, faktisk, forventet]}
   - {design: did, measures: [alle-tiltak], groups: [alle, spesielt-tilpasset, veiledning-kombinert], levels: [region, enhet], treatments: [diskret, kontinuerlig], outcomes: [indikator, faktisk, forventet]}
-  - {design: triple_diff, measures: [midl-lonnstilskudd, alle-tiltak], levels: [region, enhet], treatments: [kontinuerlig], outcomes: [indikator], treated_group: veiledning-kombinert, control_group: standard}
+  - {design: triple_diff, period: {treatment_start: '202506', data_start: '202101', data_end: '202512'}, measures: [midl-lonnstilskudd, alle-tiltak], levels: [region, enhet], treatments: [kontinuerlig], outcomes: [indikator], treated_group: veiledning-kombinert, control_group: standard}

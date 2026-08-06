@@ -1,8 +1,0 @@
-# DiD – Alle tiltak
-
-Denne seksjonen samler difference-in-differences-analyser der **alle tiltak samlet** brukes som tiltaksvariabel.
-
-Analysene er delt i to nivåer:
-
-- **Regioner** — behandlingsvariasjon på tvers av Nav-regioner
-- **Enheter** — behandlingsvariasjon på tvers av Nav-enheter (kontor)

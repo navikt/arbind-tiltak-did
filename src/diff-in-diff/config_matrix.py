@@ -51,6 +51,11 @@ def _run_variant(treatment: str, outcome: str) -> str:
     return treatment if outcome == "indikator" else f"{outcome}-{treatment}"
 
 
+def _period(catalog: dict[str, Any], override: dict[str, Any] | None) -> dict[str, Any]:
+    """Return default period settings updated by a matrix-entry override."""
+    return {**catalog["defaults"]["period"], **(override or {})}
+
+
 @dataclass(frozen=True)
 class GeneratedConfig:
     """A runtime configuration and its stable selection/output identifier."""
@@ -104,6 +109,7 @@ def _build_did(
     level: str,
     treatment: str,
     outcome: str,
+    period_override: dict[str, Any] | None = None,
 ) -> GeneratedConfig:
     measure = _measure_data(catalog, measure_key)
     treatment_data = _treatment_data(treatment)
@@ -116,7 +122,7 @@ def _build_did(
         _run_variant(treatment, outcome),
     ]
     analysis: dict[str, Any] = {
-        **catalog["defaults"]["period"],
+        **_period(catalog, period_override),
         "title": " | ".join(
             part
             for part in (
@@ -161,6 +167,7 @@ def _build_triple(
     outcome: str,
     treated: str,
     control: str,
+    period_override: dict[str, Any] | None = None,
 ) -> GeneratedConfig:
     measure, level_data = _measure_data(catalog, measure_key), _level_data(level)
     id_parts = [
@@ -184,7 +191,7 @@ def _build_triple(
         Path(*id_parts),
         {
             "analysis": {
-                **catalog["defaults"]["period"],
+                **_period(catalog, period_override),
                 "title": f"TrippelDiD | {measure['title']} | {level_data['label']} | {_treatment_data(treatment)['title']}",
                 "treatment_type": _treatment_data(treatment)["type"],
                 "variation": f"triple-diff/{measure_key}/{level_data['slug']}",
@@ -230,6 +237,7 @@ def build_configs() -> tuple[GeneratedConfig, ...]:
                                     level,
                                     treatment,
                                     outcome,
+                                    entry.get("period"),
                                 )
                             )
                     else:
@@ -242,6 +250,7 @@ def build_configs() -> tuple[GeneratedConfig, ...]:
                                 outcome,
                                 entry["treated_group"],
                                 entry["control_group"],
+                                entry.get("period"),
                             )
                         )
     ids = [config.id for config in configs]

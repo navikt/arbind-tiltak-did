@@ -1,8 +1,0 @@
-# DiD – Midlertidig lønnstilskudd
-
-Denne seksjonen samler difference-in-differences-analyser der **midlertidig lønnstilskudd** brukes som tiltaksvariabel.
-
-Analysene er delt i to nivåer:
-
-- **Regioner** — behandlingsvariasjon på tvers av Nav-regioner
-- **Enheter** — behandlingsvariasjon på tvers av Nav-enheter (kontor)
