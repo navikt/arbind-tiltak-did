@@ -49,6 +49,31 @@ def _filter_analysis_period(
     return df[df["aarmnd"].between(data_start, data_end)].copy()
 
 
+def _drop_missing_outcomes(df: pd.DataFrame) -> pd.DataFrame:
+    """Drop missing outcomes and report entities removed from the analysis."""
+    missing_outcome = df["indikator"].isna()
+    if not missing_outcome.any():
+        return df
+
+    entities_before = set(df["entity"].dropna())
+    out = df.loc[~missing_outcome].copy()
+    dropped_entities = sorted(entities_before - set(out["entity"].dropna()))
+    if dropped_entities:
+        logger.warning(
+            "Dropping %d observations with missing outcomes, removing %d entities "
+            "with no usable outcomes (examples: %s).",
+            int(missing_outcome.sum()),
+            len(dropped_entities),
+            ", ".join(dropped_entities[:5]),
+        )
+    else:
+        logger.warning(
+            "Dropping %d observations with missing outcomes.",
+            int(missing_outcome.sum()),
+        )
+    return out
+
+
 def _add_time_features(df: pd.DataFrame, treatment_start: str) -> pd.DataFrame:
     """Add time-based features to *df*."""
     df["aarmnd"] = pd.to_datetime(df["aarmnd"], format="%Y%m")
@@ -247,6 +272,7 @@ def prepare_panel(
     data_start, data_end:
         Inclusive analysis-period bounds in YYYYMM format. When provided, rows
         outside the bounds are excluded before constructing model features.
+        Rows with missing outcomes are then excluded from the analysis panel.
 
     Column contract for all downstream modules
     ------------------------------------------
@@ -289,6 +315,7 @@ def prepare_panel(
         df["entity"] = df["region"]
 
     df = _filter_analysis_period(df, data_start, data_end)
+    df = _drop_missing_outcomes(df)
     df = _add_time_features(df, treatment_start)
     if flatten:
         df = _flatten_indicator_seasonally(df)
@@ -356,6 +383,7 @@ def prepare_triple_diff_panel(
     data_start, data_end:
         Inclusive analysis-period bounds in YYYYMM format. When provided, rows
         outside the bounds are excluded before constructing model features.
+        Rows with missing outcomes are then excluded from the analysis panel.
 
     Returns:
     -------
@@ -403,6 +431,7 @@ def prepare_triple_diff_panel(
     # Merge indicator with tiltak on region + aarmnd
     df = indicator_df.merge(tiltak_long, on=["region", "aarmnd"], how="left")
     df = _filter_analysis_period(df, data_start, data_end)
+    df = _drop_missing_outcomes(df)
 
     # Treated indicator (1 for treated group, 0 for control)
     df["treated"] = (df["group"] == "treated").astype(float)

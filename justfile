@@ -30,20 +30,20 @@ render:
 publish:
     uv run src/utils/publish.py
 
-# Kjør DiD-analyse for alle konfigurasjonsfiler i configs-mappen
-run-all:
-    cd src/diff-in-diff && uv run python run_analysis.py --config configs
+# Kjør DiD-analyse for alle katalogkonfigurasjoner
+run-all new_only='':
+    cd src/diff-in-diff && uv run python run_analysis.py --all {{new_only}}
 
-# Kjør standard DiD-analyse for en gitt konfigurasjon (f.eks. `just did alle/alle-kontinuerlig`)
-did config='alle/alle-kontinuerlig':
+# Kjør standard DiD-analyse for en katalog-ID
+did config='did--midl-lonnstilskudd--alle--regioner--kontinuerlig':
     cd src/diff-in-diff && uv run python run_analysis.py --config {{config}}
 
 # Kjør trippel-diff-analyse for regioner
-triple-diff-regioner config='trippel-diff-regioner':
+triple-diff-regioner config='triple-diff--midl-lonnstilskudd--regioner--kontinuerlig':
     cd src/diff-in-diff && uv run python run_analysis.py --config {{config}}
 
 # Kjør trippel-diff-analyse for enheter
-triple-diff-enheter config='trippel-diff-enheter':
+triple-diff-enheter config='triple-diff--midl-lonnstilskudd--enheter--kontinuerlig':
     cd src/diff-in-diff && uv run python run_analysis.py --config {{config}}
 
 # Hent indikatordata på enhetsnivå fra BigQuery (f.eks. `just fetch-enhet 'Alle'`)
