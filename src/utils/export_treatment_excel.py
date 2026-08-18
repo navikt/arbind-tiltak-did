@@ -44,13 +44,16 @@ def _compute_treatment(tiltak_long: pd.DataFrame, treatment_start: str) -> pd.Da
     df["tiltaksnedgang"] = np.nan
     valid = post_mask & (df["peak_tiltak"] > 0)
     df.loc[valid, "tiltaksnedgang"] = np.clip(
-        (df.loc[valid, "peak_tiltak"] - df.loc[valid, "tiltak"]) / df.loc[valid, "peak_tiltak"],
+        (df.loc[valid, "peak_tiltak"] - df.loc[valid, "tiltak"])
+        / df.loc[valid, "peak_tiltak"],
         0.0,
         1.0,
     )
 
     return (
-        df.loc[post_mask, ["region", "aarmnd", "tiltak", "peak_tiltak", "tiltaksnedgang"]]
+        df.loc[
+            post_mask, ["region", "aarmnd", "tiltak", "peak_tiltak", "tiltaksnedgang"]
+        ]
         .sort_values(["region", "aarmnd"])
         .reset_index(drop=True)
     )
@@ -68,7 +71,9 @@ def main() -> None:
         TREATMENT_START,
     )
     sheets["alle-tiltak-korrigert-full"] = _compute_treatment(
-        _load_tiltak_wide_to_long(ALLE_PATH, seasonal_adjust=True, seasonal_adjust_pre_only=False),
+        _load_tiltak_wide_to_long(
+            ALLE_PATH, seasonal_adjust=True, seasonal_adjust_pre_only=False
+        ),
         TREATMENT_START,
     )
     sheets["alle-tiltak-korrigert-pre"] = _compute_treatment(

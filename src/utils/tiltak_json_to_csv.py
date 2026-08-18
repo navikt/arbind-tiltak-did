@@ -61,7 +61,9 @@ def _to_wide_csv(items: pd.DataFrame, output_path: Path) -> None:
     items["aarmnd"] = _parse_to_first_of_month(items["aarmnd_dato"])
 
     wide = (
-        items.pivot_table(index="aarmnd", columns="nav_region_navn", values="cnt", aggfunc="sum")
+        items.pivot_table(
+            index="aarmnd", columns="nav_region_navn", values="cnt", aggfunc="sum"
+        )
         .sort_index()
         .reset_index()
     )
@@ -76,11 +78,7 @@ def _to_wide_csv(items: pd.DataFrame, output_path: Path) -> None:
     wide["TOTAL"] = wide[_REGION_ORDER].sum(axis=1)
 
     # Write with single-quoted region column names to match existing CSV format
-    quoted_cols = (
-        ["aarmnd"]
-        + [f"'{r}'" for r in _REGION_ORDER]
-        + ["TOTAL"]
-    )
+    quoted_cols = ["aarmnd"] + [f"'{r}'" for r in _REGION_ORDER] + ["TOTAL"]
     wide.columns = quoted_cols
     output_path.parent.mkdir(parents=True, exist_ok=True)
     wide.to_csv(output_path, index=False)

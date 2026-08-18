@@ -7,7 +7,6 @@ Sheet 2 – tiltak-region-type: long format sorted by date, region, tiltaksnavn
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 
 import pandas as pd
@@ -35,7 +34,9 @@ def main() -> None:
     df1 = _load_items(INPUT1)
     df1["aarmnd"] = _parse_date(df1["aarmnd_dato"])
     df1_wide = (
-        df1.pivot_table(index="aarmnd", columns="nav_region_navn", values="cnt", aggfunc="sum")
+        df1.pivot_table(
+            index="aarmnd", columns="nav_region_navn", values="cnt", aggfunc="sum"
+        )
         .sort_index()
         .reset_index()
     )
@@ -46,8 +47,13 @@ def main() -> None:
     df2["aarmnd"] = _parse_date(df2["aarmnd_dato"])
     df2 = (
         df2.drop(columns=["aarmnd_dato"])
-        .rename(columns={"nav_region_navn": "region", "tiltaksnavn": "tiltak", "cnt": "antall"})
-        [["aarmnd", "region", "tiltak", "antall"]]
+        .rename(
+            columns={
+                "nav_region_navn": "region",
+                "tiltaksnavn": "tiltak",
+                "cnt": "antall",
+            }
+        )[["aarmnd", "region", "tiltak", "antall"]]
         .sort_values(["aarmnd", "region", "tiltak"])
         .reset_index(drop=True)
     )
@@ -58,7 +64,9 @@ def main() -> None:
         df2.to_excel(writer, sheet_name="tiltak-region-type", index=False)
 
     print(f"Saved {OUTPUT}")
-    print(f"  tiltak-region: {len(df1_wide)} months × {len(df1_wide.columns) - 1} regions")
+    print(
+        f"  tiltak-region: {len(df1_wide)} months × {len(df1_wide.columns) - 1} regions"
+    )
     print(f"  tiltak-region-type: {len(df2)} rows")
 
 
