@@ -1,21 +1,17 @@
-"""Presentation tables generated from persisted analysis summaries."""
+"""Publication tables generated from persisted DiD regression summaries."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
 import pandas as pd
+from openpyxl.styles import Font
 
 _INDICATORS = ("atid3", "jobb3")
-_TREATMENT_TYPES = ("discrete", "continuous")
+_TREATMENTS = ("discrete", "continuous")
 _MODELS = ("baseline", "preferred")
-_TREATMENT_TYPE_LABELS = {"discrete": "Diskret", "continuous": "Kontinuerlig"}
-_PROJECT_ROOT = Path(__file__).resolve().parents[2]
-_TABLE1_CONFIG_PATHS = (
-    "did--midl-lonnstilskudd--alle--regioner--diskret--indikator",
-    "did--midl-lonnstilskudd--alle--regioner--kontinuerlig--indikator",
-)
-_REQUIRED_COLUMNS = {
+_LABELS = {"discrete": "Diskret", "continuous": "Kontinuerlig"}
+_REQUIRED = {
     "analysis_design",
     "indicator",
     "treatment_type",
@@ -32,7 +28,7 @@ _REQUIRED_COLUMNS = {
     "period_start",
     "period_end",
 }
-_ROW_LABELS = (
+_ROWS = (
     "Koeffisient",
     "Standardfeil",
     "Sesongjustert",
@@ -44,38 +40,30 @@ _ROW_LABELS = (
     "Periode",
 )
 
-def _table1_data_paths(outputs_dir: Path) -> list[Path]:
-    """Return the persisted temporary wage-subsidy results used for Table 1."""
-    return [
-        outputs_dir / "did" / config_path / "tables" / "regression_results.csv"
-        for config_path in _TABLE1_CONFIG_PATHS
-    ]
+
+def _stars(value: float) -> str:
+    return (
+        "***"
+        if value <= 0.01
+        else "**"
+        if value <= 0.05
+        else "*"
+        if value <= 0.1
+        else ""
+    )
 
 
-def _significance_stars(p_value: float) -> str:
-    """Return conventional significance stars for a bootstrap p-value."""
-    if p_value <= 0.01:
-        return "***"
-    if p_value <= 0.05:
-        return "**"
-    if p_value <= 0.1:
-        return "*"
-    return ""
-
-
-def _yes_no(value: object) -> str:
-    """Render a boolean-like summary field as Yes or No."""
+def _yes(value: object) -> str:
     return "Ja" if str(value).lower() in {"true", "1", "yes"} else "Nei"
 
 
-def _format_result(row: pd.Series) -> list[str]:
-    """Format one persisted regression-result row for Table 1."""
+def _result(row: pd.Series) -> list[str]:
     return [
-        f"{row['coefficient']:.3f}{_significance_stars(row['p_value_bootstrap'])}",
+        f"{row['coefficient']:.3f}{_stars(row['p_value_bootstrap'])}",
         f"({row['std_error']:.3f})",
-        _yes_no(row["seasonally_adjusted"]),
-        _yes_no(row["entity_fixed_effects"]),
-        _yes_no(row["time_fixed_effects"]),
+        _yes(row["seasonally_adjusted"]),
+        _yes(row["entity_fixed_effects"]),
+        _yes(row["time_fixed_effects"]),
         f"{row['r_squared_adjusted']:.3f}",
         f"{int(row['n_obs']):,}",
         f"{int(row['n_clusters']):,}",
@@ -83,99 +71,173 @@ def _format_result(row: pd.Series) -> list[str]:
     ]
 
 
-def table1(data: pd.DataFrame, output_dir: Path) -> Path:
-    """Write Table 1 from selected DiD regression summary rows.
-
-    ``data`` must contain baseline and preferred rows for each combination of
-    Atid3/Jobb3 and discrete/continuous treatment. The output has eight
-    columns: one non-seasonally adjusted and one seasonally adjusted model for
-    every indicator/treatment combination. It is normally assembled by reading
-    the relevant self-describing ``regression_results.csv`` files. The reported
-    adjusted R-squared is Statsmodels' OLS adjusted R-squared, including
-    fixed-effect dummies.
-    """
-    missing_columns = _REQUIRED_COLUMNS - set(data.columns)
-    if missing_columns:
-        raise ValueError(
-            "Table 1 input is missing required columns: "
-            f"{', '.join(sorted(missing_columns))}."
-        )
-
+def result_table(data: pd.DataFrame) -> pd.DataFrame:
+    """Return the requested eight-model presentation table from DiD results."""
+    missing = _REQUIRED - set(data)
+    if missing:
+        raise ValueError(f"Tabellinput mangler kolonner: {', '.join(sorted(missing))}.")
+    keys = ["indicator", "treatment_type", "model"]
     selected = data.loc[
-        (data["analysis_design"] == "did")
-        & data["indicator"].isin(_INDICATORS)
-        & data["treatment_type"].isin(_TREATMENT_TYPES)
-        & data["model"].isin(_MODELS)
-    ].copy()
-
-    expected_keys = pd.MultiIndex.from_product(
-        [_INDICATORS, _TREATMENT_TYPES, _MODELS],
-        names=["indicator", "treatment_type", "model"],
+        (data.analysis_design == "did")
+        & data.indicator.isin(_INDICATORS)
+        & data.treatment_type.isin(_TREATMENTS)
+        & data.model.isin(_MODELS)
+    ].set_index(keys)
+    expected = pd.MultiIndex.from_product(
+        [_INDICATORS, _TREATMENTS, _MODELS], names=keys
     )
-    selected = selected.set_index(["indicator", "treatment_type", "model"])
-    duplicate_keys = selected.index[selected.index.duplicated()].unique()
-    if len(duplicate_keys):
-        raise ValueError(
-            "Table 1 input has duplicate model rows for: "
-            + ", ".join(
-                f"{indicator}/{treatment}/{model}"
-                for indicator, treatment, model in duplicate_keys
-            )
-            + ". Select one analysis run per table column."
-        )
-    missing_keys = expected_keys.difference(selected.index)
+    if selected.index.has_duplicates:
+        raise ValueError("Table input has duplicate model results.")
+    missing_keys = expected.difference(selected.index)
     if len(missing_keys):
-        raise ValueError(
-            "Table 1 input is missing model rows for: "
-            + ", ".join(
-                f"{indicator}/{treatment}/{model}"
-                for indicator, treatment, model in missing_keys
-            )
-            + "."
-        )
-
+        raise ValueError(f"Tabellinput mangler modellresultater: {list(missing_keys)}.")
     columns = pd.MultiIndex.from_tuples(
         [
-            ("Atid3", "Diskret", "Nei"),
-            ("Atid3", "Diskret", "Ja"),
-            ("Atid3", "Kontinuerlig", "Nei"),
-            ("Atid3", "Kontinuerlig", "Ja"),
-            ("Jobb3", "Diskret", "Nei"),
-            ("Jobb3", "Diskret", "Ja"),
-            ("Jobb3", "Kontinuerlig", "Nei"),
-            ("Jobb3", "Kontinuerlig", "Ja"),
+            (
+                indicator.title(),
+                _LABELS[treatment],
+                "Ja" if model == "preferred" else "Nei",
+            )
+            for indicator in _INDICATORS
+            for treatment in _TREATMENTS
+            for model in _MODELS
         ],
         names=["Arbeidsindikator", "Behandlingstype", "Sesongjustert"],
     )
-    table = pd.DataFrame(index=_ROW_LABELS, columns=columns)
-    for indicator, treatment_type, model in expected_keys:
+    table = pd.DataFrame(index=_ROWS, columns=columns)
+    for key in expected:
         table.loc[
             :,
-            (
-                indicator.title(),
-                _TREATMENT_TYPE_LABELS[treatment_type],
-                "Ja" if model == "preferred" else "Nei",
-            ),
-        ] = _format_result(selected.loc[(indicator, treatment_type, model)])
+            (key[0].title(), _LABELS[key[1]], "Ja" if key[2] == "preferred" else "Nei"),
+        ] = _result(selected.loc[key])
+    return table
 
+
+def table1(data: pd.DataFrame, output_dir: Path) -> Path:
+    """Write Table 1 as CSV for backwards-compatible programmatic use."""
     output_dir.mkdir(parents=True, exist_ok=True)
-    output_path = output_dir / "table1.csv"
-    table.to_csv(output_path)
+    path = output_dir / "table1.csv"
+    result_table(data).to_csv(path)
+    return path
+
+
+def write_workbook(
+    indicator_data: pd.DataFrame,
+    actual_data: pd.DataFrame,
+    appendix: pd.DataFrame,
+    output_path: Path,
+    treatment_label: str = "Midlertidig lønnstilskudd",
+) -> Path:
+    """Write titled Tables 1–3 to separate sheets in one Excel workbook."""
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
+        sheets = (
+            (
+                "Tabell 1",
+                f"Tabell 1: Indikatorutfall - behandling: {treatment_label}",
+                result_table(indicator_data),
+                True,
+            ),
+            (
+                "Tabell 2",
+                f"Tabell 2: Faktiske utfall - behandling: {treatment_label}",
+                result_table(actual_data),
+                True,
+            ),
+            (
+                "Tabell 3",
+                "Tabell 3: Behandlingsintensitet og diskret behandling per region",
+                appendix,
+                False,
+            ),
+        )
+        for sheet_name, title, data, include_index in sheets:
+            data.to_excel(
+                writer,
+                sheet_name=sheet_name,
+                index=include_index,
+                startrow=2,
+            )
+            worksheet = writer.sheets[sheet_name]
+            worksheet.cell(row=1, column=1, value=title).font = Font(bold=True)
+            worksheet.merge_cells(
+                start_row=1,
+                start_column=1,
+                end_row=1,
+                end_column=max(1, len(data.columns) + int(include_index)),
+            )
     return output_path
 
 
-def generate_default_table1(outputs_dir: Path = _PROJECT_ROOT / "outputs") -> Path:
-    """Generate Table 1 from the standard midlertidig lønnstilskudd analyses."""
-    data_paths = _table1_data_paths(outputs_dir)
-    missing_paths = [path for path in data_paths if not path.is_file()]
-    if missing_paths:
-        raise FileNotFoundError(
-            "Missing Table 1 regression results:\n"
-            + "\n".join(str(path) for path in missing_paths)
+def appendix_table(
+    wage_subsidy_panel: pd.DataFrame,
+    all_measures_panel: pd.DataFrame,
+    wage_subsidy_discrete_panel: pd.DataFrame,
+    all_measures_discrete_panel: pd.DataFrame,
+) -> pd.DataFrame:
+    """Calculate Appendix Table 3 from continuous and discrete treatment panels."""
+    required = {"region", "post_treatment", "tiltaksnedgang"}
+    for name, panel in (
+        ("midlertidig lønnstilskudd", wage_subsidy_panel),
+        ("alle tiltak", all_measures_panel),
+    ):
+        if missing := required - set(panel):
+            raise ValueError(f"{name} mangler kolonner: {sorted(missing)}")
+    for name, panel in (
+        ("midlertidig lønnstilskudd (diskret)", wage_subsidy_discrete_panel),
+        ("alle tiltak (diskret)", all_measures_discrete_panel),
+    ):
+        if missing := {"region", "treated"} - set(panel):
+            raise ValueError(f"{name} mangler kolonner: {sorted(missing)}")
+
+    def reduction(panel: pd.DataFrame) -> pd.Series:
+        return (
+            panel.loc[panel.post_treatment].groupby("region")["tiltaksnedgang"].mean()
         )
-    data = pd.concat((pd.read_csv(path) for path in data_paths), ignore_index=True)
-    return table1(data, outputs_dir / "summary")
+
+    def discrete_treatment(panel: pd.DataFrame) -> pd.Series:
+        assignments = panel.groupby("region")["treated"].nunique()
+        if (assignments != 1).any():
+            raise ValueError("Diskret behandlingsvariabel varierer innen en region.")
+        return panel.groupby("region")["treated"].first().astype(int)
+
+    wage = reduction(wage_subsidy_panel)
+    all_measures = reduction(all_measures_panel)
+    wage_discrete = discrete_treatment(wage_subsidy_discrete_panel)
+    all_measures_discrete = discrete_treatment(all_measures_discrete_panel)
+    regions = (
+        wage.index.union(all_measures.index)
+        .union(wage_discrete.index)
+        .union(all_measures_discrete.index)
+    )
+    return pd.DataFrame(
+        {
+            "Region": regions,
+            "Gjennomsnittlig nedgang: midlertidig lønnstilskudd": wage.reindex(
+                regions
+            ).values,
+            "Diskret behandlingsvariabel: midlertidig lønnstilskudd": wage_discrete.reindex(
+                regions
+            ).values,
+            "Gjennomsnittlig nedgang: alle tiltak": all_measures.reindex(
+                regions
+            ).values,
+            "Diskret behandlingsvariabel: alle tiltak": all_measures_discrete.reindex(
+                regions
+            ).values,
+        }
+    ).sort_values("Region", ignore_index=True)
 
 
-if __name__ == "__main__":
-    generate_default_table1()
+def generate_default_table1(outputs_dir: Path = Path("outputs")) -> Path:
+    """Generate Table 1 from standard temporary wage-subsidy output directories."""
+    paths = list(
+        (outputs_dir / "did").glob(
+            "did--midl-lonnstilskudd--alle--enheter--*/tables/regression_results.csv"
+        )
+    )
+    if not paths:
+        raise FileNotFoundError("Fant ingen resultater for Tabell 1.")
+    return table1(
+        pd.concat(map(pd.read_csv, paths), ignore_index=True), outputs_dir / "summary"
+    )

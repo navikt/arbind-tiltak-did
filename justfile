@@ -34,6 +34,10 @@ publish:
 run-all new_only='':
     cd src/diff-in-diff && uv run python run_analysis.py --all {{new_only}}
 
+# Generer Quarto-rapporter og data-kapitler fra lagrede analyseresultater
+generate-report:
+    cd src/diff-in-diff && uv run python generate_reports.py --all
+
 # Kjør standard DiD-analyse for en katalog-ID
 did config='did--midl-lonnstilskudd--alle--regioner--kontinuerlig':
     cd src/diff-in-diff && uv run python run_analysis.py --config {{config}}
@@ -74,6 +78,7 @@ merge-veiledning-fylke:
 fetch-all:
     uv run python src/fetch_data/get_fylke_data.py 'Alle' 'Standard' 'Spesielt tilpasset' 'Situasjonsbestemt'
     uv run python src/fetch_data/get_enhet_data.py 'Alle' 'Standard' 'Spesielt tilpasset' 'Situasjonsbestemt'
+    uv run python src/fetch_data/get_landet_data.py 'Alle' 'Standard' 'Spesielt tilpasset' 'Situasjonsbestemt'
     just merge-veiledning-fylke
     just merge-veiledning-enhet
 
