@@ -715,24 +715,6 @@ def _write_qmd(path: Path, lines: list[str]) -> None:
     logger.info("Written %s", path)
 
 
-def _save_tiltak_sa(alle_path: Path) -> None:
-    """Compute and persist the seasonally-adjusted alle-tiltak series.
-
-    Saves the full-series STL-adjusted long-format CSV to
-    ``data/processed/tiltak-sa/alle-tiltak-sa.csv``.  This makes the data
-    used in the data-chapter figures and the alle-tiltak analysis directly
-    inspectable without rerunning the full pipeline.
-    """
-    sa_dir = DATA_PROCESSED / "tiltak-sa"
-    sa_dir.mkdir(parents=True, exist_ok=True)
-    out_path = sa_dir / "alle-tiltak-sa.csv"
-    sa_long = _load_tiltak_sa(
-        alle_path, seasonal_adjust=True, seasonal_adjust_pre_only=False
-    )
-    sa_long.to_csv(out_path, index=False)
-    logger.info("Saved seasonally-adjusted alle-tiltak data to %s", out_path)
-
-
 def generate_data_report() -> None:
     """Generate all three data-section QMD files and their figures."""
     FIGURES_DIR.mkdir(parents=True, exist_ok=True)
@@ -742,9 +724,6 @@ def generate_data_report() -> None:
     alle_path = DATA_INPUT / "tiltak" / "alle-tiltak.csv"
     midl_df, midl_regions = _load_tiltak(midl_path)
     alle_df, alle_regions = _load_tiltak(alle_path)
-
-    logger.info("Saving seasonally-adjusted alle-tiltak data")
-    _save_tiltak_sa(alle_path)
 
     # ── Midlertidig lønnstilskudd ────────────────────────────────────────────
     logger.info("Generating midl.-lønnstilskudd chapter")
@@ -810,6 +789,7 @@ def generate_data_report() -> None:
 
 
 def main() -> int:
+    """Generate the data report chapters from command-line invocation."""
     generate_data_report()
     return 0
 

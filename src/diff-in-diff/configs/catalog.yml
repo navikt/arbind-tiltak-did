@@ -10,11 +10,11 @@ defaults:
 measures:
   midl-lonnstilskudd: midl.-lønnstilskudd.csv
   alle-tiltak: alle-tiltak.csv
-groups: [alle, situasjonsbestemt, spesielt-tilpasset, standard, veiledning-kombinert]
+groups: [alle, personer_i_tiltak, situasjonsbestemt, spesielt-tilpasset, standard, veiledning-kombinert]
 levels: [region, enhet]
 treatments: [diskret, kontinuerlig]
 outcomes: [indikator, faktisk, forventet]
 matrix:
-  - {design: did, measures: [midl-lonnstilskudd], groups: [alle, situasjonsbestemt, spesielt-tilpasset, standard, veiledning-kombinert], levels: [region, enhet], treatments: [diskret, kontinuerlig], outcomes: [indikator, faktisk, forventet]}
-  - {design: did, measures: [alle-tiltak], groups: [alle, spesielt-tilpasset, veiledning-kombinert], levels: [region, enhet], treatments: [diskret, kontinuerlig], outcomes: [indikator, faktisk, forventet]}
+  - {design: did, measures: [midl-lonnstilskudd], groups: [alle, personer_i_tiltak, situasjonsbestemt, spesielt-tilpasset, standard, veiledning-kombinert], levels: [region, enhet], treatments: [diskret, kontinuerlig], outcomes: [indikator, faktisk, forventet]}
+  - {design: did, measures: [alle-tiltak], control_regions: [Nav Innlandet, Nav Nordland, Nav Vestfold og Telemark], groups: [alle, personer_i_tiltak, situasjonsbestemt, spesielt-tilpasset, standard, veiledning-kombinert], levels: [region, enhet], treatments: [diskret, kontinuerlig], outcomes: [indikator, faktisk, forventet]}
   - {design: triple_diff, period: {treatment_start: '202506', data_start: '202101', data_end: '202512'}, measures: [midl-lonnstilskudd, alle-tiltak], levels: [region, enhet], treatments: [kontinuerlig], outcomes: [indikator], treated_group: veiledning-kombinert, control_group: standard}

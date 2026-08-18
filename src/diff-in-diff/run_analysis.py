@@ -17,19 +17,20 @@ from typing import Any
 import numpy as np
 import pandas as pd
 from config_matrix import CONFIGS, DEFAULT_CONFIG_ID, GeneratedConfig, get_config
-from quarto_utils import _update_quarto_chapters, _update_quarto_triple_diff_chapters
 from report.table_output import (
     AnalysisRunMetadata,
     _save_coefficients_table,
+    _save_diagnostic_tables,
     _save_regression_table,
 )
+from report_data import REPORT_DATA_FILE, save_report_data
 
 # ── Project paths ──────────────────────────────────────────────────────────────
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 DATA_PROCESSED_BASE = PROJECT_ROOT / "data" / "processed"
 OUTPUTS_DID_BASE = PROJECT_ROOT / "outputs" / "did"
-QUARTO_DIR = PROJECT_ROOT / "quarto"
+REPORT_DATA_DIRNAME = "report-data"
 
 # ── Logging ────────────────────────────────────────────────────────────────────
 
@@ -64,7 +65,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--new-only",
         action="store_true",
-        help="With --all, skip configurations that already have Quarto report chapters.",
+        help="With --all, skip configurations with reports for the same analysis period.",
     )
     args = parser.parse_args()
     if args.all and (args.config or args.config_flag):
@@ -84,15 +85,28 @@ def _variation_from_cfg(cfg: dict[str, Any]) -> str:
     return str(cfg["analysis"].get("variation", "regioner"))
 
 
+def _analysis_metadata(cfg: dict[str, Any]) -> dict[str, Any]:
+    """Return the effective settings that determine an analysis result."""
+    return {"analysis": cfg["analysis"], "data": cfg["data"]}
+
+
 def _has_quarto_output(generated: GeneratedConfig) -> bool:
-    """Return whether a generated config already has report chapters in Quarto."""
-    analysis = generated.config["analysis"]
-    variation = _variation_from_cfg(generated.config)
-    if analysis.get("design") == "triple_diff":
-        output_dir = QUARTO_DIR / variation
-    else:
-        output_dir = QUARTO_DIR / variation / generated.id
-    return output_dir.is_dir() and any(output_dir.glob("*.qmd"))
+    """Return whether persisted analysis data matches this configuration."""
+    report_data = (
+        OUTPUTS_DID_BASE / generated.id / REPORT_DATA_DIRNAME / REPORT_DATA_FILE
+    )
+    if not report_data.is_file():
+        return False
+    try:
+        import json
+
+        payload = json.loads(report_data.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return False
+    return (
+        payload.get("analysis") == generated.config["analysis"]
+        and payload.get("data") == generated.config["data"]
+    )
 
 
 # ── Pipeline ───────────────────────────────────────────────────────────────────
@@ -458,19 +472,13 @@ def _run_single_config(generated: GeneratedConfig) -> int:
         return 1
 
     config_slug = generated.id
-    variation = _variation_from_cfg(cfg)
     output_root = OUTPUTS_DID_BASE / config_slug
     staging_root = output_root / "_staging"
-    # figures_dir lives inside report_dir so relative paths in the QMD are
-    # preserved correctly after the report is promoted to quarto/.
-    report_dir = staging_root / "report"
-    figures_dir = report_dir / "figures"
     tables_dir = staging_root / "tables"
-    processed_dir = _processed_dir_for_config(generated)
+    report_data_dir = staging_root / REPORT_DATA_DIRNAME
+    processed_dir = staging_root / "processed"
 
-    figures_dir.mkdir(parents=True, exist_ok=True)
     tables_dir.mkdir(parents=True, exist_ok=True)
-    report_dir.mkdir(parents=True, exist_ok=True)
     processed_dir.mkdir(parents=True, exist_ok=True)
 
     analysis = cfg["analysis"]
@@ -626,35 +634,24 @@ def _run_single_config(generated: GeneratedConfig) -> int:
                 treatment_type=str(treatment_type),
                 analysis_level=str(analysis_level),
                 treatment_start=treatment_start,
+                outcome=str(analysis.get("outcome", "indikator")),
+            ),
+        )
+        _save_diagnostic_tables(
+            all_results,
+            tables_dir=tables_dir,
+            metadata=AnalysisRunMetadata(
+                config_slug=config_slug,
+                config_path=generated.id,
+                analysis_design=design,
+                treatment_type=str(treatment_type),
+                analysis_level=str(analysis_level),
+                treatment_start=treatment_start,
+                outcome=str(analysis.get("outcome", "indikator")),
             ),
         )
         _save_coefficients_table(all_results, tables_dir=tables_dir)
-
-        if design == "triple_diff":
-            logger.info("Generating triple-diff report")
-            from report.triple_diff import generate_triple_diff_report
-
-            generate_triple_diff_report(
-                all_results=all_results,
-                cfg=cfg,
-                report_dir=report_dir,
-                figures_dir=figures_dir,
-                tables_dir=tables_dir,
-            )
-            logger.info("Triple-diff report chapters written to %s", report_dir)
-        else:
-            logger.info("Generating report")
-            from report.did import generate_report
-
-            report_path = report_dir / f"report_{config_slug}.qmd"
-            generate_report(
-                all_results=all_results,
-                cfg=cfg,
-                output_path=report_path,
-                figures_dir=figures_dir,
-                tables_dir=tables_dir,
-            )
-            logger.info("Report written to %s", report_path)
+        save_report_data(all_results, report_data_dir, cfg)
 
     # Promote staging → final destinations only when all indicators succeeded.
     # On partial failure keep staging in place so prior complete outputs survive.
@@ -668,31 +665,24 @@ def _run_single_config(generated: GeneratedConfig) -> int:
         )
         exit_code = 1 if n_done == 0 else 2
     else:
-        # Tables → outputs/did/<slug>/tables/
+        # Analysis artifacts are promoted only after all indicators succeed.
         final_tables = output_root / "tables"
+        final_report_data = output_root / REPORT_DATA_DIRNAME
+        final_processed = _processed_dir_for_config(generated)
         if final_tables.exists():
             shutil.rmtree(final_tables)
         shutil.copytree(tables_dir, final_tables)
-
-        # Report + figures → quarto/<variation>/<slug>/ (standard DiD)
-        # or quarto/<variation>/ (triple-diff, variation encodes the full section path)
-        if design == "triple_diff":
-            quarto_output_dir = QUARTO_DIR / variation
-        else:
-            quarto_output_dir = QUARTO_DIR / variation / config_slug
-        if quarto_output_dir.exists():
-            shutil.rmtree(quarto_output_dir)
-        quarto_output_dir.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copytree(report_dir, quarto_output_dir)
+        if final_report_data.exists():
+            shutil.rmtree(final_report_data)
+        shutil.copytree(report_data_dir, final_report_data)
+        if final_processed.exists():
+            shutil.rmtree(final_processed)
+        final_processed.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(processed_dir, final_processed)
 
         shutil.rmtree(staging_root)
         logger.info("Tables promoted to %s", final_tables)
-        logger.info("Report promoted to %s", quarto_output_dir)
-
-        if design == "triple_diff":
-            _update_quarto_triple_diff_chapters(QUARTO_DIR, variation)
-        else:
-            _update_quarto_chapters(QUARTO_DIR, variation)
+        logger.info("Report data promoted to %s", final_report_data)
         exit_code = 0
 
     logger.info("═══ Done (%d/%d indicators) ═══", n_done, n_total)
@@ -735,6 +725,12 @@ def main() -> int:
             len(failed_configs),
             len(configs),
             ", ".join(failed_configs),
+        )
+    if args.all:
+        logger.info(
+            "Run-all complete: %d succeeded, %d failed.",
+            len(configs) - len(failed_configs),
+            len(failed_configs),
         )
 
     return overall_exit

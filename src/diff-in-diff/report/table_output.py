@@ -5,6 +5,7 @@ Writes summary and full-coefficient CSV tables from regression results.
 
 from __future__ import annotations
 
+import json
 import logging
 from dataclasses import dataclass
 from pathlib import Path
@@ -25,6 +26,7 @@ class AnalysisRunMetadata:
     treatment_type: str
     analysis_level: str
     treatment_start: str
+    outcome: str = "indikator"
 
 
 def _period_bounds(panel: pd.DataFrame) -> tuple[str, str]:
@@ -34,6 +36,28 @@ def _period_bounds(panel: pd.DataFrame) -> tuple[str, str]:
         months.min().strftime("%Y-%m-%d"),
         months.max().strftime("%Y-%m-%d"),
     )
+
+
+def _diagnostic_metadata(
+    metadata: AnalysisRunMetadata,
+    indicator: str,
+    result: dict[str, Any],
+    model: str,
+) -> dict[str, Any]:
+    """Return fields shared by every persisted diagnostic observation."""
+    return {
+        "config_slug": metadata.config_slug,
+        "config_path": metadata.config_path,
+        "analysis_design": metadata.analysis_design,
+        "treatment_type": metadata.treatment_type,
+        "analysis_level": metadata.analysis_level,
+        "treatment_start": metadata.treatment_start,
+        "outcome": metadata.outcome,
+        "indicator": indicator,
+        "indicator_base": str(result.get("indicator_name", indicator)),
+        "model": model,
+        "seasonally_adjusted": model == "preferred",
+    }
 
 
 def _save_regression_table(
@@ -97,6 +121,151 @@ def _save_regression_table(
     out = tables_dir / "regression_results.csv"
     df.to_csv(out, index=False, float_format="%.6f")
     logger.info("Regression table saved to %s", out)
+
+
+def _save_diagnostic_tables(
+    all_results: dict[str, dict[str, Any] | None],
+    tables_dir: Path,
+    metadata: AnalysisRunMetadata,
+) -> None:
+    """Save event-study, pre-trend, and leave-one-out data in tidy CSVs."""
+    event_rows: list[dict[str, Any]] = []
+    pretrend_rows: list[dict[str, Any]] = []
+    leave_one_out_rows: list[dict[str, Any]] = []
+
+    for indicator, result in all_results.items():
+        if result is None:
+            continue
+        for model, event_key, loo_key in (
+            ("baseline", "event_study_baseline", "leave_one_out_baseline"),
+            ("preferred", "event_study", "leave_one_out"),
+        ):
+            common = _diagnostic_metadata(metadata, indicator, result, model)
+            event_study = result.get(event_key)
+            if event_study is not None:
+                pre_periods = sorted(
+                    coefficient.tau
+                    for coefficient in event_study.coefs
+                    if coefficient.tau < -1
+                )
+                pretrend_rows.append(
+                    {
+                        **common,
+                        "pretrend_f_stat": event_study.pretrend_f_stat,
+                        "pretrend_p_value": event_study.pretrend_p_value,
+                        "pretrend_df_num": event_study.pretrend_df_num,
+                        "pretrend_df_denom": event_study.pretrend_df_denom,
+                        "n_pre_periods": len(pre_periods),
+                        "pre_periods": json.dumps(pre_periods),
+                    }
+                )
+                for coefficient in event_study.coefs:
+                    event_rows.append(
+                        {
+                            **common,
+                            "relative_month": coefficient.tau,
+                            "coefficient": coefficient.coefficient,
+                            "std_error": coefficient.std_error,
+                            "ci_lower": coefficient.ci_lower,
+                            "ci_upper": coefficient.ci_upper,
+                            "p_value": coefficient.p_value,
+                        }
+                    )
+
+            leave_one_out = result.get(loo_key)
+            if leave_one_out is not None:
+                for row in leave_one_out.rows.to_dict(orient="records"):
+                    leave_one_out_rows.append(
+                        {
+                            **common,
+                            **row,
+                            "full_coefficient": leave_one_out.full_coefficient,
+                            "full_ci_lower": leave_one_out.full_ci_lower,
+                            "full_ci_upper": leave_one_out.full_ci_upper,
+                        }
+                    )
+
+    tables_dir.mkdir(parents=True, exist_ok=True)
+    files = (
+        (
+            "event_study_results.csv",
+            event_rows,
+            [
+                "config_slug",
+                "config_path",
+                "analysis_design",
+                "treatment_type",
+                "analysis_level",
+                "treatment_start",
+                "outcome",
+                "indicator",
+                "indicator_base",
+                "model",
+                "seasonally_adjusted",
+                "relative_month",
+                "coefficient",
+                "std_error",
+                "ci_lower",
+                "ci_upper",
+                "p_value",
+            ],
+        ),
+        (
+            "pretrend_tests.csv",
+            pretrend_rows,
+            [
+                "config_slug",
+                "config_path",
+                "analysis_design",
+                "treatment_type",
+                "analysis_level",
+                "treatment_start",
+                "outcome",
+                "indicator",
+                "indicator_base",
+                "model",
+                "seasonally_adjusted",
+                "pretrend_f_stat",
+                "pretrend_p_value",
+                "pretrend_df_num",
+                "pretrend_df_denom",
+                "n_pre_periods",
+                "pre_periods",
+            ],
+        ),
+        (
+            "leave_one_out_results.csv",
+            leave_one_out_rows,
+            [
+                "config_slug",
+                "config_path",
+                "analysis_design",
+                "treatment_type",
+                "analysis_level",
+                "treatment_start",
+                "outcome",
+                "indicator",
+                "indicator_base",
+                "model",
+                "seasonally_adjusted",
+                "dropped_region",
+                "coefficient",
+                "std_error",
+                "ci_lower",
+                "ci_upper",
+                "p_value",
+                "full_coefficient",
+                "full_ci_lower",
+                "full_ci_upper",
+            ],
+        ),
+    )
+    for filename, rows, columns in files:
+        out = tables_dir / filename
+        pd.DataFrame(rows, columns=columns).to_csv(
+            out, index=False, float_format="%.6f"
+        )
+        logger.info("Diagnostic table saved to %s", out)
 
 
 def _save_coefficients_table(

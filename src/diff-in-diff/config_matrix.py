@@ -13,7 +13,7 @@ CATALOG_PATH = Path(__file__).parent / "configs" / "catalog.yml"
 
 
 def _label(key: str) -> str:
-    return key.replace("-", " ").capitalize()
+    return key.replace("-", " ").replace("_", " ").capitalize()
 
 
 def _level_data(level: str) -> dict[str, str]:
@@ -110,6 +110,7 @@ def _build_did(
     treatment: str,
     outcome: str,
     period_override: dict[str, Any] | None = None,
+    control_regions: list[str] | None = None,
 ) -> GeneratedConfig:
     measure = _measure_data(catalog, measure_key)
     treatment_data = _treatment_data(treatment)
@@ -136,11 +137,14 @@ def _build_did(
         )
         + (" (Enheter)" if level == "enhet" else ""),
         "treatment_type": treatment_data["type"],
+        "outcome": outcome,
         "variation": f"did/{measure_key}/{level_data['slug']}",
         "analysis_level": level,
     }
     if treatment_data["type"] == "discrete":
-        analysis["control_regions"] = list(catalog["defaults"]["control_regions"])
+        analysis["control_regions"] = list(
+            control_regions or catalog["defaults"]["control_regions"]
+        )
     else:
         analysis["denominator_definitions"] = list(
             catalog["defaults"]["denominator_definitions"]
@@ -194,6 +198,7 @@ def _build_triple(
                 **_period(catalog, period_override),
                 "title": f"TrippelDiD | {measure['title']} | {level_data['label']} | {_treatment_data(treatment)['title']}",
                 "treatment_type": _treatment_data(treatment)["type"],
+                "outcome": outcome,
                 "variation": f"triple-diff/{measure_key}/{level_data['slug']}",
                 "design": "triple_diff",
                 "analysis_level": level,
@@ -238,6 +243,7 @@ def build_configs() -> tuple[GeneratedConfig, ...]:
                                     treatment,
                                     outcome,
                                     entry.get("period"),
+                                    entry.get("control_regions"),
                                 )
                             )
                     else:

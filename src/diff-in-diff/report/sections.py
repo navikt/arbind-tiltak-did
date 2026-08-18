@@ -13,6 +13,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+
 from report.utils import (
     BLUE as _BLUE,
 )
@@ -671,7 +672,9 @@ def _infer_subgroup(file_path: str) -> str:
         idx = parts.index("nedbrytning")
         if idx + 1 < len(parts):
             subdir = parts[idx + 1]
-            return subdir.capitalize()
+            return {
+                "personer_i_tiltak": "Personer i tiltak",
+            }.get(subdir, subdir.replace("_", " ").capitalize())
     return "Alle"
 
 
