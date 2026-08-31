@@ -56,6 +56,15 @@ def _period(catalog: dict[str, Any], override: dict[str, Any] | None) -> dict[st
     return {**catalog["defaults"]["period"], **(override or {})}
 
 
+def _person_count_file(level: str, group: str) -> str:
+    """Return the group-specific person-count input path for an analysis level."""
+    level_directory = "enhet/" if level == "enhet" else ""
+    return (
+        "data/input/personer/"
+        f"{level_directory}nedbrytning/{group.replace('-', '_')}/antall_personer.csv"
+    )
+
+
 @dataclass(frozen=True)
 class GeneratedConfig:
     """A runtime configuration and its stable selection/output identifier."""
@@ -111,6 +120,7 @@ def _build_did(
     outcome: str,
     period_override: dict[str, Any] | None = None,
     control_regions: list[str] | None = None,
+    weighting: str = "unweighted",
 ) -> GeneratedConfig:
     measure = _measure_data(catalog, measure_key)
     treatment_data = _treatment_data(treatment)
@@ -122,6 +132,8 @@ def _build_did(
         level_data["slug"],
         _run_variant(treatment, outcome),
     ]
+    if weighting == "personer":
+        id_parts.append("vektet")
     analysis: dict[str, Any] = {
         **_period(catalog, period_override),
         "title": " | ".join(
@@ -140,6 +152,7 @@ def _build_did(
         "outcome": outcome,
         "variation": f"did/{measure_key}/{level_data['slug']}",
         "analysis_level": level,
+        "weighting": weighting,
     }
     if treatment_data["type"] == "discrete":
         analysis["control_regions"] = list(
@@ -154,6 +167,8 @@ def _build_did(
         "tiltak_label": measure["label"],
         "indikatorer": _indicators(catalog, level, group, outcome),
     }
+    if weighting == "personer":
+        data["person_count_file"] = _person_count_file(level, group)
     if measure.get("seasonal_adjust_for_did"):
         data["tiltak_seasonal_adjust"] = True
     if level == "enhet":
@@ -172,6 +187,7 @@ def _build_triple(
     treated: str,
     control: str,
     period_override: dict[str, Any] | None = None,
+    weighting: str = "unweighted",
 ) -> GeneratedConfig:
     measure, level_data = _measure_data(catalog, measure_key), _level_data(level)
     id_parts = [
@@ -180,6 +196,8 @@ def _build_triple(
         level_data["slug"],
         _run_variant(treatment, outcome),
     ]
+    if weighting == "personer":
+        id_parts.append("vektet")
     indicators = _indicators(catalog, level, treated, outcome, "treated") + _indicators(
         catalog, level, control, outcome, "control"
     )
@@ -190,6 +208,11 @@ def _build_triple(
     }
     if level == "enhet":
         data["enhet_mapping_file"] = catalog["defaults"]["enhet_mapping_file"]
+    if weighting == "personer":
+        data["person_count_files"] = {
+            "treated": _person_count_file(level, treated),
+            "control": _person_count_file(level, control),
+        }
     return GeneratedConfig(
         "--".join(id_parts),
         Path(*id_parts),
@@ -202,6 +225,7 @@ def _build_triple(
                 "variation": f"triple-diff/{measure_key}/{level_data['slug']}",
                 "design": "triple_diff",
                 "analysis_level": level,
+                "weighting": weighting,
                 "treated_group": _label(treated),
                 "control_group": _label(control),
                 "denominator_definitions": list(
@@ -219,13 +243,16 @@ def build_configs() -> tuple[GeneratedConfig, ...]:
     for entry in catalog["matrix"]:
         for measure in entry["measures"]:
             for level in entry["levels"]:
-                for treatment, outcome in product(
-                    entry["treatments"], entry["outcomes"]
+                for treatment, outcome, weighting in product(
+                    entry["treatments"],
+                    entry["outcomes"],
+                    entry.get("weighting", ["unweighted"]),
                 ):
                     if (
                         level not in catalog["levels"]
                         or outcome not in catalog["outcomes"]
                         or treatment not in catalog["treatments"]
+                        or weighting not in {"unweighted", "personer"}
                     ):
                         raise ValueError(f"Invalid catalog matrix entry: {entry}")
                     if entry["design"] == "did":
@@ -244,6 +271,7 @@ def build_configs() -> tuple[GeneratedConfig, ...]:
                                     outcome,
                                     entry.get("period"),
                                     entry.get("control_regions"),
+                                    weighting,
                                 )
                             )
                     else:
@@ -257,6 +285,7 @@ def build_configs() -> tuple[GeneratedConfig, ...]:
                                 entry["treated_group"],
                                 entry["control_group"],
                                 entry.get("period"),
+                                weighting,
                             )
                         )
     ids = [config.id for config in configs]

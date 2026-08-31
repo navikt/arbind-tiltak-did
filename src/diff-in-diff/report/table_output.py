@@ -27,6 +27,7 @@ class AnalysisRunMetadata:
     analysis_level: str
     treatment_start: str
     outcome: str = "indikator"
+    weighting: str = "unweighted"
 
 
 def _period_bounds(panel: pd.DataFrame) -> tuple[str, str]:
@@ -52,6 +53,7 @@ def _diagnostic_metadata(
         "treatment_type": metadata.treatment_type,
         "analysis_level": metadata.analysis_level,
         "treatment_start": metadata.treatment_start,
+        "weighting": metadata.weighting,
         "outcome": metadata.outcome,
         "indicator": indicator,
         "indicator_base": str(result.get("indicator_name", indicator)),
@@ -91,6 +93,7 @@ def _save_regression_table(
                     "treatment_type": metadata.treatment_type,
                     "analysis_level": metadata.analysis_level,
                     "treatment_start": metadata.treatment_start,
+                    "weighting": metadata.weighting,
                     "indicator": ind,
                     "indicator_base": indicator_base,
                     "model": model_name,

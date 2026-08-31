@@ -58,15 +58,18 @@ def _estimate(
     panel: pd.DataFrame,
     model_name: str,
 ) -> RegressionResult:
-    """Internal helper: build design matrix, fit OLS, apply clustered SE."""
+    """Internal helper: build design matrix, fit OLS/WLS, apply clustered SE."""
     y = panel["indikator"].astype(float)
     X = build_regressors(panel)
     clusters = panel["region"]
+    weights = panel.get("regression_weight")
 
     # Drop rows with NaN in y or X to avoid silent NaN propagation in OLS.
     # This can happen with enhet-level panels where some enheter have missing
     # indicator values for certain months.
     valid = y.notna() & X.notna().all(axis=1)
+    if weights is not None:
+        valid &= weights.notna()
     if not valid.all():
         n_drop = int((~valid).sum())
         logger.warning(
@@ -78,6 +81,8 @@ def _estimate(
         y = y.loc[valid].reset_index(drop=True)
         X = X.loc[valid].reset_index(drop=True)
         clusters = clusters.loc[valid].reset_index(drop=True)
+        if weights is not None:
+            weights = weights.loc[valid].reset_index(drop=True)
 
     n_entities = panel["entity"].nunique()
     n_regions = panel["region"].nunique()
@@ -98,7 +103,8 @@ def _estimate(
             "Check for collinear fixed effects or insufficient variation in treatment."
         )
 
-    cl_fit = sm.OLS(y, X).fit(
+    estimator = sm.WLS(y, X, weights=weights) if weights is not None else sm.OLS(y, X)
+    cl_fit = estimator.fit(
         cov_type="cluster",
         cov_kwds={"groups": clusters.values},
         use_t=True,

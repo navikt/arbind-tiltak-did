@@ -16,6 +16,7 @@ _ROOT = Path(__file__).resolve().parents[2]
 _IND_BASE = _ROOT / "data" / "input" / "indikatorer" / "enhet" / "nedbrytning"
 _PERS_BASE = _ROOT / "data" / "input" / "personer" / "enhet" / "nedbrytning"
 _OUT_DIR = _IND_BASE / "veiledning_kombinert"
+_PERSON_OUT_DIR = _PERS_BASE / "veiledning_kombinert"
 
 _GROUP_A = "Situasjonsbestemt"
 _GROUP_B = "Spesielt tilpasset"
@@ -111,6 +112,29 @@ def _merge_one_outcome(outcome: str, group_a: str, group_b: str) -> pd.DataFrame
     )
 
 
+def _merge_person_counts(group_a: str, group_b: str) -> pd.DataFrame:
+    """Return combined counts for the two source groups at unit level."""
+    g1 = _slugify(group_a)
+    g2 = _slugify(group_b)
+    n1 = _read_long(_PERS_BASE / g1 / "antall_personer.csv").rename(
+        columns={"antall_personer": "n_1"}
+    )
+    n2 = _read_long(_PERS_BASE / g2 / "antall_personer.csv").rename(
+        columns={"antall_personer": "n_2"}
+    )
+    counts = n1.merge(n2, on=["aarmnd", "enhet"], how="outer", validate="one_to_one")
+    # A missing group-month is an absent subgroup, not an unknown total.
+    counts[["n_1", "n_2"]] = counts[["n_1", "n_2"]].fillna(0)
+    if (counts[["n_1", "n_2"]] < 0).any().any():
+        raise ValueError("Negative person counts while merging veiledning groups.")
+    counts["antall_personer"] = counts["n_1"] + counts["n_2"]
+    return (
+        counts[["aarmnd", "enhet", "antall_personer"]]
+        .sort_values(["aarmnd", "enhet"])
+        .reset_index(drop=True)
+    )
+
+
 def merge_veiledning_enhet(
     group_a: str = _GROUP_A,
     group_b: str = _GROUP_B,
@@ -118,12 +142,16 @@ def merge_veiledning_enhet(
 ) -> list[Path]:
     """Merge veiledning groups and save indicator, faktisk, and forventet CSVs."""
     _OUT_DIR.mkdir(parents=True, exist_ok=True)
+    _PERSON_OUT_DIR.mkdir(parents=True, exist_ok=True)
     saved: list[Path] = []
     for outcome in outcomes:
         merged = _merge_one_outcome(outcome=outcome, group_a=group_a, group_b=group_b)
         out_path = _OUT_DIR / f"{outcome}.csv"
         merged.to_csv(out_path, index=False)
         saved.append(out_path)
+    person_counts_path = _PERSON_OUT_DIR / "antall_personer.csv"
+    _merge_person_counts(group_a, group_b).to_csv(person_counts_path, index=False)
+    saved.append(person_counts_path)
     return saved
 
 

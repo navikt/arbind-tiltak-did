@@ -18,7 +18,6 @@ _REQUIRED = {
     "model",
     "coefficient",
     "std_error",
-    "p_value_bootstrap",
     "seasonally_adjusted",
     "entity_fixed_effects",
     "time_fixed_effects",
@@ -58,8 +57,13 @@ def _yes(value: object) -> str:
 
 
 def _result(row: pd.Series) -> list[str]:
+    p_value = row.get("p_value_bootstrap")
+    if pd.isna(p_value):
+        p_value = row.get("p_value_asymp")
+    if pd.isna(p_value):
+        raise ValueError("Tabellinput mangler både bootstrap- og asymptotisk p-verdi.")
     return [
-        f"{row['coefficient']:.3f}{_stars(row['p_value_bootstrap'])}",
+        f"{row['coefficient']:.3f}{_stars(p_value)}",
         f"({row['std_error']:.3f})",
         _yes(row["seasonally_adjusted"]),
         _yes(row["entity_fixed_effects"]),
@@ -76,6 +80,8 @@ def result_table(data: pd.DataFrame) -> pd.DataFrame:
     missing = _REQUIRED - set(data)
     if missing:
         raise ValueError(f"Tabellinput mangler kolonner: {', '.join(sorted(missing))}.")
+    if {"p_value_bootstrap", "p_value_asymp"}.isdisjoint(data.columns):
+        raise ValueError("Tabellinput mangler både p_value_bootstrap og p_value_asymp.")
     keys = ["indicator", "treatment_type", "model"]
     selected = data.loc[
         (data.analysis_design == "did")
@@ -125,10 +131,11 @@ def write_workbook(
     indicator_data: pd.DataFrame,
     actual_data: pd.DataFrame,
     appendix: pd.DataFrame,
+    monthly_treatments: pd.DataFrame,
     output_path: Path,
     treatment_label: str = "Midlertidig lønnstilskudd",
 ) -> Path:
-    """Write titled Tables 1–3 to separate sheets in one Excel workbook."""
+    """Write titled Tables 1–4 to separate sheets in one Excel workbook."""
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
         sheets = (
@@ -148,6 +155,12 @@ def write_workbook(
                 "Tabell 3",
                 "Tabell 3: Behandlingsintensitet og diskret behandling per region",
                 appendix,
+                False,
+            ),
+            (
+                "Tabell 4",
+                "Tabell 4: Tiltak og behandlingsintensitet per måned og region",
+                monthly_treatments,
                 False,
             ),
         )
@@ -229,15 +242,44 @@ def appendix_table(
     ).sort_values("Region", ignore_index=True)
 
 
+def monthly_treatment_table(panel: pd.DataFrame) -> pd.DataFrame:
+    """Return post-treatment intensity by month, with one column per region."""
+    required = {"aarmnd", "region", "post_treatment", "tiltaksnedgang"}
+    if missing := required - set(panel):
+        raise ValueError(f"Tabell 4 mangler kolonner: {sorted(missing)}")
+    values = panel.loc[
+        panel.post_treatment, ["aarmnd", "region", "tiltaksnedgang"]
+    ].copy()
+    variation = values.groupby(["aarmnd", "region"])["tiltaksnedgang"].nunique(
+        dropna=False
+    )
+    if (variation > 1).any():
+        raise ValueError("Tiltaksnedgang varierer innen måned og region.")
+    return (
+        values.drop_duplicates(["aarmnd", "region"])
+        .pivot(index="aarmnd", columns="region", values="tiltaksnedgang")
+        .rename_axis(index="Måned", columns=None)
+        .reset_index()
+        .sort_values("Måned", ignore_index=True)
+    )
+
+
 def generate_default_table1(outputs_dir: Path = Path("outputs")) -> Path:
     """Generate Table 1 from standard temporary wage-subsidy output directories."""
-    paths = list(
-        (outputs_dir / "did").glob(
-            "did--midl-lonnstilskudd--alle--enheter--*/tables/regression_results.csv"
+    paths: list[Path] = []
+    for level in ("enheter", "regioner"):
+        paths = list(
+            (outputs_dir / "did").glob(
+                "did--midl-lonnstilskudd--alle"
+                f"--{level}--*/tables/regression_results.csv"
+            )
         )
-    )
+        if paths:
+            break
     if not paths:
         raise FileNotFoundError("Fant ingen resultater for Tabell 1.")
+    weighted_paths = [path for path in paths if path.parts[-3].endswith("--vektet")]
+    paths = weighted_paths or paths
     return table1(
         pd.concat(map(pd.read_csv, paths), ignore_index=True), outputs_dir / "summary"
     )

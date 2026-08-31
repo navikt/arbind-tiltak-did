@@ -9,6 +9,7 @@ import pandas as pd
 from figures import (
     figure1,
     figure2,
+    figure2_common,
     figure3,
     figure4,
     figure5,
@@ -16,29 +17,59 @@ from figures import (
     figure7,
     figure8,
     figure9,
-    figure10,
     figure11,
     figure12,
     figure13,
+    figure14,
+    figure15,
+    figure16,
+    figure17,
 )
-from tables import appendix_table, write_workbook
+from tables import appendix_table, monthly_treatment_table, write_workbook
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+SUBGROUP_LABELS = {
+    "alle": "Alle",
+    "personer_i_tiltak": "Personer i tiltak",
+    "standard": "Gode muligheter",
+    "situasjonsbestemt": "Trenger veiledning",
+    "spesielt-tilpasset": "Trenger veiledning, nedsatt arbeidsevne",
+    "veiledning-kombinert": "Veiledning kombinert",
+}
 
 
-def _result_path(outputs_dir: Path, run_id: str) -> Path:
-    """Return the persisted regression summary for an explicitly selected run."""
-    path = outputs_dir / "did" / run_id / "tables" / "regression_results.csv"
-    if not path.is_file():
-        raise FileNotFoundError(f"Mangler analyseoutput: {path}")
-    return path
+def _result_path(outputs_dir: Path, run_id: str, weighting: str | None = None) -> Path:
+    """Return a regression summary for the requested weighting specification."""
+    paths = {
+        "unweighted": outputs_dir
+        / "did"
+        / run_id
+        / "tables"
+        / "regression_results.csv",
+        "personer": outputs_dir
+        / "did"
+        / f"{run_id}--vektet"
+        / "tables"
+        / "regression_results.csv",
+    }
+    candidates = (
+        (paths[weighting],)
+        if weighting is not None
+        else (paths["personer"], paths["unweighted"])
+    )
+    for path in candidates:
+        if path.is_file():
+            return path
+    raise FileNotFoundError(f"Mangler analyseoutput: {candidates[0]}")
 
 
-def _results(outputs_dir: Path, run_ids: dict[str, str]) -> pd.DataFrame:
+def _results(
+    outputs_dir: Path, run_ids: dict[str, str], weighting: str | None = None
+) -> pd.DataFrame:
     """Read preferred results and attach publication labels."""
     frames = []
     for label, run_id in run_ids.items():
-        frame = pd.read_csv(_result_path(outputs_dir, run_id))
+        frame = pd.read_csv(_result_path(outputs_dir, run_id, weighting))
         frame = frame.loc[frame.model == "preferred"].copy()
         frame["group"] = label
         frames.append(frame)
@@ -54,6 +85,7 @@ def _diagnostics(
         candidates = (
             run_id,
             run_id.removesuffix("--indikator"),
+            run_id.replace("--alle--", "--alle_tiltak--"),
         )
         for candidate in candidates:
             path = outputs_dir / "did" / candidate / "tables" / filename
@@ -68,21 +100,22 @@ def _diagnostics(
 
 
 def _panel_path(processed_dir: Path, run_id: str, indicator: str) -> Path:
-    """Return the preferred seasonally adjusted panel for a run."""
-    parts = run_id.split("--")
-    variant = "--".join(parts[4:]).removesuffix("--indikator")
-    path = (
-        processed_dir
-        / "did"
-        / parts[1]
-        / parts[2]
-        / "enheter"
-        / variant
-        / f"panel_{indicator}_flattened.csv"
-    )
-    if not path.is_file():
-        raise FileNotFoundError(f"Mangler behandlet panel: {path}")
-    return path
+    """Return a weighted panel or its unweighted counterpart when needed."""
+    for candidate in (f"{run_id}--vektet", run_id):
+        parts = candidate.split("--")
+        variant = "--".join(parts[4:]).removesuffix("--indikator")
+        path = (
+            processed_dir
+            / "did"
+            / parts[1]
+            / parts[2]
+            / "enheter"
+            / variant
+            / f"panel_{indicator}_flattened.csv"
+        )
+        if path.is_file():
+            return path
+    raise FileNotFoundError(f"Mangler behandlet panel: {path}")
 
 
 def _grouped_panel(panel: pd.DataFrame) -> pd.DataFrame:
@@ -146,6 +179,7 @@ def _generate_treatment_summary(
     summary_dir: Path,
     base: str,
     treatment_label: str,
+    suffix: str,
     raw_filename: str,
     appendix: pd.DataFrame,
     adjusted_filename: str | None = None,
@@ -173,71 +207,86 @@ def _generate_treatment_summary(
             indicator_results,
             actual_results,
             appendix,
+            monthly_treatment_table(continuous_panel),
             summary_dir / "summary.xlsx",
             treatment_label=treatment_label,
         ),
-        figure1(
-            _full_treatment_series(PROJECT_ROOT, "alle-tiltak.csv"),
-            _full_treatment_series(PROJECT_ROOT, "midl.-lønnstilskudd.csv"),
-            summary_dir,
-        ),
-        figure2(continuous_panel, summary_dir, treatment_label),
+        figure2(continuous_panel, summary_dir, treatment_label, suffix),
     ]
     for indicator, function in (("atid3", figure3), ("jobb3", figure4)):
         panel = pd.read_csv(
             _panel_path(processed_dir, f"{base}--kontinuerlig", indicator)
         )
-        paths.append(function(_grouped_panel(panel), summary_dir))
+        paths.append(function(_grouped_panel(panel), summary_dir, suffix))
 
     main_runs = (f"{base}--diskret", f"{base}--kontinuerlig")
-    paths.extend(
-        [
-            figure5(
-                _diagnostics(outputs_dir, main_runs, "event_study_results.csv"),
-                summary_dir,
-            ),
-            figure6(
-                _diagnostics(outputs_dir, main_runs, "pretrend_tests.csv"),
-                summary_dir,
-            ),
-            figure7(
-                _diagnostics(outputs_dir, main_runs, "leave_one_out_results.csv"),
-                summary_dir,
-            ),
-        ]
-    )
+    for function, filename in (
+        (figure5, "event_study_results.csv"),
+        (figure6, "pretrend_tests.csv"),
+        (figure7, "leave_one_out_results.csv"),
+    ):
+        try:
+            paths.append(
+                function(
+                    _diagnostics(outputs_dir, main_runs, filename),
+                    summary_dir,
+                    suffix,
+                )
+            )
+        except FileNotFoundError:
+            continue
 
-    groups = {
-        "alle": "Alle",
-        "situasjonsbestemt": "Gode muligheter",
-        "spesielt-tilpasset": "Trenger veiledning",
-        "standard": "Nedsatt arbeidsevne",
-        "veiledning-kombinert": "Veiledning kombinert",
-    }
     treatment_slug = base.split("--")[1]
     subgroup_runs = {
         "Alle": f"{base}--kontinuerlig",
+        "Alle – diskret": f"{base}--diskret",
         **{
             label: f"did--{treatment_slug}--{slug}--enheter--kontinuerlig"
-            for slug, label in groups.items()
+            for slug, label in SUBGROUP_LABELS.items()
             if slug != "alle"
         },
     }
-    if treatment_slug == "alle-tiltak":
-        subgroup_runs.update(
-            {
-                "Alle – diskret": f"{base}--diskret",
-                "Personer i tiltak": (
-                    "did--alle-tiltak--personer_i_tiltak--enheter--kontinuerlig"
-                ),
-            }
-        )
     paths.append(
         figure8(
             _results(outputs_dir, subgroup_runs),
             summary_dir,
+            suffix,
         )
     )
+    paths.append(figure17(_results(outputs_dir, subgroup_runs), summary_dir, suffix))
+    try:
+        paths.append(
+            figure15(
+                _results(outputs_dir, subgroup_runs, "unweighted"),
+                _results(outputs_dir, subgroup_runs, "personer"),
+                summary_dir,
+                suffix,
+            )
+        )
+    except FileNotFoundError:
+        pass
+    faktisk_subgroup_runs = {
+        label: (
+            run.removesuffix("--kontinuerlig") + "--faktisk-kontinuerlig"
+            if run.endswith("--kontinuerlig")
+            else run.removesuffix("--diskret") + "--faktisk-diskret"
+        )
+        for label, run in subgroup_runs.items()
+    }
+    paths.append(
+        figure14(_results(outputs_dir, faktisk_subgroup_runs), summary_dir, suffix)
+    )
+    try:
+        paths.append(
+            figure16(
+                _results(outputs_dir, faktisk_subgroup_runs, "unweighted"),
+                _results(outputs_dir, faktisk_subgroup_runs, "personer"),
+                summary_dir,
+                suffix,
+            )
+        )
+    except FileNotFoundError:
+        pass
     paths.extend(
         [
             figure9(
@@ -249,19 +298,19 @@ def _generate_treatment_summary(
                 ),
                 summary_dir,
                 treatment_label,
+                suffix,
             ),
-            figure10(continuous_panel, summary_dir, treatment_label),
             figure11(
                 _results(
                     outputs_dir,
                     {
                         "Alle – diskret": f"{base}--diskret",
                         "Alle – kontinuerlig": f"{base}--kontinuerlig",
-                        "Trenger veiledning – kontinuerlig": (
+                        f"{SUBGROUP_LABELS['spesielt-tilpasset']} – kontinuerlig": (
                             f"did--{treatment_slug}--spesielt-tilpasset"
                             "--enheter--kontinuerlig"
                         ),
-                        "Veiledning kombinert – kontinuerlig": (
+                        f"{SUBGROUP_LABELS['veiledning-kombinert']} – kontinuerlig": (
                             f"did--{treatment_slug}--veiledning-kombinert"
                             "--enheter--kontinuerlig"
                         ),
@@ -269,6 +318,7 @@ def _generate_treatment_summary(
                 ),
                 summary_dir,
                 treatment_label,
+                suffix,
             ),
         ]
     )
@@ -286,22 +336,16 @@ def _generate_treatment_summary(
     figure13_runs = {
         "Alle – diskret": f"{base}--forventet-diskret",
         "Alle – kontinuerlig": expected,
+        "Personer i tiltak – diskret": (
+            f"did--{treatment_slug}--personer_i_tiltak--enheter--forventet-diskret"
+        ),
+        "Personer i tiltak – kontinuerlig": (
+            f"did--{treatment_slug}--personer_i_tiltak--enheter--forventet-kontinuerlig"
+        ),
     }
-    if treatment_slug == "alle-tiltak":
-        figure13_runs.update(
-            {
-                "Personer i tiltak – diskret": (
-                    "did--alle-tiltak--personer_i_tiltak--enheter--forventet-diskret"
-                ),
-                "Personer i tiltak – kontinuerlig": (
-                    "did--alle-tiltak--personer_i_tiltak--enheter"
-                    "--forventet-kontinuerlig"
-                ),
-            }
-        )
     paths.extend(
         [
-            figure12(pd.concat(expected_panels, ignore_index=True), summary_dir),
+            figure12(pd.concat(expected_panels, ignore_index=True), summary_dir, suffix),
             figure13(
                 _results(
                     outputs_dir,
@@ -309,6 +353,7 @@ def _generate_treatment_summary(
                 ),
                 summary_dir,
                 treatment_label,
+                suffix,
             ),
         ]
     )
@@ -321,14 +366,18 @@ def generate_summary(
 ) -> list[Path]:
     """Generate parallel summary folders for both treatment definitions."""
     wage_base = "did--midl-lonnstilskudd--alle--enheter"
-    all_base = "did--alle-tiltak--personer_i_tiltak--enheter"
+    all_base = "did--alle-tiltak--alle--enheter"
+    wage_continuous_panel = pd.read_csv(
+        _panel_path(processed_dir, f"{wage_base}--kontinuerlig", "atid3")
+    )
+    all_measures_continuous_panel = pd.read_csv(
+        _panel_path(
+            processed_dir, "did--alle-tiltak--alle--enheter--kontinuerlig", "atid3"
+        )
+    )
     appendix = appendix_table(
-        pd.read_csv(_panel_path(processed_dir, f"{wage_base}--kontinuerlig", "atid3")),
-        pd.read_csv(
-            _panel_path(
-                processed_dir, "did--alle-tiltak--alle--enheter--kontinuerlig", "atid3"
-            )
-        ),
+        wage_continuous_panel,
+        all_measures_continuous_panel,
         pd.read_csv(_panel_path(processed_dir, f"{wage_base}--diskret", "atid3")),
         pd.read_csv(
             _panel_path(
@@ -337,13 +386,39 @@ def generate_summary(
         ),
     )
     summary_dir = outputs_dir / "summary"
+    common_figure2_runs = {
+        "Alle tiltak: Alle – kontinuerlig": (
+            f"{all_base}--forventet-kontinuerlig"
+        ),
+        "Alle tiltak: Personer i tiltak – kontinuerlig": (
+            "did--alle-tiltak--personer_i_tiltak--enheter--forventet-kontinuerlig"
+        ),
+        "Midlertidig lønnstilskudd: Alle – kontinuerlig": (
+            f"{wage_base}--forventet-kontinuerlig"
+        ),
+        "Midlertidig lønnstilskudd: Personer i tiltak – kontinuerlig": (
+            "did--midl-lonnstilskudd--personer_i_tiltak--enheter"
+            "--forventet-kontinuerlig"
+        ),
+    }
     return [
+        figure1(
+            _full_treatment_series(PROJECT_ROOT, "alle-tiltak.csv"),
+            _full_treatment_series(PROJECT_ROOT, "midl.-lønnstilskudd.csv"),
+            summary_dir / "common",
+            "felles",
+        ),
+        figure2_common(
+            _results(outputs_dir, common_figure2_runs),
+            summary_dir / "common",
+        ),
         *_generate_treatment_summary(
             outputs_dir,
             processed_dir,
             summary_dir / "midlertidig-lonnstilskudd",
             wage_base,
             "Midlertidig lønnstilskudd",
+            "midl",
             "midl.-lønnstilskudd.csv",
             appendix,
         ),
@@ -353,6 +428,7 @@ def generate_summary(
             summary_dir / "alle-tiltak",
             all_base,
             "Alle tiltak",
+            "alle",
             "alle-tiltak.csv",
             appendix,
             adjusted_filename="alle-tiltak-sa-pre.csv",

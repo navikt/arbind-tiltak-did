@@ -55,16 +55,19 @@ def _estimate_triple_diff(
     panel: pd.DataFrame,
     model_name: str,
 ) -> RegressionResult:
-    """Fit a triple-diff OLS model with region-level clustered SE.
+    """Fit a triple-diff OLS/WLS model with region-level clustered SE.
 
     The coefficient of interest is ``treatment_x_group``.
     """
     X = _build_triple_diff_regressors(panel)
     y = panel["indikator"].astype(float)
     clusters = panel["region"]
+    weights = panel.get("regression_weight")
 
     # Drop rows with NaN in y or X to avoid silent NaN propagation in OLS
     valid = y.notna() & X.notna().all(axis=1)
+    if weights is not None:
+        valid &= weights.notna()
     if not valid.all():
         n_drop = int((~valid).sum())
         logger.warning(
@@ -76,6 +79,8 @@ def _estimate_triple_diff(
         y = y.loc[valid].reset_index(drop=True)
         X = X.loc[valid].reset_index(drop=True)
         clusters = clusters.loc[valid].reset_index(drop=True)
+        if weights is not None:
+            weights = weights.loc[valid].reset_index(drop=True)
 
     logger.info(
         "Fitting %s (triple-diff): %d obs, %d regressors, %d clusters",
@@ -92,7 +97,8 @@ def _estimate_triple_diff(
             "Check for collinear fixed effects or insufficient variation."
         )
 
-    cl_fit = sm.OLS(y, X).fit(
+    estimator = sm.WLS(y, X, weights=weights) if weights is not None else sm.OLS(y, X)
+    cl_fit = estimator.fit(
         cov_type="cluster",
         cov_kwds={"groups": clusters.values},
         use_t=True,

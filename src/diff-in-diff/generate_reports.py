@@ -7,6 +7,7 @@ import logging
 import shutil
 from pathlib import Path
 
+import pandas as pd
 from config_matrix import CONFIGS, GeneratedConfig, get_config
 from generate_data_report import generate_data_report
 from quarto_utils import _update_quarto_chapters, _update_quarto_triple_diff_chapters
@@ -54,6 +55,17 @@ def _generate_config(generated: GeneratedConfig) -> None:
         _processed_dir_for_config(generated),
         cfg,
     )
+    coefficient_path = tables_dir / "alle_koeffisienter.csv"
+    if not coefficient_path.is_file():
+        raise FileNotFoundError(
+            f"Mangler koeffisientdata for rapporten: {coefficient_path}"
+        )
+    coefficients = pd.read_csv(coefficient_path)
+    for indicator, result in all_results.items():
+        if result is not None:
+            result["coefficients"] = coefficients.loc[
+                coefficients["indikator"].eq(indicator)
+            ].copy()
     if report_dir.exists():
         shutil.rmtree(report_dir)
     report_dir.mkdir(parents=True)

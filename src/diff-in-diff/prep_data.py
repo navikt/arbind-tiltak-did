@@ -37,11 +37,18 @@ def _filter_analysis_period(
     if data_start is None and data_end is None:
         return df
     if data_start is None or data_end is None:
-        raise ValueError("data_start and data_end must either both be specified or omitted.")
+        raise ValueError(
+            "data_start and data_end must either both be specified or omitted."
+        )
 
     start = pd.to_datetime(data_start, format="%Y%m", errors="coerce")
     end = pd.to_datetime(data_end, format="%Y%m", errors="coerce")
-    if pd.isna(start) or pd.isna(end) or start.strftime("%Y%m") != data_start or end.strftime("%Y%m") != data_end:
+    if (
+        pd.isna(start)
+        or pd.isna(end)
+        or start.strftime("%Y%m") != data_start
+        or end.strftime("%Y%m") != data_end
+    ):
         raise ValueError("data_start and data_end must use YYYYMM format.")
     if start > end:
         raise ValueError("data_start must not be later than data_end.")
@@ -72,6 +79,74 @@ def _drop_missing_outcomes(df: pd.DataFrame) -> pd.DataFrame:
             int(missing_outcome.sum()),
         )
     return out
+
+
+def _add_person_weights(
+    df: pd.DataFrame, person_count_path: Path, analysis_level: str
+) -> pd.DataFrame:
+    """Merge validated group-specific person counts into an analysis panel."""
+    if not person_count_path.is_file():
+        raise FileNotFoundError(f"Mangler personvekter: {person_count_path}")
+    counts = pd.read_csv(person_count_path)
+    entity_column = "enhet" if analysis_level == "enhet" else "region"
+    if analysis_level == "region":
+        if "aarmnd" not in counts:
+            raise ValueError(
+                f"Personvekter mangler aarmnd-kolonne: {person_count_path}"
+            )
+        counts = counts.melt(
+            id_vars="aarmnd",
+            var_name="region",
+            value_name="antall_personer",
+        )
+    required = {"aarmnd", entity_column, "antall_personer"}
+    if missing := required - set(counts):
+        raise ValueError(
+            f"Personvekter mangler kolonner {sorted(missing)}: {person_count_path}"
+        )
+    counts = _convert_aarmnd_format(counts, "aarmnd")
+    counts["aarmnd"] = counts["aarmnd"].astype(str)
+    counts = counts.loc[:, ["aarmnd", entity_column, "antall_personer"]].copy()
+    if counts.duplicated(["aarmnd", entity_column]).any():
+        raise ValueError(
+            f"Personvekter har dupliserte observasjoner: {person_count_path}"
+        )
+    raw_weights = counts.pop("antall_personer")
+    counts["regression_weight"] = pd.to_numeric(raw_weights, errors="coerce")
+    invalid_values = raw_weights.notna() & counts["regression_weight"].isna()
+    if invalid_values.any() or ~np.isfinite(counts["regression_weight"].dropna()).all():
+        raise ValueError(
+            f"Personvekter må være numeriske og endelige: {person_count_path}"
+        )
+    # Source extracts encode an empty group-office-month as a blank count.
+    counts["regression_weight"] = counts["regression_weight"].fillna(0)
+    merged = df.merge(
+        counts,
+        on=["aarmnd", entity_column],
+        how="left",
+        validate="many_to_one",
+    )
+    if merged["regression_weight"].isna().any():
+        missing_count = int(merged["regression_weight"].isna().sum())
+        raise ValueError(
+            f"Mangler personvekter for {missing_count} panelobservasjoner: "
+            f"{person_count_path}"
+        )
+    negative_count = int((merged["regression_weight"] < 0).sum())
+    if negative_count:
+        raise ValueError(
+            f"Personvekter må ikke være negative for {negative_count} "
+            f"panelobservasjoner: {person_count_path}"
+        )
+    zero_weight = merged["regression_weight"] == 0
+    if zero_weight.any():
+        logger.warning(
+            "Dropping %d panelobservasjoner med null personvekt: %s",
+            int(zero_weight.sum()),
+            person_count_path,
+        )
+        merged = merged.loc[~zero_weight].copy()
+    return merged
 
 
 def _add_time_features(df: pd.DataFrame, treatment_start: str) -> pd.DataFrame:
@@ -235,6 +310,7 @@ def prepare_panel(
     seasonal_adjust: bool = False,
     data_start: str | None = None,
     data_end: str | None = None,
+    person_count_path: Path | None = None,
 ) -> pd.DataFrame:
     """Prepare a panel DataFrame based on the specified indicator and tiltak data.
 
@@ -267,8 +343,9 @@ def prepare_panel(
         If given, save the prepared panel as CSV at this path.
     seasonal_adjust:
         If ``True``, apply multiplicative STL seasonal adjustment to the tiltak
-        data before computing treatment intensity.  Use for alle-tiltak; leave
-        ``False`` (default) for midlertidig lønnstilskudd.
+        data before computing treatment intensity. The STL fit uses only the
+        pre-treatment period. Use for alle-tiltak; leave ``False`` (default)
+        for midlertidig lønnstilskudd.
     data_start, data_end:
         Inclusive analysis-period bounds in YYYYMM format. When provided, rows
         outside the bounds are excluded before constructing model features.
@@ -282,7 +359,10 @@ def prepare_panel(
     ``entity`` (str — equals ``region`` at region level, ``enhet`` at enhet level).
     """
     tiltak_long = _load_tiltak_wide_to_long(
-        tiltak_path, seasonal_adjust=seasonal_adjust
+        tiltak_path,
+        seasonal_adjust=seasonal_adjust,
+        seasonal_adjust_pre_only=seasonal_adjust,
+        treatment_start=treatment_start,
     )
 
     if analysis_level == "enhet":
@@ -315,6 +395,8 @@ def prepare_panel(
         df["entity"] = df["region"]
 
     df = _filter_analysis_period(df, data_start, data_end)
+    if person_count_path is not None:
+        df = _add_person_weights(df, person_count_path, analysis_level)
     df = _drop_missing_outcomes(df)
     df = _add_time_features(df, treatment_start)
     if flatten:
@@ -348,6 +430,7 @@ def prepare_triple_diff_panel(
     seasonal_adjust: bool = False,
     data_start: str | None = None,
     data_end: str | None = None,
+    person_count_paths: dict[str, Path] | None = None,
 ) -> pd.DataFrame:
     """Prepare a triple-diff panel with treated and control groups stacked.
 
@@ -379,7 +462,8 @@ def prepare_triple_diff_panel(
         If given, save the prepared panel as CSV at this path.
     seasonal_adjust:
         If ``True``, apply multiplicative STL seasonal adjustment to the tiltak
-        data before computing treatment intensity.
+        data before computing treatment intensity using a pre-treatment-only
+        STL fit.
     data_start, data_end:
         Inclusive analysis-period bounds in YYYYMM format. When provided, rows
         outside the bounds are excluded before constructing model features.
@@ -425,12 +509,30 @@ def prepare_triple_diff_panel(
         indicator_df["entity"] = indicator_df["region"]
 
     tiltak_long = _load_tiltak_wide_to_long(
-        tiltak_path, seasonal_adjust=seasonal_adjust
+        tiltak_path,
+        seasonal_adjust=seasonal_adjust,
+        seasonal_adjust_pre_only=seasonal_adjust,
+        treatment_start=treatment_start,
     )
 
     # Merge indicator with tiltak on region + aarmnd
     df = indicator_df.merge(tiltak_long, on=["region", "aarmnd"], how="left")
     df = _filter_analysis_period(df, data_start, data_end)
+    if person_count_paths is not None:
+        required_groups = {"treated", "control"}
+        if missing := required_groups - set(person_count_paths):
+            raise ValueError(f"Personvekter mangler grupper: {sorted(missing)}")
+        df = pd.concat(
+            [
+                _add_person_weights(
+                    df.loc[df["group"] == group].copy(),
+                    person_count_paths[group],
+                    analysis_level,
+                )
+                for group in ("treated", "control")
+            ],
+            ignore_index=True,
+        )
     df = _drop_missing_outcomes(df)
 
     # Treated indicator (1 for treated group, 0 for control)

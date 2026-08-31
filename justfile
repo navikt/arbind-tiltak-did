@@ -34,6 +34,10 @@ publish:
 run-all new_only='':
     cd src/diff-in-diff && uv run python run_analysis.py --all {{new_only}}
 
+# Kjør kun regresjonene for alle katalogkonfigurasjoner og skriv resultat-CSV-er
+run-regressions:
+    cd src/diff-in-diff && uv run python run_analysis.py --all --regressions-only
+
 # Generer Quarto-rapporter og data-kapitler fra lagrede analyseresultater
 generate-report:
     cd src/diff-in-diff && uv run python generate_reports.py --all

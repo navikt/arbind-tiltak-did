@@ -874,12 +874,11 @@ def _section_regression(
     mde: float | None,
     ind_name: str,
     label: str,
+    coef_df: pd.DataFrame,
     figures_dir: Path,
     report_dir: Path,
 ) -> list[str]:
     """Return regression table, bootstrap plot, and FE coefficient sections."""
-    from regression import extract_all_coefficients
-
     n_boot = bootstrap_preferred.n_boot if bootstrap_preferred else 0
     coef_val = preferred.coefficient
     baseline_mean_str = f"{baseline_mean:.1f} %" if baseline_mean is not None else "—"
@@ -920,10 +919,6 @@ def _section_regression(
             "",
         ]
 
-    coef_df = pd.concat(
-        [extract_all_coefficients(baseline), extract_all_coefficients(preferred)],
-        ignore_index=True,
-    )
     fe_paths = _plot_fe_coefficients(
         coef_df=coef_df,
         indicator_name=ind_name,

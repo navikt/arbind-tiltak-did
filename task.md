@@ -42,7 +42,10 @@ outputs
 
 ## Configuration
 
-All analysis parameters live in `src/diff-in-diff/analysis-config.yml`. The pipeline reads this file at startup — **do not hardcode paths or parameters in Python**. To add an indicator, append an entry under `indikatorer`. To change the tiltak source, update `tiltak_file`.
+Analysis configuration is declarative in `src/diff-in-diff/configs/catalog.yml`.
+It separates treatment type (`diskret` or `kontinuerlig`) from outcome source
+(`indikator`, `faktisk`, or `forventet`); the catalog matrix defines which
+combinations are valid. Run one configuration by generated ID or use `--all`.
 
 ---
 
