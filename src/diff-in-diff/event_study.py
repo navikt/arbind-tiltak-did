@@ -13,7 +13,7 @@ Specification
 Office-level intensity ``s_i`` is defined as the maximum tiltaksnedgang intensity
 achieved by region *i* over the post-treatment period.
 
-For each event-time ``τ`` in the window ``[−24, +4]`` (omitting ``τ = −1`` as
+For each event-time ``τ`` in the window ``[−24, +6]`` (omitting ``τ = −1`` as
 the base period):
 
     Y_{it} = Σ_τ β_τ · s_i · 1{relative_period_t = τ} + α_i + γ_t + ε_{it}
@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 
 # Event-study window (inclusive, months relative to treatment start)
 ES_WINDOW_PRE: int = -24
-ES_WINDOW_POST: int = 4
+ES_WINDOW_POST: int = 6
 BASE_PERIOD: int = -1  # omitted as reference period
 
 
