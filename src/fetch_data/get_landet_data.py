@@ -1,11 +1,11 @@
-"""Fetch all regional Nav indicator data for one or more nedbrytning groups.
+"""Fetch national Nav indicator data for one or more nedbrytning groups.
 
 For each nedbrytning, one BigQuery query is issued and the results are saved as:
 
-  data/input/indikatorer/nedbrytning/<group>/<utfall>.csv          (indikator)
-  data/input/indikatorer/nedbrytning/<group>/forventet_<utfall>.csv
-  data/input/indikatorer/nedbrytning/<group>/faktisk_<utfall>.csv
-  data/input/personer/nedbrytning/<group>/antall_personer.csv
+  data/input/indikatorer/landet/<group>/<utfall>.csv          (indikator)
+  data/input/indikatorer/landet/<group>/forventet_<utfall>.csv
+  data/input/indikatorer/landet/<group>/faktisk_<utfall>.csv
+  data/input/personer/landet/<group>/antall_personer.csv
 """
 
 from __future__ import annotations
@@ -49,7 +49,7 @@ def _query_nedbrytning(nedbrytning: str) -> list[dict[str, Any]]:
 
 
 def _pivot_wide(df: pd.DataFrame, value_col: str) -> pd.DataFrame:
-    """Pivot long dataframe to wide format with regions as columns."""
+    """Pivot national long-format data to one value column per month."""
     out = (
         df.pivot_table(
             index="aarmnd",
@@ -113,7 +113,7 @@ def fetch_and_save(nedbrytning: str) -> list[Path]:
             _pivot_wide(sub, col).to_csv(out_path, index=False)
             saved.append(out_path)
 
-    # antall_personer: one value per region per month regardless of utfall
+    # antall_personer: one national value per month regardless of utfall
     personer_df = df.drop_duplicates(subset=["aarmnd"]).pipe(
         _pivot_wide, "antall_personer"
     )
