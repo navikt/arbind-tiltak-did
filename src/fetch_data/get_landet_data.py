@@ -16,6 +16,7 @@ from typing import Any
 
 import pandas as pd
 from bq_client import _ALIAS_MAP, _TABLE_URI, _TARGET_UTFALL, _slugify, run_query
+from data_validation import collapse_consistent_values, ensure_unique_keys
 from google.cloud import bigquery
 
 _INDIKATOR_DIR = Path(__file__).resolve().parents[2] / "data" / "input" / "indikatorer"
@@ -50,15 +51,7 @@ def _query_nedbrytning(nedbrytning: str) -> list[dict[str, Any]]:
 
 def _pivot_wide(df: pd.DataFrame, value_col: str) -> pd.DataFrame:
     """Pivot national long-format data to one value column per month."""
-    out = (
-        df.pivot_table(
-            index="aarmnd",
-            values=value_col,
-            aggfunc="first",
-        )
-        .sort_index()
-        .reset_index()
-    )
+    out = df.set_index("aarmnd")[[value_col]].sort_index().reset_index()
     out.columns.name = None
     return out
 
@@ -90,6 +83,9 @@ def fetch_and_save(nedbrytning: str) -> list[Path]:
             f"Query result is missing required columns: {', '.join(sorted(missing))}."
         )
     df["aarmnd"] = pd.to_datetime(df["aarmnd"], utc=True).dt.strftime("%Y%m")
+    ensure_unique_keys(
+        df, ["aarmnd", "utfall"], "National indicator query result"
+    )
 
     slug = _slugify(nedbrytning)
     indikator_dir = _INDIKATOR_DIR / "landet" / slug
@@ -114,8 +110,14 @@ def fetch_and_save(nedbrytning: str) -> list[Path]:
             saved.append(out_path)
 
     # antall_personer: one national value per month regardless of utfall
-    personer_df = df.drop_duplicates(subset=["aarmnd"]).pipe(
-        _pivot_wide, "antall_personer"
+    personer_df = _pivot_wide(
+        collapse_consistent_values(
+            df,
+            ["aarmnd"],
+            "antall_personer",
+            "National person-count query result",
+        ),
+        "antall_personer",
     )
     personer_path = personer_dir / "antall_personer.csv"
     personer_df.to_csv(personer_path, index=False)

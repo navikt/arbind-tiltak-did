@@ -11,6 +11,7 @@ import sys
 from pathlib import Path
 
 import pandas as pd
+from data_validation import ensure_unique_keys
 
 _ROOT = Path(__file__).resolve().parents[2]
 _IND_BASE = _ROOT / "data" / "input" / "indikatorer" / "enhet" / "nedbrytning"
@@ -50,6 +51,7 @@ def _read_long(path: Path) -> pd.DataFrame:
             "%Y%m"
         )
         df.loc[~is_yyyymm, "aarmnd"] = converted
+    ensure_unique_keys(df, ["aarmnd", "enhet"], f"Long input file {path}")
     return df
 
 
@@ -88,9 +90,11 @@ def _merge_one_outcome(outcome: str, group_a: str, group_b: str) -> pd.DataFrame
     n2 = n2.rename(columns={"antall_personer": "n_2"})
 
     df = (
-        ind1.merge(ind2, on=["aarmnd", "enhet"], how="inner")
-        .merge(n1, on=["aarmnd", "enhet"], how="inner")
-        .merge(n2, on=["aarmnd", "enhet"], how="inner")
+        ind1.merge(
+            ind2, on=["aarmnd", "enhet"], how="inner", validate="one_to_one"
+        )
+        .merge(n1, on=["aarmnd", "enhet"], how="inner", validate="one_to_one")
+        .merge(n2, on=["aarmnd", "enhet"], how="inner", validate="one_to_one")
     )
 
     denom = df["n_1"] + df["n_2"]

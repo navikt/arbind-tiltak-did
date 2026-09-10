@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 
 import pandas as pd
+from data_validation import ensure_unique_keys
 
 _ROOT = Path(__file__).resolve().parents[2]
 _IND_BASE = _ROOT / "data" / "input" / "indikatorer" / "nedbrytning"
@@ -46,6 +47,7 @@ def _read_wide(path: Path) -> pd.DataFrame:
             "%Y%m"
         )
         df.loc[~is_yyyymm, "aarmnd"] = converted
+    ensure_unique_keys(df, ["aarmnd"], f"Wide input file {path}")
     return df
 
 
@@ -66,9 +68,24 @@ def _merge_one_outcome(outcome: str, group_a: str, group_b: str) -> pd.DataFrame
 
     df = (
         _to_long(ind1, "indikator_1")
-        .merge(_to_long(ind2, "indikator_2"), on=["aarmnd", "region"], how="inner")
-        .merge(_to_long(n1, "n_1"), on=["aarmnd", "region"], how="inner")
-        .merge(_to_long(n2, "n_2"), on=["aarmnd", "region"], how="inner")
+        .merge(
+            _to_long(ind2, "indikator_2"),
+            on=["aarmnd", "region"],
+            how="inner",
+            validate="one_to_one",
+        )
+        .merge(
+            _to_long(n1, "n_1"),
+            on=["aarmnd", "region"],
+            how="inner",
+            validate="one_to_one",
+        )
+        .merge(
+            _to_long(n2, "n_2"),
+            on=["aarmnd", "region"],
+            how="inner",
+            validate="one_to_one",
+        )
     )
 
     denom = df["n_1"] + df["n_2"]
@@ -83,13 +100,8 @@ def _merge_one_outcome(outcome: str, group_a: str, group_b: str) -> pd.DataFrame
         df["indikator_1"] * df["n_1"] + df["indikator_2"] * df["n_2"]
     ) / denom
 
-    wide = (
-        df.pivot_table(
-            index="aarmnd", columns="region", values="indikator", aggfunc="first"
-        )
-        .sort_index()
-        .reset_index()
-    )
+    wide = df.pivot(index="aarmnd", columns="region", values="indikator").sort_index()
+    wide = wide.reset_index()
     wide.columns.name = None
     return wide
 

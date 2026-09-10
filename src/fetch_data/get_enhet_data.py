@@ -19,6 +19,7 @@ from typing import Any
 
 import pandas as pd
 from bq_client import _ALIAS_MAP, _TABLE_URI, _TARGET_UTFALL, _slugify, run_query
+from data_validation import collapse_consistent_values, ensure_unique_keys
 from google.cloud import bigquery
 
 _INDIKATOR_DIR = Path(__file__).resolve().parents[2] / "data" / "input" / "indikatorer"
@@ -87,6 +88,9 @@ def fetch_and_save_enhet(nedbrytning: str) -> list[Path]:
 
     df["aarmnd"] = pd.to_datetime(df["aarmnd"], utc=True).dt.strftime("%Y%m")
     df = df.rename(columns={"org_sted": "enhet"})
+    ensure_unique_keys(
+        df, ["aarmnd", "enhet", "utfall"], "Unit-level indicator query result"
+    )
 
     slug = _slugify(nedbrytning)
     indikator_dir = _INDIKATOR_DIR / "enhet" / "nedbrytning" / slug
@@ -111,9 +115,12 @@ def fetch_and_save_enhet(nedbrytning: str) -> list[Path]:
             saved.append(out_path)
 
     # antall_personer: one value per enhet per month
-    personer_df = df.drop_duplicates(subset=["aarmnd", "enhet"])[
-        ["aarmnd", "enhet", "antall_personer"]
-    ].sort_values(["aarmnd", "enhet"])
+    personer_df = collapse_consistent_values(
+        df,
+        ["aarmnd", "enhet"],
+        "antall_personer",
+        "Unit-level person-count query result",
+    )[["aarmnd", "enhet", "antall_personer"]].sort_values(["aarmnd", "enhet"])
     personer_path = personer_dir / "antall_personer.csv"
     personer_df.to_csv(personer_path, index=False)
     saved.append(personer_path)
