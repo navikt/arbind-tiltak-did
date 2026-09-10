@@ -23,6 +23,10 @@ Algorithm (imposing the null H₀: β_treatment = 0)
 
 The FWL approach makes the bootstrap fast: after the one-time projection step
 each iteration requires only O(N·G) operations.
+
+For analyser med ``regression_weight`` brukes den vektede FWL-projeksjonen og
+WLS-klyngeskårer. Hver nullrestrikterte bootstrap-trekning projiseres på nytt
+før koeffisient og CR1-varians beregnes.
 """
 
 from __future__ import annotations
@@ -30,6 +34,7 @@ from __future__ import annotations
 import logging
 import math
 from dataclasses import dataclass
+from typing import Callable
 
 import numpy as np
 import pandas as pd
@@ -95,7 +100,9 @@ def _build_fe_matrix(panel: pd.DataFrame) -> np.ndarray:
     return np.hstack(parts)
 
 
-def _partial_out(Z: np.ndarray, v: np.ndarray) -> np.ndarray:
+def _partial_out(
+    Z: np.ndarray, v: np.ndarray, weights: np.ndarray | None = None
+) -> np.ndarray:
     """Remove the column-space of Z from vector v (FWL annihilator M_Z v).
 
     Uses :func:`numpy.linalg.lstsq` which handles rank-deficient Z gracefully.
@@ -111,7 +118,15 @@ def _partial_out(Z: np.ndarray, v: np.ndarray) -> np.ndarray:
     -------
     Residual vector ``v − Z(ZᵀZ)⁻¹Zᵀv`` (shape N,).
     """
-    coef, *_ = np.linalg.lstsq(Z, v, rcond=None)
+    if weights is None:
+        coef, *_ = np.linalg.lstsq(Z, v, rcond=None)
+    else:
+        sqrt_weights = np.sqrt(weights)
+        coef, *_ = np.linalg.lstsq(
+            Z * sqrt_weights[:, np.newaxis],
+            v * sqrt_weights[:, np.newaxis] if v.ndim == 2 else v * sqrt_weights,
+            rcond=None,
+        )
     return v - Z @ coef
 
 
@@ -158,6 +173,133 @@ def _cr1_se(
     return float(np.sqrt(cr1_factor * meat / (Q * Q)))
 
 
+def _weighted_wild_cluster_bootstrap(
+    panel: pd.DataFrame,
+    *,
+    regressor: str,
+    required_columns: list[str],
+    build_fe_matrix: Callable[[pd.DataFrame], np.ndarray],
+    description: str,
+    n_boot: int,
+    seed: int,
+) -> BootstrapResult:
+    """Kjør vektet wild cluster bootstrap for én FWL-partiallet koeffisient."""
+    raw_weights = panel["regression_weight"]
+    try:
+        numeric_weights = pd.to_numeric(raw_weights, errors="raise")
+    except (TypeError, ValueError) as exc:
+        raise ValueError("regression_weight må være numerisk.") from exc
+
+    valid = panel[required_columns].notna().all(axis=1) & numeric_weights.notna()
+    if not valid.all():
+        n_drop = int((~valid).sum())
+        logger.warning(
+            "%s: dropping %d/%d rows with NaN before bootstrap.",
+            description,
+            n_drop,
+            len(panel),
+        )
+        panel = panel.loc[valid].reset_index(drop=True)
+        numeric_weights = numeric_weights.loc[valid].reset_index(drop=True)
+
+    weights = numeric_weights.to_numpy(dtype=float)
+    if not np.isfinite(weights).all() or (weights <= 0).any():
+        raise ValueError(
+            "regression_weight må være endelig og strengt positiv for vektet bootstrap."
+        )
+
+    y = panel["indikator"].astype(float).to_numpy()
+    x_raw = panel[regressor].astype(float).to_numpy()
+    regions = panel["region"].to_numpy()
+    unique_clusters = np.unique(regions)
+    G = len(unique_clusters)
+    if G < 2:
+        raise ValueError("Wild cluster bootstrap requires at least 2 clusters.")
+
+    cluster_map = {region: index for index, region in enumerate(unique_clusters)}
+    cluster_ids = np.array([cluster_map[region] for region in regions], dtype=int)
+    Z = build_fe_matrix(panel)
+    y_tilde = _partial_out(Z, y, weights)
+    x_tilde = _partial_out(Z, x_raw, weights)
+    weighted_x_tilde = weights * x_tilde
+    Q = float(x_tilde @ weighted_x_tilde)
+    if Q <= 1e-12:
+        raise ValueError(
+            "Treatment is not identified after weighted FE projection "
+            "(x_tilde'Wx_tilde ≈ 0)."
+        )
+
+    beta_obs = float(weighted_x_tilde @ y_tilde) / Q
+    resid_obs = y_tilde - x_tilde * beta_obs
+    N = len(y_tilde)
+    K = Z.shape[1] + 1
+    if N <= K:
+        raise ValueError(
+            "Weighted CR1 requires more observations than model parameters."
+        )
+    cr1_factor = (G / (G - 1)) * ((N - 1) / (N - K))
+
+    def cr1_se(residuals: np.ndarray) -> float:
+        meat = 0.0
+        for group in range(G):
+            mask = cluster_ids == group
+            score = float(weighted_x_tilde[mask] @ residuals[mask])
+            meat += score * score
+        return float(np.sqrt(cr1_factor * meat / (Q * Q)))
+
+    se_obs = cr1_se(resid_obs)
+    if not math.isfinite(se_obs) or se_obs <= 1e-15:
+        raise ValueError(f"Observed weighted CR1 SE is degenerate (se={se_obs:.3e}).")
+    t_obs = beta_obs / se_obs
+
+    rng = np.random.default_rng(seed)
+    all_weights = rng.choice(WEBB_WEIGHTS, size=(n_boot, G))
+    all_cluster_weights = all_weights[:, cluster_ids]
+
+    # Nullrestleddene må re-projiseres for at hver trekning følger WLS-modellen.
+    y_tilde_boot = _partial_out(
+        Z, (all_cluster_weights * y_tilde[np.newaxis, :]).T, weights
+    ).T
+    beta_boots = (y_tilde_boot @ weighted_x_tilde) / Q
+    resid_boots = y_tilde_boot - beta_boots[:, np.newaxis] * x_tilde[np.newaxis, :]
+
+    scores = np.zeros((n_boot, G), dtype=float)
+    for group in range(G):
+        mask = cluster_ids == group
+        scores[:, group] = resid_boots[:, mask] @ weighted_x_tilde[mask]
+
+    var_boots = cr1_factor * np.sum(scores**2, axis=1) / (Q * Q)
+    se_boots = np.sqrt(np.maximum(var_boots, 0.0))
+    valid_boots = se_boots > 1e-15
+    n_invalid = int((~valid_boots).sum())
+    if n_invalid:
+        logger.warning(
+            "Discarding %d/%d bootstrap draws with near-zero SE.", n_invalid, n_boot
+        )
+    if not valid_boots.any():
+        raise ValueError(
+            "All bootstrap draws had near-zero SE; bootstrap inference is unavailable."
+        )
+    t_boots = beta_boots[valid_boots] / se_boots[valid_boots]
+    p_value = float(np.mean(np.abs(t_boots) >= np.abs(t_obs)))
+
+    logger.info(
+        "%s complete: n_boot=%d  p_bootstrap=%.4f",
+        description,
+        len(t_boots),
+        p_value,
+    )
+    return BootstrapResult(
+        observed_coefficient=beta_obs,
+        observed_t_stat=t_obs,
+        observed_se=se_obs,
+        bootstrap_p_value=p_value,
+        n_boot=len(t_boots),
+        seed=seed,
+        bootstrap_t_stats=t_boots,
+    )
+
+
 # ── Main bootstrap function ────────────────────────────────────────────────────
 
 
@@ -186,6 +328,17 @@ def wild_cluster_bootstrap(
     :class:`BootstrapResult` containing the observed statistics, the full
     bootstrap t-distribution, and the two-sided bootstrap p-value.
     """
+    if "regression_weight" in panel:
+        return _weighted_wild_cluster_bootstrap(
+            panel,
+            regressor="tiltaksnedgang",
+            required_columns=["indikator", "tiltaksnedgang"],
+            build_fe_matrix=_build_fe_matrix,
+            description="Weighted bootstrap",
+            n_boot=n_boot,
+            seed=seed,
+        )
+
     rng = np.random.default_rng(seed)
 
     # Drop rows with NaN in y or treatment to match _estimate behaviour.
@@ -349,6 +502,22 @@ def wild_cluster_bootstrap_triple_diff(
     seed:
         Random seed.
     """
+    if "regression_weight" in panel:
+        return _weighted_wild_cluster_bootstrap(
+            panel,
+            regressor="treatment_x_group",
+            required_columns=[
+                "indikator",
+                "treatment_x_group",
+                "tiltaksnedgang",
+                "treated",
+            ],
+            build_fe_matrix=_build_triple_diff_fe_matrix,
+            description="Weighted triple-diff bootstrap",
+            n_boot=n_boot,
+            seed=seed,
+        )
+
     rng = np.random.default_rng(seed)
 
     # Drop rows with NaN to avoid silent NaN propagation

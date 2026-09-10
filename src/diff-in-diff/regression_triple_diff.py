@@ -82,6 +82,16 @@ def _estimate_triple_diff(
         if weights is not None:
             weights = weights.loc[valid].reset_index(drop=True)
 
+    if weights is not None:
+        try:
+            weight_values = weights.to_numpy(dtype=float)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("regression_weight must be numeric.") from exc
+        if not np.isfinite(weight_values).all() or (weight_values <= 0).any():
+            raise ValueError(
+                "regression_weight must contain only finite, strictly positive values."
+            )
+
     logger.info(
         "Fitting %s (triple-diff): %d obs, %d regressors, %d clusters",
         model_name,

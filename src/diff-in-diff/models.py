@@ -29,20 +29,20 @@ class IndicatorResult:
     preferred: RegressionResult
 
     # ── Bootstrap results ─────────────────────────────────────────────────────
-    bootstrap_baseline: BootstrapResult
-    bootstrap_preferred: BootstrapResult
+    bootstrap_baseline: BootstrapResult | None
+    bootstrap_preferred: BootstrapResult | None
 
     # ── Event study ───────────────────────────────────────────────────────────
-    event_study: EventStudyResult
-    event_study_baseline: EventStudyResult
+    event_study: EventStudyResult | None
+    event_study_baseline: EventStudyResult | None
 
     # ── Placebo tests ─────────────────────────────────────────────────────────
     placebo: RegressionResult | None
     placebo_baseline: RegressionResult | None
 
     # ── Leave-one-out ─────────────────────────────────────────────────────────
-    leave_one_out: LeaveOneOutResult
-    leave_one_out_baseline: LeaveOneOutResult
+    leave_one_out: LeaveOneOutResult | None
+    leave_one_out_baseline: LeaveOneOutResult | None
 
     # ── Summary statistics ────────────────────────────────────────────────────
     mde: float
@@ -94,20 +94,20 @@ class TripleDiffResult:
     preferred: RegressionResult
 
     # ── Bootstrap results ─────────────────────────────────────────────────────
-    bootstrap_baseline: BootstrapResult
-    bootstrap_preferred: BootstrapResult
+    bootstrap_baseline: BootstrapResult | None
+    bootstrap_preferred: BootstrapResult | None
 
     # ── Event study ───────────────────────────────────────────────────────────
-    event_study: EventStudyResult
-    event_study_baseline: EventStudyResult
+    event_study: EventStudyResult | None
+    event_study_baseline: EventStudyResult | None
 
     # ── Placebo tests ─────────────────────────────────────────────────────────
     placebo: RegressionResult | None
     placebo_baseline: RegressionResult | None
 
     # ── Leave-one-out ─────────────────────────────────────────────────────────
-    leave_one_out: LeaveOneOutResult
-    leave_one_out_baseline: LeaveOneOutResult
+    leave_one_out: LeaveOneOutResult | None
+    leave_one_out_baseline: LeaveOneOutResult | None
 
     # ── Summary statistics ────────────────────────────────────────────────────
     mde: float

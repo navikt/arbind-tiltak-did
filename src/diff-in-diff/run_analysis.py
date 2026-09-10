@@ -168,6 +168,7 @@ def _run_indicator(
     data_start: str | None = None,
     data_end: str | None = None,
     run_diagnostics: bool = True,
+    run_bootstrap: bool = True,
     person_count_path: Path | None = None,
 ) -> dict[str, Any] | None:
     """Prepare regular and flattened panels, run regression and supporting analyses.
@@ -259,7 +260,7 @@ def _run_indicator(
     logger.info("Running preferred model (flattened) for %s", result_name)
     preferred = run_preferred_model(panel_flattened)
 
-    if not run_diagnostics:
+    if not run_bootstrap and not run_diagnostics:
         return {
             "indicator_name": indicator_name,
             "baseline": baseline,
@@ -275,11 +276,14 @@ def _run_indicator(
             "panel_regular": panel_regular,
         }
 
-    from cluster_bootstrap import wild_cluster_bootstrap
-    from event_study import run_event_study
     from models import IndicatorResult
     from regression import compute_mde
-    from regression_did import run_leave_one_out, run_placebo_test
+
+    if run_bootstrap:
+        from cluster_bootstrap import wild_cluster_bootstrap
+    if run_diagnostics:
+        from event_study import run_event_study
+        from regression_did import run_leave_one_out, run_placebo_test
 
     # Model registry: run all downstream analyses uniformly for both panels.
     models: dict[str, Any] = {
@@ -298,14 +302,22 @@ def _run_indicator(
     for key, m in models.items():
         panel = m["panel"]
         main_result = m["main"]
-        logger.info("Bootstrap (%s) for %s", key, result_name)
-        m["bootstrap"] = wild_cluster_bootstrap(panel)
-        logger.info("Event study (%s) for %s", key, result_name)
-        m["event_study"] = run_event_study(panel)
-        logger.info("Placebo (%s) for %s", key, result_name)
-        m["placebo"] = run_placebo_test(panel, placebo_relative_month=-12)
-        logger.info("Leave-one-out (%s) for %s", key, result_name)
-        m["leave_one_out"] = run_leave_one_out(panel, preferred_result=main_result)
+        if run_bootstrap:
+            logger.info("Bootstrap (%s) for %s", key, result_name)
+            m["bootstrap"] = wild_cluster_bootstrap(panel)
+        else:
+            m["bootstrap"] = None
+        if run_diagnostics:
+            logger.info("Event study (%s) for %s", key, result_name)
+            m["event_study"] = run_event_study(panel)
+            logger.info("Placebo (%s) for %s", key, result_name)
+            m["placebo"] = run_placebo_test(panel, placebo_relative_month=-12)
+            logger.info("Leave-one-out (%s) for %s", key, result_name)
+            m["leave_one_out"] = run_leave_one_out(panel, preferred_result=main_result)
+        else:
+            m["event_study"] = None
+            m["placebo"] = None
+            m["leave_one_out"] = None
 
     mde = compute_mde(preferred)
     logger.info("MDE for %s: %.4f pp", result_name, mde)
@@ -353,6 +365,7 @@ def _run_triple_diff_indicator(
     data_start: str | None = None,
     data_end: str | None = None,
     run_diagnostics: bool = True,
+    run_bootstrap: bool = True,
     person_count_paths: dict[str, Path] | None = None,
 ) -> dict[str, Any] | None:
     """Run the full triple-diff analysis for a single indicator.
@@ -430,7 +443,7 @@ def _run_triple_diff_indicator(
     logger.info("Running triple-diff preferred for %s", result_name)
     preferred = run_triple_diff_preferred(panel_flattened)
 
-    if not run_diagnostics:
+    if not run_bootstrap and not run_diagnostics:
         return {
             "indicator_name": indicator_name,
             "baseline": baseline,
@@ -446,14 +459,17 @@ def _run_triple_diff_indicator(
             "panel_regular": panel_regular,
         }
 
-    from cluster_bootstrap import wild_cluster_bootstrap_triple_diff
-    from event_study import run_triple_diff_event_study
     from models import TripleDiffResult
     from regression import compute_mde
-    from regression_triple_diff import (
-        run_triple_diff_leave_one_out,
-        run_triple_diff_placebo,
-    )
+
+    if run_bootstrap:
+        from cluster_bootstrap import wild_cluster_bootstrap_triple_diff
+    if run_diagnostics:
+        from event_study import run_triple_diff_event_study
+        from regression_triple_diff import (
+            run_triple_diff_leave_one_out,
+            run_triple_diff_placebo,
+        )
 
     models: dict[str, Any] = {
         "basis": dict(
@@ -471,16 +487,24 @@ def _run_triple_diff_indicator(
     for key, m in models.items():
         panel = m["panel"]
         main_result = m["main"]
-        logger.info("Triple-diff bootstrap (%s) for %s", key, result_name)
-        m["bootstrap"] = wild_cluster_bootstrap_triple_diff(panel)
-        logger.info("Triple-diff event study (%s) for %s", key, result_name)
-        m["event_study"] = run_triple_diff_event_study(panel)
-        logger.info("Triple-diff placebo (%s) for %s", key, result_name)
-        m["placebo"] = run_triple_diff_placebo(panel, placebo_relative_month=-12)
-        logger.info("Triple-diff leave-one-out (%s) for %s", key, result_name)
-        m["leave_one_out"] = run_triple_diff_leave_one_out(
-            panel, preferred_result=main_result
-        )
+        if run_bootstrap:
+            logger.info("Triple-diff bootstrap (%s) for %s", key, result_name)
+            m["bootstrap"] = wild_cluster_bootstrap_triple_diff(panel)
+        else:
+            m["bootstrap"] = None
+        if run_diagnostics:
+            logger.info("Triple-diff event study (%s) for %s", key, result_name)
+            m["event_study"] = run_triple_diff_event_study(panel)
+            logger.info("Triple-diff placebo (%s) for %s", key, result_name)
+            m["placebo"] = run_triple_diff_placebo(panel, placebo_relative_month=-12)
+            logger.info("Triple-diff leave-one-out (%s) for %s", key, result_name)
+            m["leave_one_out"] = run_triple_diff_leave_one_out(
+                panel, preferred_result=main_result
+            )
+        else:
+            m["event_study"] = None
+            m["placebo"] = None
+            m["leave_one_out"] = None
 
     mde = compute_mde(preferred)
     logger.info("MDE for %s: %.4f pp", result_name, mde)
@@ -561,10 +585,13 @@ def _run_single_config(
     seasonal_adjust: bool = cfg["data"].get("tiltak_seasonal_adjust", False)
     design = analysis.get("design", "did")
     weighting = str(analysis.get("weighting", "unweighted"))
-    requested_regressions_only = regressions_only
-    regressions_only = regressions_only or weighting == "personer"
-    if weighting == "personer" and not requested_regressions_only:
-        logger.info("Weighted analyses run regressions only; diagnostics are skipped.")
+    run_bootstrap = not regressions_only
+    run_diagnostics = run_bootstrap and weighting != "personer"
+    if weighting == "personer" and run_bootstrap:
+        logger.info(
+            "Weighted analyses run bootstrap, but event studies, placebo tests, "
+            "and leave-one-out analyses are skipped."
+        )
 
     all_results: dict[str, dict[str, Any] | None] = {}
     failed: list[str] = []
@@ -628,7 +655,8 @@ def _run_single_config(
                     seasonal_adjust=seasonal_adjust,
                     data_start=data_start,
                     data_end=data_end,
-                    run_diagnostics=not regressions_only,
+                    run_diagnostics=run_diagnostics,
+                    run_bootstrap=run_bootstrap,
                     person_count_paths=person_count_paths,
                 )
                 all_results[name] = result
@@ -682,7 +710,8 @@ def _run_single_config(
                     seasonal_adjust=seasonal_adjust,
                     data_start=data_start,
                     data_end=data_end,
-                    run_diagnostics=not regressions_only,
+                    run_diagnostics=run_diagnostics,
+                    run_bootstrap=run_bootstrap,
                     person_count_path=person_count_path,
                 )
                 all_results[name] = result
@@ -720,7 +749,7 @@ def _run_single_config(
                 weighting=weighting,
             ),
         )
-        if not regressions_only:
+        if run_diagnostics:
             _save_diagnostic_tables(
                 all_results,
                 tables_dir=tables_dir,
@@ -736,6 +765,7 @@ def _run_single_config(
                 ),
             )
             _save_coefficients_table(all_results, tables_dir=tables_dir)
+        if run_bootstrap:
             save_report_data(all_results, report_data_dir, cfg)
 
     # Promote staging → final destinations only when all indicators succeeded.
@@ -755,12 +785,12 @@ def _run_single_config(
         if final_tables.exists():
             shutil.rmtree(final_tables)
         shutil.copytree(tables_dir, final_tables)
-        if not regressions_only:
+        if run_bootstrap:
             final_report_data = output_root / REPORT_DATA_DIRNAME
             if final_report_data.exists():
                 shutil.rmtree(final_report_data)
             shutil.copytree(report_data_dir, final_report_data)
-        if not regressions_only or weighting == "personer":
+        if run_bootstrap:
             final_processed = _processed_dir_for_config(generated)
             if final_processed.exists():
                 shutil.rmtree(final_processed)
@@ -769,7 +799,7 @@ def _run_single_config(
 
         shutil.rmtree(staging_root)
         logger.info("Tables promoted to %s", final_tables)
-        if not regressions_only:
+        if run_bootstrap:
             logger.info("Report data promoted to %s", final_report_data)
         exit_code = 0
 
