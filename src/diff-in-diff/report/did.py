@@ -17,6 +17,7 @@ from typing import Any
 
 import matplotlib as mpl
 import pandas as pd
+
 from report.sections import (
     _get_tiltak_label,
     _section_descriptive,
@@ -134,6 +135,7 @@ def generate_report(
             mde=res.get("mde"),
             ind_name=ind_name,
             label=label,
+            coef_df=res["coefficients"],
             figures_dir=figures_dir,
             report_dir=report_dir,
         )

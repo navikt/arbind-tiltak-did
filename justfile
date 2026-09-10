@@ -43,7 +43,7 @@ generate-report:
     cd src/diff-in-diff && uv run python generate_reports.py --all
 
 # Kjør standard DiD-analyse for en katalog-ID
-did config='did--midl-lonnstilskudd--alle--regioner--kontinuerlig':
+did config='did--midl-lonnstilskudd--alle--regioner--kontinuerlig--vektet':
     cd src/diff-in-diff && uv run python run_analysis.py --config {{config}}
 
 # Kjør trippel-diff-analyse for regioner

@@ -296,7 +296,7 @@ def build_configs() -> tuple[GeneratedConfig, ...]:
 
 CONFIGS = build_configs()
 CONFIGS_BY_ID = {config.id: config for config in CONFIGS}
-DEFAULT_CONFIG_ID = "did--midl-lonnstilskudd--alle--regioner--kontinuerlig"
+DEFAULT_CONFIG_ID = "did--midl-lonnstilskudd--alle--regioner--kontinuerlig--vektet"
 
 
 def get_config(run_id: str) -> GeneratedConfig:

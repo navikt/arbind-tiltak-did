@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING, Any
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import pandas as pd
+
 from report.utils import (
     BLUE_DARK as _BLUE,
 )
@@ -270,8 +271,8 @@ def _generate_intro(
         "",
         "Modellen inkluderer region-faste effekter, tidspunkt-faste effekter og en",
         f"gruppe × tid-interaksjon for å skille {treated}-trenden fra den nasjonale",
-        "trenden. Den foretrukne spesifikasjonen legger i tillegg til region ×",
-        "kalendermåned-faste effekter for å absorbere regionspesifikke sesongmønstre.",
+        "trenden. Den foretrukne spesifikasjonen bruker i stedet en sesongjustert",
+        "indikator; begge spesifikasjoner har ellers samme faste effekter.",
         "",
         "> **Signifikansnivå:** \\* p < 0,10 &nbsp; \\*\\* p < 0,05 &nbsp; \\*\\*\\* p < 0,01  ",
         "> Standardfeil er clustret på regionnivå (CR1 småutvalgskorrigering).  ",
@@ -423,7 +424,7 @@ def _generate_regression(
         "To modellspesifikasjoner estimeres:",
         "",
         "- **Basis:** Region FE + år-måned FE + gruppe × tid",
-        "- **Sesongjustert (foretrukket):** Basis + region × kalendermåned FE",
+        "- **Sesongjustert (foretrukket):** Basis med sesongjustert indikator",
         "",
     ]
 
